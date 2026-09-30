@@ -17,7 +17,8 @@ export default function CategoryGrid() {
               Shop By Category
             </h2>
             <p className="text-[15px] sm:text-[16px] text-[#5A5650] mt-1.5 font-normal">
-              Explore targeted formulations designed for every stage of your skincare ritual
+              Explore targeted formulations designed for every stage of your
+              skincare ritual
             </p>
           </div>
           <Link
@@ -35,7 +36,7 @@ export default function CategoryGrid() {
             <Link
               key={category.id}
               href={`/collections/${category.slug}`}
-              className="group flex flex-col items-center bg-[#FFFFFF] border border-[#E8E3DA] hover:border-[#1A1A1A] p-3 sm:p-4 rounded-xs transition-all duration-300 text-center"
+              className="group flex flex-col items-center bg-[#FFFFFF] border border-[#E8E3DA] hover:border-[#1A1A1A] rounded-xs transition-all duration-300 text-center"
             >
               <div className="w-full aspect-square relative bg-[#EFECE4] rounded-xs overflow-hidden mb-3">
                 <Image
@@ -49,7 +50,7 @@ export default function CategoryGrid() {
               <h3 className="text-[16px] font-semibold text-[#1A1A1A] group-hover:text-[#4E5942] transition-colors leading-tight">
                 {category.name}
               </h3>
-              <span className="text-[14px] text-[#736E67] mt-1 font-normal">
+              <span className="text-[14px] text-[#736E67] mt-1 font-normal pb-3">
                 {category.itemCount} items
               </span>
             </Link>
