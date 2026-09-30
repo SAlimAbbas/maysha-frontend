@@ -23,24 +23,24 @@ export default function EditorialSection() {
 
           {/* Right Narrative Copy */}
           <div className="lg:col-span-6 p-8 sm:p-12 lg:p-16 flex flex-col justify-center">
-            <span className="text-xs uppercase tracking-[0.18em] font-semibold text-[#4E5942] mb-3 block">
+            <span className="text-[14px] uppercase tracking-[0.16em] font-semibold text-[#4E5942] mb-3 block">
               Formulation Ethics
             </span>
-            <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-normal text-[#1A1A1A] leading-tight mb-5">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-semibold text-[#1A1A1A] leading-tight mb-5">
               Natural Ingredients. <br />
-              <span className="italic">Visible Results.</span>
+              <span className="italic font-normal">Visible Results.</span>
             </h2>
-            <p className="text-sm sm:text-base text-[#5A5650] leading-relaxed max-w-lg mb-8 font-light">
+            <p className="text-[17px] sm:text-[18px] text-[#4A4640] leading-relaxed max-w-lg mb-8 font-normal">
               We reject the false compromise between natural purity and clinical efficacy. Every Maysha formulation begins with potent plant adaptogens, biocompatible antioxidants, and barrier-repairing ceramides proven to produce tangible results on real skin.
             </p>
 
             <div>
               <Link
                 href="/about"
-                className="group inline-flex items-center gap-2 text-xs uppercase tracking-wider font-semibold text-[#1A1A1A] hover:text-[#4E5942] border-b border-[#1A1A1A] pb-1 hover:border-[#4E5942] transition-colors"
+                className="group inline-flex items-center gap-2 text-[15px] uppercase tracking-wider font-semibold text-[#1A1A1A] hover:text-[#4E5942] border-b-2 border-[#1A1A1A] pb-1 hover:border-[#4E5942] transition-colors"
               >
                 <span>Learn More</span>
-                <ArrowRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-1" />
+                <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
               </Link>
             </div>
           </div>

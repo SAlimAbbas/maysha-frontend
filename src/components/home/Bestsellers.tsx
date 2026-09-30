@@ -24,10 +24,10 @@ export default function Bestsellers() {
         {/* Section Header with Skeleton Demo Toggle */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8 sm:mb-10">
           <div>
-            <h2 className="font-serif text-2xl sm:text-3xl font-normal text-[#1A1A1A]">
+            <h2 className="text-2xl sm:text-3xl font-semibold text-[#1A1A1A]">
               Bestsellers
             </h2>
-            <p className="text-xs sm:text-sm text-[#736E67] mt-1">
+            <p className="text-[15px] sm:text-[16px] text-[#5A5650] mt-1.5 font-normal">
               Our most celebrated formulations, backed by glowing customer reviews
             </p>
           </div>
@@ -35,19 +35,19 @@ export default function Bestsellers() {
           <div className="flex items-center gap-4">
             <button
               onClick={handleSimulateSkeleton}
-              className="text-[11px] text-[#5A5650] hover:text-[#1A1A1A] bg-[#EFECE4] px-2.5 py-1 rounded-2xs border border-[#E2DDD2] flex items-center gap-1.5 transition-colors"
+              className="text-[14px] font-medium text-[#4A4640] hover:text-[#1A1A1A] bg-[#EFECE4] px-3 py-1.5 rounded-2xs border border-[#E2DDD2] flex items-center gap-1.5 transition-colors"
               title="Preview loading skeleton state"
             >
-              <Loader2 className={`w-3 h-3 ${simulatedLoading ? "animate-spin" : ""}`} />
+              <Loader2 className={`w-3.5 h-3.5 ${simulatedLoading ? "animate-spin" : ""}`} />
               <span>Preview Skeleton UI</span>
             </button>
 
             <Link
               href="/shop"
-              className="group flex items-center gap-1.5 text-xs uppercase tracking-wider font-semibold text-[#1A1A1A] hover:text-[#4E5942] transition-colors"
+              className="group flex items-center gap-1.5 text-[15px] uppercase tracking-wider font-semibold text-[#1A1A1A] hover:text-[#4E5942] transition-colors"
             >
               <span>View All</span>
-              <ArrowRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-1" />
+              <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
             </Link>
           </div>
         </div>

@@ -30,7 +30,6 @@ export default function SearchModal() {
     };
   }, [isSearchOpen]);
 
-  // Handle escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isSearchOpen) {
@@ -41,7 +40,6 @@ export default function SearchModal() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isSearchOpen, closeSearch]);
 
-  // Debounced search with realistic skeleton transition
   useEffect(() => {
     if (!query.trim()) {
       setResults([]);
@@ -81,31 +79,31 @@ export default function SearchModal() {
         aria-label="Search storefront"
       >
         {/* Search Input Bar */}
-        <div className="flex items-center px-4 sm:px-6 py-4 border-b border-[#E8E3DA] bg-[#FBF9F5]">
-          <Search className="w-5 h-5 text-[#8C867D] mr-3 shrink-0" />
+        <div className="flex items-center px-4 sm:px-6 py-4.5 border-b border-[#E8E3DA] bg-[#FBF9F5]">
+          <Search className="w-5 h-5 text-[#736E67] mr-3 shrink-0" />
           <input
             ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search cleansers, serums, sunscreens..."
-            className="w-full bg-transparent text-base text-[#1A1A1A] placeholder-[#8C867D] focus:outline-hidden"
+            className="w-full bg-transparent text-[16px] text-[#1A1A1A] placeholder-[#736E67] focus:outline-hidden"
           />
           {query && (
             <button
               onClick={() => setQuery("")}
-              className="p-1 text-[#8C867D] hover:text-[#1A1A1A] mr-2"
+              className="p-1 text-[#736E67] hover:text-[#1A1A1A] mr-2"
               aria-label="Clear query"
             >
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             </button>
           )}
           <button
             onClick={closeSearch}
-            className="p-1.5 text-[#5A5650] hover:text-[#1A1A1A] transition-colors"
+            className="p-2 text-[#4A4640] hover:text-[#1A1A1A] transition-colors"
             aria-label="Close search"
           >
-            <span className="text-xs uppercase tracking-wider font-medium hidden sm:inline mr-1">
+            <span className="text-[13px] uppercase tracking-wider font-semibold hidden sm:inline mr-1.5">
               ESC
             </span>
             <X className="w-5 h-5 inline" />
@@ -122,7 +120,7 @@ export default function SearchModal() {
             </div>
           ) : query && results.length > 0 ? (
             <div>
-              <p className="text-xs uppercase tracking-wider text-[#8C867D] font-medium mb-3">
+              <p className="text-[14px] uppercase tracking-wider text-[#736E67] font-semibold mb-3.5">
                 {results.length} Products Found
               </p>
               <div className="space-y-2">
@@ -131,31 +129,31 @@ export default function SearchModal() {
                     key={product.id}
                     href={`/products/${product.slug}`}
                     onClick={closeSearch}
-                    className="flex items-center gap-4 p-2.5 hover:bg-[#FBF9F5] transition-colors group rounded-xs"
+                    className="flex items-center gap-4 p-3 hover:bg-[#FBF9F5] transition-colors group rounded-xs"
                   >
-                    <div className="w-14 h-14 relative bg-[#EFECE4] overflow-hidden shrink-0">
+                    <div className="w-16 h-16 relative bg-[#EFECE4] overflow-hidden shrink-0">
                       <Image
                         src={product.images[0]}
                         alt={product.name}
                         fill
                         className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        sizes="56px"
+                        sizes="64px"
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-medium text-[#1A1A1A] group-hover:text-[#4E5942] transition-colors truncate">
+                      <h4 className="text-[18px] font-semibold text-[#1A1A1A] group-hover:text-[#4E5942] transition-colors truncate">
                         {product.name}
                       </h4>
-                      <p className="text-xs text-[#8C867D] truncate">
+                      <p className="text-[15px] text-[#736E67] truncate mt-0.5">
                         {product.category} • {product.size}
                       </p>
                     </div>
                     <div className="text-right shrink-0">
-                      <span className="text-sm font-medium text-[#1A1A1A]">
+                      <span className="text-[17px] font-bold text-[#1A1A1A]">
                         ₹{product.price}
                       </span>
                       {product.mrp > product.price && (
-                        <span className="text-xs text-[#8C867D] line-through block">
+                        <span className="text-[14px] text-[#736E67] line-through block font-normal">
                           ₹{product.mrp}
                         </span>
                       )}
@@ -163,28 +161,28 @@ export default function SearchModal() {
                   </Link>
                 ))}
               </div>
-              <div className="mt-4 pt-3 text-center border-t border-[#E8E3DA]">
+              <div className="mt-5 pt-3.5 text-center border-t border-[#E8E3DA]">
                 <Link
                   href={`/shop?search=${encodeURIComponent(query)}`}
                   onClick={closeSearch}
-                  className="inline-flex items-center gap-1.5 text-xs font-medium text-[#4E5942] hover:underline"
+                  className="inline-flex items-center gap-1.5 text-[15px] font-semibold text-[#4E5942] hover:underline"
                 >
-                  View all search results <ArrowRight className="w-3.5 h-3.5" />
+                  View all search results <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
             </div>
           ) : query && !isLoading ? (
             <div className="text-center py-10">
-              <p className="text-base text-[#1A1A1A] font-medium">
+              <p className="text-[17px] text-[#1A1A1A] font-semibold">
                 No products found for &ldquo;{query}&rdquo;
               </p>
-              <p className="text-xs text-[#8C867D] mt-1">
+              <p className="text-[15px] text-[#736E67] mt-1.5 font-normal">
                 Try searching for &ldquo;Cleanser&rdquo;, &ldquo;Vitamin C&rdquo;, or &ldquo;Ceramides&rdquo;.
               </p>
             </div>
           ) : (
             <div>
-              <p className="text-xs uppercase tracking-wider text-[#8C867D] font-medium mb-3">
+              <p className="text-[14px] uppercase tracking-wider text-[#736E67] font-semibold mb-3">
                 Trending Searches
               </p>
               <div className="flex flex-wrap gap-2 mb-6">
@@ -193,7 +191,7 @@ export default function SearchModal() {
                     <button
                       key={term}
                       onClick={() => setQuery(term)}
-                      className="text-xs bg-[#F5F2EB] hover:bg-[#EFECE4] text-[#1A1A1A] px-3 py-1.5 rounded-full transition-colors active:scale-95"
+                      className="text-[15px] bg-[#F5F2EB] hover:bg-[#EFECE4] text-[#1A1A1A] px-3.5 py-2 rounded-full transition-colors active:scale-95 font-medium"
                     >
                       {term}
                     </button>
@@ -201,10 +199,10 @@ export default function SearchModal() {
                 )}
               </div>
 
-              <p className="text-xs uppercase tracking-wider text-[#8C867D] font-medium mb-3">
+              <p className="text-[14px] uppercase tracking-wider text-[#736E67] font-semibold mb-3">
                 Featured Categories
               </p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 {[
                   { name: "Cleansers", href: "/collections/cleansers" },
                   { name: "Serums", href: "/collections/serums" },
@@ -215,7 +213,7 @@ export default function SearchModal() {
                     key={cat.name}
                     href={cat.href}
                     onClick={closeSearch}
-                    className="p-3 bg-[#FBF9F5] border border-[#E8E3DA] text-center hover:border-[#1A1A1A] transition-colors rounded-xs text-xs font-medium text-[#1A1A1A]"
+                    className="p-3.5 bg-[#FBF9F5] border border-[#E8E3DA] text-center hover:border-[#1A1A1A] transition-colors rounded-xs text-[15px] font-semibold text-[#1A1A1A]"
                   >
                     {cat.name}
                   </Link>

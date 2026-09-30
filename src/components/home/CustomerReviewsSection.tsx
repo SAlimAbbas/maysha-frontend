@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import Link from "next/link";
-import { Star, CheckCircle, ChevronLeft, ChevronRight, Quote } from "lucide-react";
+import { Star, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { CUSTOMER_REVIEWS } from "@/data/reviews";
 
 export default function CustomerReviewsSection() {
@@ -24,10 +23,10 @@ export default function CustomerReviewsSection() {
       <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-end justify-between mb-8 sm:mb-10">
           <div>
-            <h2 className="font-serif text-2xl sm:text-3xl font-normal text-[#1A1A1A]">
+            <h2 className="text-2xl sm:text-3xl font-semibold text-[#1A1A1A]">
               What Our Customers Say
             </h2>
-            <p className="text-xs sm:text-sm text-[#736E67] mt-1">
+            <p className="text-[15px] sm:text-[16px] text-[#5A5650] mt-1.5 font-normal">
               Real stories and experiences from verified Maysha users
             </p>
           </div>
@@ -35,17 +34,17 @@ export default function CustomerReviewsSection() {
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrev}
-              className="p-2 border border-[#E8E3DA] hover:border-[#1A1A1A] rounded-full transition-colors"
+              className="p-2.5 border border-[#E8E3DA] hover:border-[#1A1A1A] rounded-full transition-colors"
               aria-label="Previous reviews"
             >
-              <ChevronLeft className="w-4 h-4 text-[#1A1A1A]" />
+              <ChevronLeft className="w-5 h-5 text-[#1A1A1A]" />
             </button>
             <button
               onClick={handleNext}
-              className="p-2 border border-[#E8E3DA] hover:border-[#1A1A1A] rounded-full transition-colors"
+              className="p-2.5 border border-[#E8E3DA] hover:border-[#1A1A1A] rounded-full transition-colors"
               aria-label="Next reviews"
             >
-              <ChevronRight className="w-4 h-4 text-[#1A1A1A]" />
+              <ChevronRight className="w-5 h-5 text-[#1A1A1A]" />
             </button>
           </div>
         </div>
@@ -54,38 +53,38 @@ export default function CustomerReviewsSection() {
           {displayedReviews.map((rev) => (
             <div
               key={rev.id}
-              className="bg-[#FFFFFF] border border-[#E8E3DA] p-6 rounded-xs flex flex-col justify-between hover:shadow-xs transition-shadow"
+              className="bg-[#FFFFFF] border border-[#E8E3DA] p-6 sm:p-7 rounded-xs flex flex-col justify-between hover:shadow-xs transition-shadow"
             >
               <div>
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-3.5">
                   <div className="flex text-[#D4A373]">
                     {Array.from({ length: rev.rating }).map((_, i) => (
-                      <Star key={i} className="w-3.5 h-3.5 fill-current" />
+                      <Star key={i} className="w-4 h-4 fill-current" />
                     ))}
                   </div>
-                  <span className="text-[11px] text-[#8C867D]">{rev.date}</span>
+                  <span className="text-[14px] text-[#736E67] font-medium">{rev.date}</span>
                 </div>
 
-                <h4 className="font-serif text-base font-medium text-[#1A1A1A] mb-2 leading-snug">
+                <h4 className="text-[18px] font-semibold text-[#1A1A1A] mb-2 leading-snug">
                   &ldquo;{rev.title}&rdquo;
                 </h4>
-                <p className="text-xs text-[#5A5650] leading-relaxed mb-6 font-light">
+                <p className="text-[15px] text-[#4A4640] leading-relaxed mb-6 font-normal">
                   {rev.comment}
                 </p>
               </div>
 
               <div className="pt-4 border-t border-[#F0ECE4] flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold text-[#1A1A1A] flex items-center gap-1.5">
+                  <p className="text-[15px] font-semibold text-[#1A1A1A] flex items-center gap-1.5">
                     {rev.author}
                     {rev.isVerified && (
-                      <span className="inline-flex items-center gap-0.5 text-[10px] text-[#4E5942] font-normal">
-                        <CheckCircle className="w-3 h-3 text-[#4E5942]" /> Verified
+                      <span className="inline-flex items-center gap-1 text-[13px] text-[#4E5942] font-semibold">
+                        <CheckCircle className="w-3.5 h-3.5 text-[#4E5942]" /> Verified
                       </span>
                     )}
                   </p>
-                  <p className="text-[11px] text-[#8C867D] mt-0.5">
-                    Purchased: <span className="text-[#5A5650]">{rev.productName}</span>
+                  <p className="text-[14px] text-[#736E67] mt-0.5 font-normal">
+                    Purchased: <span className="text-[#1A1A1A] font-medium">{rev.productName}</span>
                   </p>
                 </div>
               </div>

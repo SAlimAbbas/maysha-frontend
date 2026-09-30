@@ -1,4 +1,23 @@
+@import url('https://fonts.cdnfonts.com/css/proxima-nova');
 @import "tailwindcss";
+
+@font-face {
+  font-family: 'ProximaNovaRegular';
+  src: local('Proxima Nova Regular'), local('ProximaNova-Regular'), local('Proxima Nova'),
+       url('https://fonts.cdnfonts.com/s/15011/ProximaNova-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'ProximaNovaSemibold';
+  src: local('Proxima Nova Semibold'), local('ProximaNova-Semibold'),
+       url('https://fonts.cdnfonts.com/s/15011/ProximaNova-Semibold.woff') format('woff');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
 
 :root {
   /* Maysha Color Palette */
@@ -11,13 +30,17 @@
   
   /* Text and Accents */
   --maysha-text-primary: #1A1A1A;
-  --maysha-text-secondary: #5A5650;
-  --maysha-text-muted: #8C867D;
+  --maysha-text-secondary: #4A4640;
+  --maysha-text-muted: #736E67;
   --maysha-accent-sage: #4E5942;
   --maysha-accent-sage-dark: #3F4835;
   --maysha-accent-olive: #3E4534;
   --maysha-discount-red: #A94438;
   --maysha-star-gold: #D4A373;
+
+  /* Font Families */
+  --font-family-base: 'ProximaNovaRegular', 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-family-semibold: 'ProximaNovaSemibold', 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
   /* Spacing & Layout */
   --container-max-width: 1360px;
@@ -43,6 +66,12 @@
   --color-maysha-olive: var(--maysha-accent-olive);
   --color-maysha-discount: var(--maysha-discount-red);
   --color-maysha-gold: var(--maysha-star-gold);
+  --font-sans: var(--font-family-base);
+  --font-serif: var(--font-family-base);
+}
+
+html {
+  font-size: 16px;
 }
 
 * {
@@ -52,9 +81,16 @@
 body {
   background-color: var(--maysha-bg);
   color: var(--maysha-text-primary);
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  font-family: 'ProximaNovaRegular', 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'ProximaNovaRegular', 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  letter-spacing: -0.01em;
 }
 
 /* Warm shimmer skeleton animation */
@@ -78,7 +114,7 @@ body {
   animation: shimmerWarm 1.8s infinite ease-in-out;
 }
 
-/* Custom scrollbar for modern browsers */
+/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

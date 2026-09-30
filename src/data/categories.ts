@@ -14,7 +14,7 @@ export const CATEGORIES: Category[] = [
     slug: "toners",
     name: "Toners",
     subtitle: "Hydrating essences to rebalance and prep your skin barrier",
-    image: "https://images.unsplash.com/photo-1608248597359-0a69a9e32a68?auto=format&fit=crop&w=600&q=80",
+    image: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=600&q=80",
     itemCount: 3
   },
   {
@@ -38,7 +38,7 @@ export const CATEGORIES: Category[] = [
     slug: "sunscreen",
     name: "Sunscreen",
     subtitle: "Broad-spectrum mineral SPF with zero white cast finish",
-    image: "https://images.unsplash.com/photo-1567928815104-b7980ee5032e?auto=format&fit=crop&w=600&q=80",
+    image: "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80",
     itemCount: 2
   },
   {
@@ -57,7 +57,7 @@ export const CONCERNS: Concern[] = [
     slug: "uneven-tone",
     name: "Uneven Tone",
     description: "Fade stubborn dark spots and sun pigmentation for radiant clarity",
-    image: "https://images.unsplash.com/photo-1512290900672-1f486a422119?auto=format&fit=crop&w=600&q=80"
+    image: "https://images.unsplash.com/photo-1535585209827-a15fcdbc4c2d?auto=format&fit=crop&w=600&q=80"
   },
   {
     id: "con-2",
@@ -85,6 +85,6 @@ export const CONCERNS: Concern[] = [
     slug: "fine-lines-aging",
     name: "Fine Lines & Aging",
     description: "Support collagen renewal and firmness with bakuchiol and tripeptides",
-    image: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=600&q=80"
+    image: "https://images.unsplash.com/photo-1508759073847-9ca702cec7d2?auto=format&fit=crop&w=600&q=80"
   }
 ];

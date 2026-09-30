@@ -13,19 +13,19 @@ export default function CategoryGrid() {
         {/* Section Header */}
         <div className="flex items-end justify-between mb-8 sm:mb-10">
           <div>
-            <h2 className="font-serif text-2xl sm:text-3xl font-normal text-[#1A1A1A]">
+            <h2 className="text-2xl sm:text-3xl font-semibold text-[#1A1A1A]">
               Shop By Category
             </h2>
-            <p className="text-xs sm:text-sm text-[#736E67] mt-1">
+            <p className="text-[15px] sm:text-[16px] text-[#5A5650] mt-1.5 font-normal">
               Explore targeted formulations designed for every stage of your skincare ritual
             </p>
           </div>
           <Link
             href="/shop"
-            className="group flex items-center gap-1.5 text-xs uppercase tracking-wider font-semibold text-[#1A1A1A] hover:text-[#4E5942] transition-colors"
+            className="group flex items-center gap-1.5 text-[15px] uppercase tracking-wider font-semibold text-[#1A1A1A] hover:text-[#4E5942] transition-colors"
           >
             <span>View All</span>
-            <ArrowRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-1" />
+            <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
           </Link>
         </div>
 
@@ -46,10 +46,10 @@ export default function CategoryGrid() {
                   className="object-cover group-hover:scale-108 transition-transform duration-500 ease-out"
                 />
               </div>
-              <h3 className="font-serif text-sm font-medium text-[#1A1A1A] group-hover:text-[#4E5942] transition-colors leading-tight">
+              <h3 className="text-[16px] font-semibold text-[#1A1A1A] group-hover:text-[#4E5942] transition-colors leading-tight">
                 {category.name}
               </h3>
-              <span className="text-[11px] text-[#8C867D] mt-0.5">
+              <span className="text-[14px] text-[#736E67] mt-1 font-normal">
                 {category.itemCount} items
               </span>
             </Link>

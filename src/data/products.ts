@@ -22,8 +22,8 @@ export const PRODUCTS: Product[] = [
     images: [
       "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=900&q=85",
       "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=900&q=85",
-      "https://images.unsplash.com/photo-1556228722-d0b74052f52a?auto=format&fit=crop&w=900&q=85",
-      "https://images.unsplash.com/photo-1608248597359-0a69a9e32a68?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?auto=format&fit=crop&w=900&q=85",
     ],
     hoverImage: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=900&q=85",
     variants: [
@@ -61,7 +61,7 @@ export const PRODUCTS: Product[] = [
     inStock: true,
     isFeatured: true,
     images: [
-      "https://images.unsplash.com/photo-1608248597359-0a69a9e32a68?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=900&q=85",
       "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=900&q=85",
       "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=900&q=85",
     ],
@@ -101,10 +101,10 @@ export const PRODUCTS: Product[] = [
     isFeatured: true,
     images: [
       "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=900&q=85",
-      "https://images.unsplash.com/photo-1608248597359-0a69a9e32a68?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=900&q=85",
       "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=900&q=85",
     ],
-    hoverImage: "https://images.unsplash.com/photo-1608248597359-0a69a9e32a68?auto=format&fit=crop&w=900&q=85",
+    hoverImage: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=900&q=85",
     variants: [
       { id: "var-3-30", size: "30 ml", price: 699, mrp: 1299, inStock: true },
       { id: "var-3-50", size: "50 ml", price: 1049, mrp: 1899, inStock: true }
@@ -141,7 +141,7 @@ export const PRODUCTS: Product[] = [
     images: [
       "https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?auto=format&fit=crop&w=900&q=85",
       "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=900&q=85",
-      "https://images.unsplash.com/photo-1608248597359-0a69a9e32a68?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=900&q=85",
     ],
     hoverImage: "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=900&q=85",
     variants: [
@@ -178,10 +178,10 @@ export const PRODUCTS: Product[] = [
     inStock: true,
     isFeatured: true,
     images: [
-      "https://images.unsplash.com/photo-1567928815104-b7980ee5032e?auto=format&fit=crop&w=900&q=85",
       "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=900&q=85",
     ],
-    hoverImage: "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=900&q=85",
+    hoverImage: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=900&q=85",
     variants: [
       { id: "var-5-50", size: "50 g", price: 499, mrp: 899, inStock: true },
       { id: "var-5-100", size: "100 g", price: 799, mrp: 1499, inStock: true }
@@ -217,9 +217,9 @@ export const PRODUCTS: Product[] = [
     isFeatured: false,
     images: [
       "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=900&q=85",
-      "https://images.unsplash.com/photo-1608248597359-0a69a9e32a68?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=900&q=85",
     ],
-    hoverImage: "https://images.unsplash.com/photo-1608248597359-0a69a9e32a68?auto=format&fit=crop&w=900&q=85",
+    hoverImage: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=900&q=85",
     variants: [
       { id: "var-6-100", size: "100 ml", price: 599, mrp: 1199, inStock: true }
     ],
@@ -254,9 +254,9 @@ export const PRODUCTS: Product[] = [
     isFeatured: false,
     images: [
       "https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?auto=format&fit=crop&w=900&q=85",
-      "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=900&q=85",
     ],
-    hoverImage: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=900&q=85",
+    hoverImage: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=900&q=85",
     variants: [
       { id: "var-7-50", size: "50 g", price: 799, mrp: 1499, inStock: true }
     ],
@@ -290,10 +290,10 @@ export const PRODUCTS: Product[] = [
     inStock: true,
     isFeatured: false,
     images: [
-      "https://images.unsplash.com/photo-1608248597359-0a69a9e32a68?auto=format&fit=crop&w=900&q=85",
       "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=900&q=85",
+      "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=900&q=85",
     ],
-    hoverImage: "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=900&q=85",
+    hoverImage: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=900&q=85",
     variants: [
       { id: "var-8-30", size: "30 ml", price: 649, mrp: 1199, inStock: true }
     ],

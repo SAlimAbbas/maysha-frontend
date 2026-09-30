@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, ShoppingBag, Menu, User, Sparkles } from "lucide-react";
+import { Search, ShoppingBag, Menu, User } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
 import { useUIStore } from "@/stores/uiStore";
 
@@ -48,7 +48,7 @@ export default function Header() {
               className="lg:hidden p-1.5 -ml-1.5 text-[#1A1A1A] hover:text-[#4E5942] transition-colors"
               aria-label="Open mobile navigation"
             >
-              <Menu className="w-5 h-5" />
+              <Menu className="w-6 h-6" />
             </button>
 
             {/* Branded Logo */}
@@ -57,12 +57,12 @@ export default function Header() {
               className="group flex items-center gap-1.5 focus:outline-hidden"
               aria-label="Maysha Homepage"
             >
-              <span className="font-serif text-2xl sm:text-3xl font-normal tracking-[0.18em] text-[#1A1A1A] group-hover:text-[#4E5942] transition-colors uppercase">
+              <span className="text-2xl sm:text-3xl font-semibold tracking-[0.16em] text-[#1A1A1A] group-hover:text-[#4E5942] transition-colors uppercase">
                 MAYSHA
               </span>
             </Link>
 
-            {/* Desktop Navigation Links */}
+            {/* Desktop Navigation Links (16px) */}
             <nav className="hidden lg:flex items-center gap-8 ml-6">
               {navLinks.map((link) => {
                 const isActive = pathname === link.href;
@@ -70,13 +70,13 @@ export default function Header() {
                   <Link
                     key={link.label}
                     href={link.href}
-                    className={`relative text-sm tracking-wide transition-colors py-1 group ${
-                      isActive ? "text-[#1A1A1A] font-medium" : "text-[#5A5650] hover:text-[#1A1A1A]"
+                    className={`relative text-[16px] tracking-wide transition-colors py-1 group ${
+                      isActive ? "text-[#1A1A1A] font-semibold" : "text-[#4A4640] hover:text-[#1A1A1A]"
                     }`}
                   >
                     {link.label}
                     <span
-                      className={`absolute bottom-0 left-0 w-full h-[1.5px] bg-[#4E5942] transition-transform duration-200 origin-left ${
+                      className={`absolute bottom-0 left-0 w-full h-[2px] bg-[#4E5942] transition-transform duration-200 origin-left ${
                         isActive ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"
                       }`}
                     />
@@ -87,15 +87,15 @@ export default function Header() {
           </div>
 
           {/* Right Action Icons */}
-          <div className="flex items-center gap-1 sm:gap-2">
-            {/* Search Trigger */}
+          <div className="flex items-center gap-1.5 sm:gap-3">
+            {/* Search Trigger (15px label) */}
             <button
               onClick={openSearch}
-              className="p-2 text-[#1A1A1A] hover:text-[#4E5942] hover:bg-[#F5F2EB] rounded-full transition-all active:scale-95 flex items-center gap-1.5"
+              className="p-2 text-[#1A1A1A] hover:text-[#4E5942] hover:bg-[#F5F2EB] rounded-full transition-all active:scale-95 flex items-center gap-2"
               aria-label="Open search dialog"
             >
-              <Search className="w-4 sm:w-[18px] h-4 sm:h-[18px]" />
-              <span className="hidden md:inline text-xs text-[#8C867D]">
+              <Search className="w-5 h-5" />
+              <span className="hidden md:inline text-[15px] font-medium text-[#4A4640]">
                 Search
               </span>
             </button>
@@ -106,7 +106,7 @@ export default function Header() {
               className="p-2 text-[#1A1A1A] hover:text-[#4E5942] hover:bg-[#F5F2EB] rounded-full transition-all active:scale-95"
               aria-label="User Account"
             >
-              <User className="w-4 sm:w-[18px] h-4 sm:h-[18px]" />
+              <User className="w-5 h-5" />
             </Link>
 
             {/* Cart Drawer Trigger with Badge */}
@@ -115,9 +115,9 @@ export default function Header() {
               className="p-2 text-[#1A1A1A] hover:text-[#4E5942] hover:bg-[#F5F2EB] rounded-full transition-all active:scale-95 relative flex items-center"
               aria-label={`Open shopping cart (${totalItems} items)`}
             >
-              <ShoppingBag className="w-4 sm:w-[18px] h-4 sm:h-[18px]" />
+              <ShoppingBag className="w-5 h-5" />
               {totalItems > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 bg-[#4E5942] text-[#FBF9F5] text-[10px] font-semibold min-w-4 h-4 rounded-full flex items-center justify-center px-1 shadow-xs animate-in zoom-in-50 duration-200">
+                <span className="absolute -top-1 -right-1 bg-[#4E5942] text-[#FBF9F5] text-[13px] font-bold min-w-5 h-5 rounded-full flex items-center justify-center px-1 shadow-xs animate-in zoom-in-50 duration-200">
                   {totalItems}
                 </span>
               )}
