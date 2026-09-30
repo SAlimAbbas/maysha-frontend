@@ -1,98 +1,284 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Sparkles, Shield, Leaf } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
+import { Banner, DEFAULT_BANNERS, fetchActiveBanners } from "@/data/banners";
 
-export default function Hero() {
+interface HeroProps {
+  initialBanners?: Banner[];
+}
+
+export default function Hero({ initialBanners }: HeroProps) {
+  const [banners, setBanners] = useState<Banner[]>(
+    initialBanners && initialBanners.length > 0 ? initialBanners.slice(0, 7) : DEFAULT_BANNERS.slice(0, 7)
+  );
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [touchEndX, setTouchEndX] = useState<number | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const autoPlayRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Dynamic fetch from backend API if available
+  useEffect(() => {
+    let isMounted = true;
+    fetchActiveBanners()
+      .then((data) => {
+        if (isMounted && data && data.length > 0) {
+          setBanners(data.slice(0, 7));
+        }
+      })
+      .catch(() => {
+        // Fall back gracefully to DEFAULT_BANNERS
+      })
+      .finally(() => {
+        if (isMounted) setIsLoaded(true);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const total = banners.length;
+
+  const goToNext = useCallback(() => {
+    if (total <= 1) return;
+    setCurrentIndex((prev) => (prev + 1) % total);
+  }, [total]);
+
+  const goToPrev = useCallback(() => {
+    if (total <= 1) return;
+    setCurrentIndex((prev) => (prev - 1 + total) % total);
+  }, [total]);
+
+  const goToSlide = (index: number) => {
+    setCurrentIndex(index);
+  };
+
+  // Autoplay timer (5 seconds)
+  useEffect(() => {
+    if (total <= 1 || isPaused) {
+      if (autoPlayRef.current) clearInterval(autoPlayRef.current);
+      return;
+    }
+
+    autoPlayRef.current = setInterval(() => {
+      goToNext();
+    }, 5000);
+
+    return () => {
+      if (autoPlayRef.current) clearInterval(autoPlayRef.current);
+    };
+  }, [goToNext, isPaused, total, currentIndex]);
+
+  // Touch swipe handling for mobile & tablet
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.targetTouches[0].clientX);
+    setIsPaused(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEndX(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStartX || !touchEndX) {
+      setIsPaused(false);
+      return;
+    }
+    const distance = touchStartX - touchEndX;
+    const isSwipeLeft = distance > 50;
+    const isSwipeRight = distance < -50;
+
+    if (isSwipeLeft) {
+      goToNext();
+    } else if (isSwipeRight) {
+      goToPrev();
+    }
+
+    setTouchStartX(null);
+    setTouchEndX(null);
+    setIsPaused(false);
+  };
+
+  // Keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowLeft") goToPrev();
+    if (e.key === "ArrowRight") goToNext();
+  };
+
+  if (!banners || banners.length === 0) {
+    return null;
+  }
+
+  const currentBanner = banners[currentIndex];
+
   return (
-    <section className="relative overflow-hidden bg-[#FBF9F5] border-b border-[#E8E3DA]">
-      <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 lg:py-24">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-          {/* Left Text Column */}
-          <div className="lg:col-span-6 space-y-6 sm:space-y-8 z-10">
-            <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full bg-[#EFECE4] border border-[#E2DDD2] text-[14px] font-semibold text-[#4E5942]">
-              <span>Restorative Clinical Botanical Formulations</span>
-            </div>
-
-            <div className="space-y-4">
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight text-[#1A1A1A] leading-[1.12]">
-                Clean Beauty <br className="hidden sm:inline" />
-                <span className="italic font-normal">for Real Skin</span>
-              </h1>
-              <p className="text-[17px] sm:text-[18px] text-[#4A4640] max-w-lg leading-relaxed font-normal">
-                Thoughtfully crafted skincare that works with your skin, not
-                against it. Biocompatible pH-balanced formulations with zero
-                harmful additives.
-              </p>
-            </div>
-
-            {/* CTAs */}
-            <div className="flex flex-wrap items-center gap-4 pt-2">
-              <Link
-                href="/shop"
-                className="bg-[#1A1A1A] hover:bg-[#333333] text-[#FBF9F5] px-8 py-4 text-[15px] sm:text-[16px] uppercase tracking-wider font-semibold rounded-2xs transition-all duration-200 shadow-xs hover:shadow-md active:scale-95 flex items-center gap-2.5 group"
+    <section
+      aria-label="Promotional Carousel"
+      className="relative w-full bg-[#FBF9F5] border-b border-[#E8E3DA] overflow-hidden select-none"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+    >
+      {/* Banner Container: Highly optimized aspect ratios for mobile (16:10 / 16:9), tablet (16:7), desktop (21:9 or ~2.6:1) */}
+      <div
+        className="relative w-full overflow-hidden"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div className="relative w-full h-[260px] xs:h-[320px] sm:h-[400px] md:h-[460px] lg:h-[520px] xl:h-[580px]">
+          {banners.map((banner, index) => {
+            const isActive = index === currentIndex;
+            return (
+              <div
+                key={banner.id || index}
+                aria-hidden={!isActive}
+                className={`absolute inset-0 w-full h-full transition-opacity duration-700 ease-in-out ${
+                  isActive ? "opacity-100 z-10 pointer-events-auto" : "opacity-0 z-0 pointer-events-none"
+                }`}
               >
-                <span>Shop Now</span>
-                <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
-              </Link>
-              <Link
-                href="/about"
-                className="text-[#1A1A1A] hover:text-[#4E5942] px-6 py-4 text-[15px] sm:text-[16px] uppercase tracking-wider font-semibold transition-colors flex items-center gap-1.5"
-              >
-                <span>Our Philosophy</span>
-              </Link>
-            </div>
+                <Link
+                  href={banner.linkUrl || "/shop"}
+                  className="block relative w-full h-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1A1A1A] focus:ring-inset"
+                  tabIndex={isActive ? 0 : -1}
+                  aria-label={banner.title}
+                >
+                  {/* Banner Image */}
+                  <div className="relative w-full h-full bg-[#EFECE4]">
+                    <Image
+                      src={banner.desktopImage}
+                      alt={banner.title || "Maysha Skincare Banner"}
+                      fill
+                      priority={index === 0}
+                      quality={92}
+                      sizes="100vw"
+                      className="object-cover object-center w-full h-full"
+                    />
+                  </div>
 
-            {/* Micro Pillars */}
-            <div className="pt-6 sm:pt-8 border-t border-[#E8E3DA] grid grid-cols-3 gap-4">
-              <div className="flex items-center gap-2.5">
-                <Leaf className="w-5 h-5 text-[#4E5942] shrink-0" />
-                <span className="text-[15px] text-[#4A4640] font-medium leading-tight">
-                  100% Vegan & Clean
-                </span>
+                  {/* Accessibility & Visual Overlay (subtle bottom gradient for contrast on badges if present) */}
+                  {banner.badgeText && (
+                    <div className="absolute top-4 left-4 sm:top-6 sm:left-8 z-20">
+                      <span className="inline-block bg-[#1A1A1A]/85 backdrop-blur-md text-[#FBF9F5] text-[13px] sm:text-[14px] font-semibold px-3.5 py-1.5 rounded-full uppercase tracking-wider shadow-sm border border-white/20">
+                        {banner.badgeText}
+                      </span>
+                    </div>
+                  )}
+                </Link>
               </div>
-              <div className="flex items-center gap-2.5">
-                <Shield className="w-5 h-5 text-[#4E5942] shrink-0" />
-                <span className="text-[15px] text-[#4A4640] font-medium leading-tight">
-                  Dermatologist Approved
-                </span>
+            );
+          })}
+        </div>
+
+        {/* Carousel Navigation Arrows (Visible if > 1 banner) */}
+        {total > 1 && (
+          <>
+            {/* Previous Button */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                goToPrev();
+              }}
+              aria-label="Previous Slide"
+              className="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/80 hover:bg-white text-[#1A1A1A] border border-[#E8E3DA] backdrop-blur-md shadow-md flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1A1A1A]"
+            >
+              <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+            </button>
+
+            {/* Next Button */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                goToNext();
+              }}
+              aria-label="Next Slide"
+              className="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/80 hover:bg-white text-[#1A1A1A] border border-[#E8E3DA] backdrop-blur-md shadow-md flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1A1A1A]"
+            >
+              <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
+            </button>
+          </>
+        )}
+
+        {/* Carousel Controls Bottom Bar: Pill Indicators, Slide Counter & Play/Pause */}
+        {total > 1 && (
+          <div className="absolute bottom-4 sm:bottom-6 left-0 right-0 z-20 flex items-center justify-center gap-3 pointer-events-none">
+            <div className="flex items-center gap-2 bg-[#FFFFFF]/85 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-[#E8E3DA] shadow-sm pointer-events-auto">
+              {/* Dots / Pills */}
+              <div className="flex items-center gap-1.5" role="tablist" aria-label="Slides">
+                {banners.map((_, index) => {
+                  const isActive = index === currentIndex;
+                  return (
+                    <button
+                      key={index}
+                      role="tab"
+                      aria-selected={isActive}
+                      aria-label={`Go to slide ${index + 1}`}
+                      onClick={() => goToSlide(index)}
+                      className={`h-2 transition-all duration-300 rounded-full cursor-pointer focus:outline-none focus:ring-1 focus:ring-[#1A1A1A] ${
+                        isActive
+                          ? "w-7 sm:w-8 bg-[#1A1A1A]"
+                          : "w-2 bg-[#1A1A1A]/30 hover:bg-[#1A1A1A]/60"
+                      }`}
+                    />
+                  );
+                })}
               </div>
-              <div className="flex items-center gap-2.5">
-                <Sparkles className="w-5 h-5 text-[#4E5942] shrink-0" />
-                <span className="text-[15px] text-[#4A4640] font-medium leading-tight">
-                  Clinically Proven
-                </span>
-              </div>
+
+              <div className="h-3 w-[1px] bg-[#E8E3DA] mx-1" />
+
+              {/* Slide Counter (e.g. 1 / 4) */}
+              <span className="text-[14px] font-semibold text-[#1A1A1A] tracking-wider tabular-nums">
+                {currentIndex + 1} <span className="text-[#888] font-normal">/</span> {total}
+              </span>
+
+              {/* Pause / Play Toggle for Accessibility */}
+              <button
+                type="button"
+                onClick={() => setIsPaused((prev) => !prev)}
+                aria-label={isPaused ? "Play slideshow" : "Pause slideshow"}
+                className="text-[#5A5650] hover:text-[#1A1A1A] p-0.5 transition-colors cursor-pointer"
+              >
+                {isPaused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
+              </button>
             </div>
           </div>
+        )}
+      </div>
 
-          {/* Right Product Hero Imagery */}
-          <div className="lg:col-span-6 relative">
-            <div className="relative w-full aspect-square sm:aspect-[5/4] lg:aspect-[4/3] rounded-xs overflow-hidden shadow-xl border border-[#E8E3DA] bg-[#EFECE4]">
-              <Image
-                src="https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=1200&q=85"
-                alt="Maysha Gentle Face Cleanser on Sandstone"
-                fill
-                priority
-                sizes="(max-width: 1024px) 100vw, 50vw"
-                className="object-cover transition-transform duration-700 ease-out hover:scale-102"
-              />
-
-              {/* Floating Product Highlight Tag */}
-              <div className="absolute bottom-5 left-5 bg-[#FFFFFF]/95 backdrop-blur-md p-4 rounded-xs border border-[#E8E3DA] shadow-sm max-w-xs">
-                <span className="text-[12px] uppercase tracking-wider text-[#4E5942] font-semibold block">
-                  Signature Ritual
-                </span>
-                <p className="text-[16px] font-semibold text-[#1A1A1A] mt-0.5">
-                  Gentle Face Cleanser
-                </p>
-                <p className="text-[14px] text-[#4A4640] mt-1 font-normal">
-                  Natural oat extract & provitamin B5 • ₹399
-                </p>
-              </div>
-            </div>
+      {/* Trust Micro-Bar directly beneath the promotional banner */}
+      <div className="bg-[#FFFFFF] border-t border-[#E8E3DA] py-3 px-4 sm:px-6">
+        <div className="max-w-[1360px] mx-auto flex flex-wrap items-center justify-between gap-4 text-center sm:text-left">
+          <div className="flex items-center gap-2 mx-auto sm:mx-0">
+            <span className="w-2 h-2 rounded-full bg-[#4E5942]" />
+            <span className="text-[14px] sm:text-[15px] font-semibold text-[#1A1A1A]">
+              100% Clean Formulations
+            </span>
+          </div>
+          <div className="hidden sm:flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#4E5942]" />
+            <span className="text-[14px] sm:text-[15px] font-semibold text-[#1A1A1A]">
+              Dermatologically Tested
+            </span>
+          </div>
+          <div className="hidden md:flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#4E5942]" />
+            <span className="text-[14px] sm:text-[15px] font-semibold text-[#1A1A1A]">
+              Cruelty-Free & Vegan
+            </span>
+          </div>
+          <div className="flex items-center gap-2 mx-auto sm:mx-0">
+            <span className="w-2 h-2 rounded-full bg-[#4E5942]" />
+            <span className="text-[14px] sm:text-[15px] font-semibold text-[#1A1A1A]">
+              Free Shipping Over ₹999
+            </span>
           </div>
         </div>
       </div>
