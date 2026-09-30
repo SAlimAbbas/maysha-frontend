@@ -1,6 +1,26 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# ==============================================================================
+# Maysha Frontend - Git Ignore Configuration
+# ==============================================================================
 
-# dependencies
+# Internal Master Directives, Prompts & AI Architecture Documents
+01_MASTER_DIRECTIVE*
+02_Maysha_Minimalist_UI_Replica_Master_Prompt*
+03_MAYSHA_ANTIGRAVITY_TECH_STACK*
+Maysha_Minimalist_UI_Replica_Master_Prompt*
+maysha_architecture_and_visual_blueprint*
+*claude.md
+*CLAUDE.md
+*claude*
+refrence*claude*
+reference*claude*
+agents.md
+AGENTS.md
+GEMINI.md
+.agents/
+refrences/
+references/
+
+# Dependencies
 /node_modules
 /.pnp
 .pnp.*
@@ -10,32 +30,57 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
-
-# next.js
+# Next.js Build & Static Export Outputs
 /.next/
 /out/
-
-# production
 /build
+/dist
+next-env.d.ts
+*.tsbuildinfo
 
-# misc
-.DS_Store
+# Testing & Coverage
+/coverage
+
+# Environment Variables & Private Secrets
+.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 *.pem
+*.key
+*.cert
+*.pfx
 
-# debug
+# Logs & Diagnostics
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# IDE & Editor Configurations
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+.fleet/
+.nova/
+.zed/
 
-# vercel
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Deployment Artifacts
 .vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
+.netlify
