@@ -13,12 +13,11 @@ export interface Banner {
 export const DEFAULT_BANNERS: Banner[] = [
   {
     id: 1,
-    title: "Buy 1 Get 1 Free - Vitamin C Face Wash",
-    subtitle: "Brighten & cleanse with potent Vitamin C + Niacinamide",
-    desktopImage: "/banners/bogo-hero-banner.jpg",
-    mobileImage: "/banners/bogo-hero-banner.jpg",
-    linkUrl: "/collections/face-cleansers",
-    badgeText: "SPECIAL OFFER • BUY 1 GET 1 FREE",
+    title: "BUY 1 GET 1 FREE — Vitamin C & Niacinamide Face Wash",
+    subtitle: "Gentle care. Visible results. Buy 1 Get 1 Free on all Vitamin C & Niacinamide Face Wash.",
+    desktopImage: "/banners/maysha-bogo-banner.png",
+    mobileImage: "/banners/maysha-bogo-banner.png",
+    linkUrl: "/products/vitamin-c-niacinamide-face-wash",
     isActive: true,
     sortOrder: 1,
   },

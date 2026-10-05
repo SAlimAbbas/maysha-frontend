@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight, CheckCircle2, ShieldCheck, Sparkles, Leaf, HeartHandshake } from "lucide-react";
 import { useUIStore } from "@/stores/uiStore";
 
@@ -73,9 +74,15 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 lg:gap-12">
           {/* Brand & Newsletter Column */}
           <div className="lg:col-span-4 space-y-4">
-            <span className="text-2xl sm:text-3xl font-bold tracking-[0.16em] uppercase text-[#FBF9F5] block">
-              MAYSHA
-            </span>
+            <Link href="/" className="inline-block focus:outline-hidden" aria-label="Maysha Homepage">
+              <Image
+                src="/logo.png"
+                alt="Maysha"
+                width={140}
+                height={46}
+                className="h-8 sm:h-9 w-auto object-contain brightness-0 invert opacity-95 hover:opacity-100 transition-opacity"
+              />
+            </Link>
             <p className="text-[15px] text-[#B5AFA6] leading-relaxed max-w-sm font-normal">
               Thoughtfully crafted skincare that works with your skin, not against it. Experience restorative botanical formulations backed by clinical science.
             </p>

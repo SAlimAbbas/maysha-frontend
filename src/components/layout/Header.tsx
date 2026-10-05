@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Search, ShoppingBag, Menu, User } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
@@ -54,12 +55,17 @@ export default function Header() {
             {/* Branded Logo */}
             <Link
               href="/"
-              className="group flex items-center gap-1.5 focus:outline-hidden"
+              className="group flex items-center focus:outline-hidden py-0.5"
               aria-label="Maysha Homepage"
             >
-              <span className="text-2xl sm:text-3xl font-semibold tracking-[0.16em] text-[#1A1A1A] group-hover:text-[#4E5942] transition-colors uppercase">
-                MAYSHA
-              </span>
+              <Image
+                src="/logo.png"
+                alt="Maysha"
+                width={132}
+                height={44}
+                priority
+                className="h-7 sm:h-8 md:h-9 w-auto object-contain transition-transform duration-200 group-hover:scale-[1.03]"
+              />
             </Link>
 
             {/* Desktop Navigation Links (16px) */}

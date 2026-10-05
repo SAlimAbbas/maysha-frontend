@@ -6,8 +6,8 @@ export const CATEGORIES: Category[] = [
     slug: "cleansers",
     name: "Cleansers",
     subtitle: "Gentle, non-stripping cleansers that balance skin pH",
-    image: "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=600&q=80",
-    itemCount: 4
+    image: "/images/products/face-wash/face-wash-1.png",
+    itemCount: 5
   },
   {
     id: "cat-2",
@@ -44,10 +44,10 @@ export const CATEGORIES: Category[] = [
   {
     id: "cat-6",
     slug: "treatments",
-    name: "Treatments",
-    subtitle: "Targeted exfoliants, blemish treatments and restorative facial oils",
-    image: "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=600&q=80",
-    itemCount: 4
+    name: "Treatments & Oils",
+    subtitle: "Targeted botanical oils, scalp therapy, and fragrant ambiance",
+    image: "/images/products/rosemary-hair-oil/hair-oil-1.png",
+    itemCount: 6
   }
 ];
 

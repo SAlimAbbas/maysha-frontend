@@ -2,6 +2,7 @@
 
 import React, { useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { X, ChevronRight, Search, User, ShoppingBag, ArrowRight } from "lucide-react";
 import { useUIStore } from "@/stores/uiStore";
 import { useCartStore } from "@/stores/cartStore";
@@ -51,9 +52,15 @@ export default function MobileNavDrawer() {
       >
         {/* Top Header */}
         <div className="flex items-center justify-between p-5 border-b border-[#E8E3DA] bg-[#FBF9F5]">
-          <span className="text-2xl font-bold tracking-[0.16em] uppercase text-[#1A1A1A]">
-            MAYSHA
-          </span>
+          <Link href="/" onClick={closeMobileMenu} className="focus:outline-hidden" aria-label="Maysha Homepage">
+            <Image
+              src="/logo.png"
+              alt="Maysha"
+              width={120}
+              height={40}
+              className="h-7 w-auto object-contain"
+            />
+          </Link>
           <button
             onClick={closeMobileMenu}
             className="p-2 text-[#5A5650] hover:text-[#1A1A1A] transition-colors rounded-full"
