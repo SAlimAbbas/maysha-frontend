@@ -1,12 +1,16 @@
-"use client";
-
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
-import { CONCERNS } from "@/data/categories";
+import { Concern } from "@/types";
 
-export default function ShopByConcern() {
+interface ShopByConcernProps {
+  concerns: Concern[];
+}
+
+export default function ShopByConcern({ concerns = [] }: ShopByConcernProps) {
+  if (!concerns || concerns.length === 0) return null;
+
   return (
     <section className="py-12 sm:py-16 bg-[#FBF9F5] border-b border-[#E8E3DA]">
       <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8">
@@ -29,7 +33,7 @@ export default function ShopByConcern() {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-          {CONCERNS.map((concern) => (
+          {concerns.map((concern) => (
             <Link
               key={concern.id}
               href={`/shop?concern=${concern.slug}`}
@@ -37,7 +41,7 @@ export default function ShopByConcern() {
             >
               <div className="w-full aspect-[4/3] relative bg-[#EFECE4] overflow-hidden">
                 <Image
-                  src={concern.image}
+                  src={concern.image || "/logo.png"}
                   alt={concern.name}
                   fill
                   sizes="(max-width: 640px) 50vw, 20vw"

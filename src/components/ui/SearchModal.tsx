@@ -5,9 +5,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { Search, X, ArrowRight } from "lucide-react";
 import { useUIStore } from "@/stores/uiStore";
-import { PRODUCTS } from "@/data/products";
 import { Product } from "@/types";
 import { SearchResultSkeleton } from "./skeleton";
+import { apiBffFetch, formatINR } from "@/lib/api";
 
 export default function SearchModal() {
   const { isSearchOpen, closeSearch } = useUIStore();
@@ -15,6 +15,7 @@ export default function SearchModal() {
   const [results, setResults] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (isSearchOpen) {
@@ -41,27 +42,41 @@ export default function SearchModal() {
   }, [isSearchOpen, closeSearch]);
 
   useEffect(() => {
-    if (!query.trim()) {
+    const trimmed = query.trim();
+    if (trimmed.length < 2) {
       setResults([]);
       setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
-    const timer = setTimeout(() => {
-      const q = query.toLowerCase();
-      const filtered = PRODUCTS.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.category.toLowerCase().includes(q) ||
-          p.concern.toLowerCase().includes(q) ||
-          p.subtitle.toLowerCase().includes(q)
-      );
-      setResults(filtered);
-      setIsLoading(false);
-    }, 250);
 
-    return () => clearTimeout(timer);
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await apiBffFetch<Product[]>(
+          `products?q=${encodeURIComponent(trimmed)}&per_page=6`,
+          { signal: abortController.signal }
+        );
+        setResults(res.data || []);
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          setResults([]);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    }, 300);
+
+    return () => {
+      clearTimeout(timer);
+      abortController.abort();
+    };
   }, [query]);
 
   if (!isSearchOpen) return null;
@@ -86,7 +101,7 @@ export default function SearchModal() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search cleansers, serums, sunscreens..."
+            placeholder="Search cleansers, serums, toners..."
             className="w-full bg-transparent text-[16px] text-[#1A1A1A] placeholder-[#736E67] focus:outline-hidden"
           />
           {query && (
@@ -118,7 +133,7 @@ export default function SearchModal() {
               <SearchResultSkeleton />
               <SearchResultSkeleton />
             </div>
-          ) : query && results.length > 0 ? (
+          ) : query.trim().length >= 2 && results.length > 0 ? (
             <div>
               <p className="text-[14px] uppercase tracking-wider text-[#736E67] font-semibold mb-3.5">
                 {results.length} Products Found
@@ -133,7 +148,7 @@ export default function SearchModal() {
                   >
                     <div className="w-16 h-16 relative bg-[#EFECE4] overflow-hidden shrink-0">
                       <Image
-                        src={product.images[0]}
+                        src={product.images[0] || "/logo.png"}
                         alt={product.name}
                         fill
                         className="object-cover group-hover:scale-105 transition-transform duration-300"
@@ -150,11 +165,11 @@ export default function SearchModal() {
                     </div>
                     <div className="text-right shrink-0">
                       <span className="text-[17px] font-bold text-[#1A1A1A]">
-                        ₹{product.price}
+                        {formatINR(product.price)}
                       </span>
                       {product.mrp > product.price && (
                         <span className="text-[14px] text-[#736E67] line-through block font-normal">
-                          ₹{product.mrp}
+                          {formatINR(product.mrp)}
                         </span>
                       )}
                     </div>
@@ -171,13 +186,13 @@ export default function SearchModal() {
                 </Link>
               </div>
             </div>
-          ) : query && !isLoading ? (
+          ) : query.trim().length >= 2 && !isLoading ? (
             <div className="text-center py-10">
               <p className="text-[17px] text-[#1A1A1A] font-semibold">
                 No products found for &ldquo;{query}&rdquo;
               </p>
               <p className="text-[15px] text-[#736E67] mt-1.5 font-normal">
-                Try searching for &ldquo;Cleanser&rdquo;, &ldquo;Vitamin C&rdquo;, or &ldquo;Ceramides&rdquo;.
+                Try searching for &ldquo;Cleanser&rdquo;, &ldquo;Vitamin C&rdquo;, or &ldquo;Rose Water&rdquo;.
               </p>
             </div>
           ) : (
@@ -186,7 +201,7 @@ export default function SearchModal() {
                 Trending Searches
               </p>
               <div className="flex flex-wrap gap-2 mb-6">
-                {["Cleanser", "Vitamin C", "Ceramides", "Sunscreen SPF 50", "Hydrating Toner"].map(
+                {["Face Wash", "Rose Water", "Face Serum", "Hair Oil", "Sunscreen"].map(
                   (term) => (
                     <button
                       key={term}
@@ -205,8 +220,8 @@ export default function SearchModal() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 {[
                   { name: "Cleansers", href: "/collections/cleansers" },
+                  { name: "Toners", href: "/collections/toners" },
                   { name: "Serums", href: "/collections/serums" },
-                  { name: "Moisturizers", href: "/collections/moisturizers" },
                   { name: "Sunscreen", href: "/collections/sunscreen" },
                 ].map((cat) => (
                   <Link

@@ -4,43 +4,37 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
-import { Banner, DEFAULT_BANNERS, fetchActiveBanners } from "@/data/banners";
+import { Banner } from "@/types";
+import { useCart } from "@/hooks/useCart";
+import { formatINR } from "@/lib/api";
 
 interface HeroProps {
   initialBanners?: Banner[];
 }
 
-export default function Hero({ initialBanners }: HeroProps) {
-  const [banners, setBanners] = useState<Banner[]>(
-    initialBanners && initialBanners.length > 0 ? initialBanners.slice(0, 7) : DEFAULT_BANNERS.slice(0, 7)
-  );
+export default function Hero({ initialBanners = [] }: HeroProps) {
+  const banners: Banner[] =
+    initialBanners && initialBanners.length > 0
+      ? initialBanners.slice(0, 7)
+      : [
+          {
+            id: "banner-bogo",
+            title: "BUY 1 GET 1 FREE — Vitamin C & Niacinamide Face Wash",
+            subtitle: "Gentle everyday herbal cleanser designed for regular use with Aloe Vera & Glycerin.",
+            desktopImage: "/banners/maysha-bogo-banner.png",
+            mobileImage: "/banners/maysha-bogo-banner.png",
+            linkUrl: "/products/vitamin-c-niacinamide-face-wash",
+            badgeText: "LIMITED TIME OFFER",
+            sortOrder: 1,
+          },
+        ];
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [touchEndX, setTouchEndX] = useState<number | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
   const autoPlayRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Dynamic fetch from backend API if available
-  useEffect(() => {
-    let isMounted = true;
-    fetchActiveBanners()
-      .then((data) => {
-        if (isMounted && data && data.length > 0) {
-          setBanners(data.slice(0, 7));
-        }
-      })
-      .catch(() => {
-        // Fall back gracefully to DEFAULT_BANNERS
-      })
-      .finally(() => {
-        if (isMounted) setIsLoaded(true);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const { threshold } = useCart();
 
   const total = banners.length;
 
@@ -114,8 +108,6 @@ export default function Hero({ initialBanners }: HeroProps) {
     return null;
   }
 
-  const currentBanner = banners[currentIndex];
-
   return (
     <section
       aria-label="Promotional Carousel"
@@ -125,7 +117,7 @@ export default function Hero({ initialBanners }: HeroProps) {
       onKeyDown={handleKeyDown}
       tabIndex={0}
     >
-      {/* Banner Container: Highly optimized aspect ratios for mobile (16:10 / 16:9), tablet (16:7), desktop (21:9 or ~2.6:1) */}
+      {/* Banner Container */}
       <div
         className="relative w-full overflow-hidden"
         onTouchStart={handleTouchStart}
@@ -162,7 +154,7 @@ export default function Hero({ initialBanners }: HeroProps) {
                     />
                   </div>
 
-                  {/* Accessibility & Visual Overlay (subtle bottom gradient for contrast on badges if present) */}
+                  {/* Accessibility & Visual Overlay */}
                   {banner.badgeText && (
                     <div className="absolute top-4 left-4 sm:top-6 sm:left-8 z-20">
                       <span className="inline-block bg-[#1A1A1A]/85 backdrop-blur-md text-[#FBF9F5] text-[13px] sm:text-[14px] font-semibold px-3.5 py-1.5 rounded-full uppercase tracking-wider shadow-sm border border-white/20">
@@ -176,10 +168,9 @@ export default function Hero({ initialBanners }: HeroProps) {
           })}
         </div>
 
-        {/* Carousel Navigation Arrows (Visible if > 1 banner) */}
+        {/* Carousel Navigation Arrows */}
         {total > 1 && (
           <>
-            {/* Previous Button */}
             <button
               type="button"
               onClick={(e) => {
@@ -192,7 +183,6 @@ export default function Hero({ initialBanners }: HeroProps) {
               <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
 
-            {/* Next Button */}
             <button
               type="button"
               onClick={(e) => {
@@ -207,11 +197,10 @@ export default function Hero({ initialBanners }: HeroProps) {
           </>
         )}
 
-        {/* Carousel Controls Bottom Bar: Pill Indicators, Slide Counter & Play/Pause */}
+        {/* Carousel Controls Bottom Bar */}
         {total > 1 && (
           <div className="absolute bottom-4 sm:bottom-6 left-0 right-0 z-20 flex items-center justify-center gap-3 pointer-events-none">
             <div className="flex items-center gap-2 bg-[#FFFFFF]/85 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-[#E8E3DA] shadow-sm pointer-events-auto">
-              {/* Dots / Pills */}
               <div className="flex items-center gap-1.5" role="tablist" aria-label="Slides">
                 {banners.map((_, index) => {
                   const isActive = index === currentIndex;
@@ -234,12 +223,10 @@ export default function Hero({ initialBanners }: HeroProps) {
 
               <div className="h-3 w-[1px] bg-[#E8E3DA] mx-1" />
 
-              {/* Slide Counter (e.g. 1 / 4) */}
               <span className="text-[14px] font-semibold text-[#1A1A1A] tracking-wider tabular-nums">
                 {currentIndex + 1} <span className="text-[#888] font-normal">/</span> {total}
               </span>
 
-              {/* Pause / Play Toggle for Accessibility */}
               <button
                 type="button"
                 onClick={() => setIsPaused((prev) => !prev)}
@@ -253,7 +240,7 @@ export default function Hero({ initialBanners }: HeroProps) {
         )}
       </div>
 
-      {/* Trust Micro-Bar directly beneath the promotional banner */}
+      {/* Trust Micro-Bar */}
       <div className="bg-[#FFFFFF] border-t border-[#E8E3DA] py-3 px-4 sm:px-6">
         <div className="max-w-[1360px] mx-auto flex flex-wrap items-center justify-between gap-4 text-center sm:text-left">
           <div className="flex items-center gap-2 mx-auto sm:mx-0">
@@ -277,7 +264,7 @@ export default function Hero({ initialBanners }: HeroProps) {
           <div className="flex items-center gap-2 mx-auto sm:mx-0">
             <span className="w-2 h-2 rounded-full bg-[#4E5942]" />
             <span className="text-[14px] sm:text-[15px] font-semibold text-[#1A1A1A]">
-              Free Shipping Over ₹999
+              Free Shipping Over {formatINR(threshold)}
             </span>
           </div>
         </div>

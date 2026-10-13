@@ -1,120 +1,315 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import {
   Trash2,
   Plus,
   Minus,
   ShoppingBag,
-  ArrowRight,
   ShieldCheck,
   Tag,
   Check,
-  CheckCircle2,
   Lock,
-  ArrowLeft
+  ArrowLeft,
+  AlertCircle,
+  AlertTriangle,
 } from "lucide-react";
-import { useCartStore } from "@/stores/cartStore";
+import { useCart } from "@/hooks/useCart";
+import { useAuth } from "@/hooks/useAuth";
 import { useUIStore } from "@/stores/uiStore";
+import { formatINR, apiBffFetch, ApiClientError, mapDottedErrors } from "@/lib/api";
+import { Order, RazorpayOrder } from "@/types";
+import { useQueryClient } from "@tanstack/react-query";
+
+const checkoutSchema = z.object({
+  name: z.string().min(2, "Full name must be at least 2 characters"),
+  email: z.string().email("Please enter a valid email address"),
+  phone: z.string().regex(/^[6-9]\d{9}$/, "Please enter a valid 10-digit Indian mobile number"),
+  line1: z.string().min(5, "Street address must be at least 5 characters"),
+  city: z.string().min(2, "City is required"),
+  state: z.string().min(2, "State is required"),
+  pincode: z.string().regex(/^\d{6}$/, "Pincode must be exactly 6 digits"),
+  paymentMethod: z.enum(["razorpay", "cod"]),
+});
+
+type CheckoutFormValues = z.infer<typeof checkoutSchema>;
+
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") return resolve(false);
+    if ((window as any).Razorpay) return resolve(true);
+
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
 
 export default function CartPage() {
-  const {
-    items,
-    removeItem,
-    updateQuantity,
-    clearCart,
-    getSubtotal,
-    getTotal,
-    getRemainingForFreeShipping,
-    couponCode,
-    couponDiscount,
-    applyCoupon,
-    removeCoupon
-  } = useCartStore();
-
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { addToast } = useUIStore();
+  const {
+    cart,
+    isLoading: isCartLoading,
+    storeInfo,
+    freeShippingRemaining,
+    freeShippingProgress,
+    threshold,
+    updateQuantity,
+    isUpdating,
+    removeItem,
+    isRemoving,
+    applyCoupon,
+    isApplyingCoupon,
+    removeCoupon,
+    isRemovingCoupon,
+  } = useCart();
+
   const [promoInput, setPromoInput] = useState("");
   const [promoError, setPromoError] = useState("");
   const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const [orderComplete, setOrderComplete] = useState(false);
-  const [orderId, setOrderId] = useState("");
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState({
-    name: "Aarav Sharma",
-    email: "aarav@example.com",
-    phone: "9876543210",
-    address: "Flat 402, Green Glen Layout, Bellandur",
-    city: "Bengaluru",
-    state: "Karnataka",
-    pincode: "560103",
-    paymentMethod: "razorpay"
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    setError,
+    watch,
+    formState: { errors },
+  } = useForm<CheckoutFormValues>({
+    resolver: zodResolver(checkoutSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      phone: "",
+      line1: "",
+      city: "",
+      state: "",
+      pincode: "",
+      paymentMethod: "razorpay",
+    },
   });
 
-  const subtotal = getSubtotal();
-  const remainingForFreeShipping = getRemainingForFreeShipping();
-  const total = getTotal();
-  const progressPercent = Math.min(100, Math.round(((999 - remainingForFreeShipping) / 999) * 100));
+  const selectedPaymentMethod = watch("paymentMethod");
 
-  const handleApplyPromo = (e: React.FormEvent) => {
+  // Autofill user details when authenticated
+  useEffect(() => {
+    if (user) {
+      if (user.name) setValue("name", user.name);
+      if (user.email) setValue("email", user.email);
+      if (user.phone) setValue("phone", user.phone);
+    }
+  }, [user, setValue]);
+
+  // Handle promo code application
+  const handleApplyPromo = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!promoInput) return;
-    const success = applyCoupon(promoInput);
-    if (success) {
-      addToast("Promo Code Applied", "10% discount has been applied.", "success");
+    if (!promoInput.trim()) return;
+    setPromoError("");
+
+    try {
+      const res = await applyCoupon(promoInput.trim().toUpperCase());
+      addToast("Coupon Applied", res.message || "Discount applied successfully", "success");
       setPromoInput("");
-      setPromoError("");
-    } else {
-      setPromoError("Invalid code. Try MAYSHA10");
+    } catch (err: any) {
+      setPromoError(err.message || "Invalid, expired, or inapplicable coupon code.");
     }
   };
 
-  const handlePlaceOrder = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsCheckingOut(true);
-
-    setTimeout(() => {
-      const generatedId = `MAY-${Math.floor(100000 + Math.random() * 900000)}`;
-      setOrderId(generatedId);
-      setIsCheckingOut(false);
-      setOrderComplete(true);
-      clearCart();
-    }, 1200);
+  const handleRemovePromo = async () => {
+    try {
+      await removeCoupon();
+      addToast("Coupon Removed", "Coupon has been removed from your cart", "info");
+    } catch (err: any) {
+      addToast("Error", err.message || "Failed to remove coupon", "error");
+    }
   };
 
-  if (orderComplete) {
+  // Checkout submission
+  const onSubmit = async (values: CheckoutFormValues) => {
+    if (!cart.items || cart.items.length === 0) {
+      setCheckoutError("Your cart is empty.");
+      return;
+    }
+
+    setIsCheckingOut(true);
+    setCheckoutError(null);
+
+    // Save guest email to sessionStorage for order confirmation lookup
+    try {
+      sessionStorage.setItem("maysha_order_email", values.email);
+    } catch {}
+
+    // Compute idempotency key
+    const payloadSignature = JSON.stringify({
+      items: cart.items.map((i) => ({ v: i.variantId, q: i.quantity })),
+      email: values.email,
+      addr: values.line1,
+      pin: values.pincode,
+      coupon: cart.couponCode,
+      pay: values.paymentMethod,
+    });
+
+    let idempotencyKey = "";
+    try {
+      const stored = sessionStorage.getItem("maysha_idempotency");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.signature === payloadSignature && parsed.key) {
+          idempotencyKey = parsed.key;
+        }
+      }
+    } catch {}
+
+    if (!idempotencyKey) {
+      idempotencyKey = `idemp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      try {
+        sessionStorage.setItem(
+          "maysha_idempotency",
+          JSON.stringify({ key: idempotencyKey, signature: payloadSignature })
+        );
+      } catch {}
+    }
+
+    try {
+      // 1. Create order on server
+      const orderRes = await apiBffFetch<Order>("orders", {
+        method: "POST",
+        headers: {
+          "Idempotency-Key": idempotencyKey,
+        },
+        body: JSON.stringify({
+          items: cart.items.map((item) => ({
+            variant_id: item.variantId,
+            quantity: item.quantity,
+          })),
+          shipping_address: {
+            name: values.name,
+            phone: values.phone,
+            line1: values.line1,
+            city: values.city,
+            state: values.state,
+            pincode: values.pincode,
+          },
+          payment_method: values.paymentMethod,
+          coupon_code: cart.couponCode || undefined,
+          guest_email: values.email,
+        }),
+      });
+
+      const order = orderRes.data;
+
+      // 2. If COD, order is immediately confirmed
+      if (values.paymentMethod === "cod") {
+        queryClient.invalidateQueries({ queryKey: ["cart"] });
+        router.push(`/orders/${order.reference}`);
+        return;
+      }
+
+      // 3. Razorpay flow
+      const rzpRes = await apiBffFetch<RazorpayOrder>("payments/razorpay/create-order", {
+        method: "POST",
+        body: JSON.stringify({ order_reference: order.reference }),
+      });
+
+      const rzpData = rzpRes.data;
+      const scriptLoaded = await loadRazorpayScript();
+
+      if (!scriptLoaded) {
+        throw new Error("Unable to initialize payment gateway. Please check your network and retry.");
+      }
+
+      const options = {
+        key: rzpData.keyId,
+        amount: rzpData.amountPaise,
+        currency: rzpData.currency || "INR",
+        name: "Maysha Skincare",
+        description: `Order ${order.reference}`,
+        order_id: rzpData.razorpayOrderId,
+        prefill: {
+          name: rzpData.customerName || values.name,
+          email: rzpData.customerEmail || values.email,
+          contact: rzpData.customerPhone || values.phone,
+        },
+        theme: {
+          color: "#1A1A1A",
+        },
+        handler: async function (response: any) {
+          try {
+            await apiBffFetch("payments/razorpay/verify", {
+              method: "POST",
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              }),
+            });
+            queryClient.invalidateQueries({ queryKey: ["cart"] });
+            router.push(`/orders/${order.reference}`);
+          } catch (verifyErr: any) {
+            setCheckoutError(
+              verifyErr.message || "Payment verification encountered an issue. Please contact support."
+            );
+            setIsCheckingOut(false);
+          }
+        },
+        modal: {
+          ondismiss: function () {
+            setIsCheckingOut(false);
+            setCheckoutError(
+              "Payment window closed. Your items and order draft are reserved; please click Place Order again to complete payment."
+            );
+          },
+        },
+      };
+
+      const razorpayInstance = new (window as any).Razorpay(options);
+      razorpayInstance.on("payment.failed", function (failResponse: any) {
+        setIsCheckingOut(false);
+        setCheckoutError(
+          failResponse.error?.description || "Payment failed. Please try with another card, UPI, or select COD."
+        );
+      });
+      razorpayInstance.open();
+    } catch (err: any) {
+      setIsCheckingOut(false);
+      if (err instanceof ApiClientError && err.errors) {
+        const mapped = mapDottedErrors(err.errors);
+        for (const [key, msg] of Object.entries(mapped)) {
+          if (["name", "email", "phone", "line1", "city", "state", "pincode"].includes(key)) {
+            setError(key as keyof CheckoutFormValues, { message: msg });
+          }
+        }
+      }
+      setCheckoutError(
+        err.message || "An error occurred while creating your order. Please review your details and retry."
+      );
+    }
+  };
+
+  if (isCartLoading && cart.items.length === 0) {
     return (
-      <div className="bg-[#FBF9F5] min-h-[70vh] flex items-center justify-center py-16 px-4">
-        <div className="max-w-lg w-full bg-[#FFFFFF] border border-[#E8E3DA] p-8 sm:p-10 rounded-xs shadow-sm text-center">
-          <div className="w-16 h-16 bg-[#EDF3E8] text-[#4E5942] rounded-full flex items-center justify-center mx-auto mb-5">
-            <CheckCircle2 className="w-9 h-9" />
-          </div>
-          <span className="text-[14px] uppercase tracking-wider font-semibold text-[#4E5942] block mb-1">
-            Order Confirmed
-          </span>
-          <h1 className="text-3xl font-semibold text-[#1A1A1A] mb-2">
-            Thank you for your order!
-          </h1>
-          <p className="text-[15px] text-[#4A4640] mb-4">
-            Order Reference: <span className="font-mono font-bold text-[#1A1A1A]">{orderId}</span>
-          </p>
-          <p className="text-[15px] text-[#5A5650] leading-relaxed mb-8 font-normal">
-            We are preparing your botanical skincare formulations with utmost care. A confirmation email has been dispatched to {formData.email}.
-          </p>
-          <Link
-            href="/shop"
-            className="inline-flex items-center gap-2 bg-[#1A1A1A] hover:bg-[#333333] text-white text-[15px] uppercase tracking-wider font-semibold px-8 py-4 rounded-2xs transition-colors"
-          >
-            <span>Continue Shopping</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
+      <div className="bg-[#FBF9F5] min-h-[60vh] flex items-center justify-center py-20 px-4">
+        <div className="text-center space-y-3">
+          <div className="w-8 h-8 border-2 border-[#4E5942] border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-[15px] text-[#736E67]">Loading your botanical bag...</p>
         </div>
       </div>
     );
   }
 
-  if (items.length === 0) {
+  if (cart.items.length === 0) {
     return (
       <div className="bg-[#FBF9F5] min-h-[60vh] flex flex-col items-center justify-center py-20 px-4 text-center">
         <div className="w-16 h-16 rounded-full bg-[#F5F2EB] flex items-center justify-center text-[#736E67] mb-4">
@@ -124,7 +319,7 @@ export default function CartPage() {
           Your Shopping Cart is Empty
         </h1>
         <p className="text-[15px] text-[#736E67] max-w-sm mb-6 font-normal">
-          Your personal skincare ritual awaits. Explore our barrier cleansers, active serums, and nourishing creams.
+          Your personal skincare ritual awaits. Explore our barrier cleansers, active serums, and nourishing toners.
         </p>
         <Link
           href="/shop"
@@ -143,14 +338,38 @@ export default function CartPage() {
           Review Cart & Checkout
         </h1>
 
+        {/* Global Cart Warnings if server returned stock adjustments */}
+        {cart.warnings && cart.warnings.length > 0 && (
+          <div className="mb-6 p-4 bg-[#FFF8EB] border border-[#F2DEB5] rounded-xs space-y-1">
+            {cart.warnings.map((warning, idx) => (
+              <p key={idx} className="text-[14px] text-[#8C6D1F] flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                {warning}
+              </p>
+            ))}
+          </div>
+        )}
+
+        {/* Checkout Error Message */}
+        {checkoutError && (
+          <div className="mb-6 p-4 bg-[#FDF2F2] border border-[#F8B4B4] rounded-xs flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-[#9B1C1C] shrink-0 mt-0.5" />
+            <div className="text-[14px] text-[#9B1C1C] flex-1">
+              <p className="font-semibold mb-0.5">Checkout Notice</p>
+              <p>{checkoutError}</p>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
           {/* Left Column: Cart Items & Delivery Address Form */}
           <div className="lg:col-span-7 space-y-8">
             {/* Free Shipping Alert Bar */}
             <div className="p-4 bg-[#F6F3EC] border border-[#E8E3DA] rounded-xs">
-              {remainingForFreeShipping > 0 ? (
+              {freeShippingRemaining > 0 ? (
                 <p className="text-[15px] text-[#4A4640] mb-2 font-normal">
-                  Add <span className="font-semibold text-[#1A1A1A]">₹{remainingForFreeShipping}</span> more to receive <span className="font-semibold text-[#4E5942]">FREE Standard Shipping</span>
+                  Add <span className="font-semibold text-[#1A1A1A]">₹{freeShippingRemaining}</span> more to receive{" "}
+                  <span className="font-semibold text-[#4E5942]">FREE Standard Shipping</span>
                 </p>
               ) : (
                 <p className="text-[15px] font-semibold text-[#4E5942] mb-2 flex items-center gap-1.5">
@@ -160,14 +379,14 @@ export default function CartPage() {
               <div className="w-full h-2 bg-[#E8E3DA] rounded-full overflow-hidden">
                 <div
                   className="h-full bg-[#4E5942] transition-all duration-500 ease-out"
-                  style={{ width: `${progressPercent}%` }}
+                  style={{ width: `${freeShippingProgress}%` }}
                 />
               </div>
             </div>
 
             {/* Cart Items List */}
             <div className="bg-[#FFFFFF] border border-[#E8E3DA] rounded-xs p-6 divide-y divide-[#F0ECE4]">
-              {items.map((item) => (
+              {cart.items.map((item) => (
                 <div key={item.id} className="py-4 first:pt-0 last:pb-0 flex gap-4 items-start">
                   <div className="w-20 h-20 relative bg-[#EFECE4] rounded-2xs overflow-hidden shrink-0">
                     <Image
@@ -189,7 +408,8 @@ export default function CartPage() {
                       </Link>
                       <button
                         onClick={() => removeItem(item.id)}
-                        className="text-[#736E67] hover:text-[#A94438] p-1 transition-colors"
+                        disabled={isRemoving}
+                        className="text-[#736E67] hover:text-[#A94438] p-1 transition-colors disabled:opacity-50"
                         aria-label="Remove item"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -201,8 +421,9 @@ export default function CartPage() {
                     <div className="flex items-center justify-between mt-4">
                       <div className="flex items-center border border-[#E8E3DA] rounded-2xs bg-[#FBF9F5]">
                         <button
-                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          className="p-2 text-[#4A4640] hover:text-[#1A1A1A]"
+                          onClick={() => updateQuantity({ itemId: item.id, quantity: item.quantity - 1 })}
+                          disabled={isUpdating}
+                          className="p-2 text-[#4A4640] hover:text-[#1A1A1A] disabled:opacity-50"
                           aria-label="Decrease quantity"
                         >
                           <Minus className="w-3.5 h-3.5" />
@@ -211,8 +432,9 @@ export default function CartPage() {
                           {item.quantity}
                         </span>
                         <button
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          className="p-2 text-[#4A4640] hover:text-[#1A1A1A]"
+                          onClick={() => updateQuantity({ itemId: item.id, quantity: item.quantity + 1 })}
+                          disabled={isUpdating || item.quantity >= Math.min(10, item.stock)}
+                          className="p-2 text-[#4A4640] hover:text-[#1A1A1A] disabled:opacity-50"
                           aria-label="Increase quantity"
                         >
                           <Plus className="w-3.5 h-3.5" />
@@ -220,7 +442,7 @@ export default function CartPage() {
                       </div>
 
                       <span className="text-[18px] font-bold text-[#1A1A1A]">
-                        ₹{item.price * item.quantity}
+                        {formatINR(item.price * item.quantity)}
                       </span>
                     </div>
                   </div>
@@ -233,7 +455,7 @@ export default function CartPage() {
               <h2 className="text-xl font-semibold text-[#1A1A1A] mb-4 pb-2 border-b border-[#F0ECE4]">
                 Shipping Address
               </h2>
-              <form id="checkout-form" onSubmit={handlePlaceOrder} className="space-y-4">
+              <form id="checkout-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-[15px] font-semibold text-[#1A1A1A] block mb-1.5">
@@ -241,11 +463,13 @@ export default function CartPage() {
                     </label>
                     <input
                       type="text"
-                      required
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      {...register("name")}
+                      placeholder="e.g. Priyanshu Mehta"
                       className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] px-3.5 py-2.5 rounded-2xs focus:outline-hidden focus:border-[#1A1A1A]"
                     />
+                    {errors.name && (
+                      <p className="text-[13px] text-[#A94438] mt-1">{errors.name.message}</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-[15px] font-semibold text-[#1A1A1A] block mb-1.5">
@@ -253,52 +477,60 @@ export default function CartPage() {
                     </label>
                     <input
                       type="tel"
-                      required
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      {...register("phone")}
+                      placeholder="10-digit mobile number"
                       className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] px-3.5 py-2.5 rounded-2xs focus:outline-hidden focus:border-[#1A1A1A]"
                     />
+                    {errors.phone && (
+                      <p className="text-[13px] text-[#A94438] mt-1">{errors.phone.message}</p>
+                    )}
                   </div>
                 </div>
 
                 <div>
                   <label className="text-[15px] font-semibold text-[#1A1A1A] block mb-1.5">
-                    Email Address (for invoice)
+                    Email Address (for order confirmation & invoice)
                   </label>
                   <input
                     type="email"
-                    required
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    {...register("email")}
+                    placeholder="e.g. client@example.com"
                     className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] px-3.5 py-2.5 rounded-2xs focus:outline-hidden focus:border-[#1A1A1A]"
                   />
+                  {errors.email && (
+                    <p className="text-[13px] text-[#A94438] mt-1">{errors.email.message}</p>
+                  )}
                 </div>
 
                 <div>
                   <label className="text-[15px] font-semibold text-[#1A1A1A] block mb-1.5">
-                    Street Address
+                    Street Address (Flat / House / Road)
                   </label>
                   <input
                     type="text"
-                    required
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    {...register("line1")}
+                    placeholder="House / Flat no, Building name, Street"
                     className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] px-3.5 py-2.5 rounded-2xs focus:outline-hidden focus:border-[#1A1A1A]"
                   />
+                  {errors.line1 && (
+                    <p className="text-[13px] text-[#A94438] mt-1">{errors.line1.message}</p>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="text-[15px] font-semibold text-[#1A1A1A] block mb-1.5">
                       City
                     </label>
                     <input
                       type="text"
-                      required
-                      value={formData.city}
-                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                      {...register("city")}
+                      placeholder="e.g. Mumbai"
                       className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] px-3.5 py-2.5 rounded-2xs focus:outline-hidden focus:border-[#1A1A1A]"
                     />
+                    {errors.city && (
+                      <p className="text-[13px] text-[#A94438] mt-1">{errors.city.message}</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-[15px] font-semibold text-[#1A1A1A] block mb-1.5">
@@ -306,11 +538,13 @@ export default function CartPage() {
                     </label>
                     <input
                       type="text"
-                      required
-                      value={formData.state}
-                      onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                      {...register("state")}
+                      placeholder="e.g. Maharashtra"
                       className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] px-3.5 py-2.5 rounded-2xs focus:outline-hidden focus:border-[#1A1A1A]"
                     />
+                    {errors.state && (
+                      <p className="text-[13px] text-[#A94438] mt-1">{errors.state.message}</p>
+                    )}
                   </div>
                   <div>
                     <label className="text-[15px] font-semibold text-[#1A1A1A] block mb-1.5">
@@ -318,11 +552,14 @@ export default function CartPage() {
                     </label>
                     <input
                       type="text"
-                      required
-                      value={formData.pincode}
-                      onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                      {...register("pincode")}
+                      placeholder="6 digits"
+                      maxLength={6}
                       className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] px-3.5 py-2.5 rounded-2xs focus:outline-hidden focus:border-[#1A1A1A]"
                     />
+                    {errors.pincode && (
+                      <p className="text-[13px] text-[#A94438] mt-1">{errors.pincode.message}</p>
+                    )}
                   </div>
                 </div>
 
@@ -331,25 +568,33 @@ export default function CartPage() {
                   <label className="text-[15px] font-semibold text-[#1A1A1A] block mb-2.5">
                     Payment Method
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <label className="flex items-center gap-2.5 p-3.5 border border-[#1A1A1A] bg-[#FBF9F5] rounded-xs cursor-pointer text-[15px] font-medium text-[#1A1A1A]">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label
+                      className={`flex items-center gap-2.5 p-3.5 border rounded-xs cursor-pointer text-[15px] font-medium transition-colors ${
+                        selectedPaymentMethod === "razorpay"
+                          ? "border-[#1A1A1A] bg-[#FBF9F5] text-[#1A1A1A]"
+                          : "border-[#E8E3DA] bg-white text-[#4A4640]"
+                      }`}
+                    >
                       <input
                         type="radio"
-                        name="paymentMethod"
                         value="razorpay"
-                        checked={formData.paymentMethod === "razorpay"}
-                        onChange={() => setFormData({ ...formData, paymentMethod: "razorpay" })}
+                        {...register("paymentMethod")}
                         className="text-[#4E5942] focus:ring-0"
                       />
                       <span>UPI / Cards / NetBanking (Razorpay)</span>
                     </label>
-                    <label className="flex items-center gap-2.5 p-3.5 border border-[#E8E3DA] hover:border-[#1A1A1A] bg-[#FFFFFF] rounded-xs cursor-pointer text-[15px] font-medium text-[#1A1A1A]">
+                    <label
+                      className={`flex items-center gap-2.5 p-3.5 border rounded-xs cursor-pointer text-[15px] font-medium transition-colors ${
+                        selectedPaymentMethod === "cod"
+                          ? "border-[#1A1A1A] bg-[#FBF9F5] text-[#1A1A1A]"
+                          : "border-[#E8E3DA] bg-white text-[#4A4640]"
+                      }`}
+                    >
                       <input
                         type="radio"
-                        name="paymentMethod"
                         value="cod"
-                        checked={formData.paymentMethod === "cod"}
-                        onChange={() => setFormData({ ...formData, paymentMethod: "cod" })}
+                        {...register("paymentMethod")}
                         className="text-[#4E5942] focus:ring-0"
                       />
                       <span>Cash on Delivery (COD)</span>
@@ -368,15 +613,16 @@ export default function CartPage() {
 
             {/* Promo Code Input */}
             <div>
-              {couponCode ? (
+              {cart.couponCode ? (
                 <div className="flex items-center justify-between p-3.5 bg-[#EDF3E8] border border-[#C5D7BD] rounded-xs text-[15px] text-[#3E4534]">
                   <span className="flex items-center gap-2 font-semibold">
                     <Tag className="w-4 h-4 text-[#4E5942]" />
-                    Coupon &lsquo;{couponCode}&rsquo; Applied (-₹{couponDiscount})
+                    Coupon &lsquo;{cart.couponCode}&rsquo; Applied (-{formatINR(cart.discountPaise, true)})
                   </span>
                   <button
-                    onClick={removeCoupon}
-                    className="text-[#736E67] hover:text-[#A94438] underline text-[14px]"
+                    onClick={handleRemovePromo}
+                    disabled={isRemovingCoupon}
+                    className="text-[#736E67] hover:text-[#A94438] underline text-[14px] disabled:opacity-50"
                   >
                     Remove
                   </button>
@@ -393,9 +639,10 @@ export default function CartPage() {
                     />
                     <button
                       type="submit"
-                      className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-4 py-2.5 text-[15px] font-semibold rounded-2xs transition-colors shrink-0"
+                      disabled={isApplyingCoupon}
+                      className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-4 py-2.5 text-[15px] font-semibold rounded-2xs transition-colors shrink-0 disabled:opacity-50"
                     >
-                      Apply
+                      {isApplyingCoupon ? "Applying..." : "Apply"}
                     </button>
                   </div>
                   {promoError && (
@@ -405,31 +652,31 @@ export default function CartPage() {
               )}
             </div>
 
-            {/* Price Breakdown */}
+            {/* Price Breakdown from server exact paise fields */}
             <div className="space-y-3 text-[15px] text-[#4A4640] pt-2">
               <div className="flex justify-between">
-                <span>Subtotal ({items.reduce((s, i) => s + i.quantity, 0)} items)</span>
-                <span className="font-semibold text-[#1A1A1A]">₹{subtotal}</span>
+                <span>Subtotal ({cart.itemCount} items)</span>
+                <span className="font-semibold text-[#1A1A1A]">{formatINR(cart.subtotalPaise, true)}</span>
               </div>
-              {couponDiscount > 0 && (
+              {cart.discountPaise > 0 && (
                 <div className="flex justify-between text-[#4E5942] font-semibold">
-                  <span>Promo Discount (10%)</span>
-                  <span>-₹{couponDiscount}</span>
+                  <span>Coupon Discount</span>
+                  <span>-{formatINR(cart.discountPaise, true)}</span>
                 </div>
               )}
               <div className="flex justify-between">
                 <span>Standard Delivery</span>
                 <span>
-                  {remainingForFreeShipping === 0 ? (
+                  {cart.shippingPaise === 0 ? (
                     <span className="font-semibold text-[#4E5942]">FREE</span>
                   ) : (
-                    "₹99"
+                    formatINR(cart.shippingPaise, true)
                   )}
                 </span>
               </div>
               <div className="flex justify-between text-[18px] font-bold text-[#1A1A1A] pt-3 border-t border-[#E8E3DA]">
                 <span>Total Amount</span>
-                <span>₹{total + (remainingForFreeShipping === 0 ? 0 : 99)}</span>
+                <span>{formatINR(cart.totalPaise, true)}</span>
               </div>
             </div>
 
@@ -448,7 +695,7 @@ export default function CartPage() {
               ) : (
                 <>
                   <Lock className="w-4 h-4" />
-                  <span>Place Order • ₹{total + (remainingForFreeShipping === 0 ? 0 : 99)}</span>
+                  <span>Place Order • {formatINR(cart.totalPaise, true)}</span>
                 </>
               )}
             </button>

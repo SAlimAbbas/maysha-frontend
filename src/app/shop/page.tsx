@@ -1,76 +1,115 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { RotateCcw } from "lucide-react";
-import { PRODUCTS } from "@/data/products";
-import { CATEGORIES, CONCERNS } from "@/data/categories";
 import ProductCard from "@/components/product/ProductCard";
 import { ProductGridSkeleton } from "@/components/ui/skeleton";
+import { Product, Category, Concern, PaginationMeta } from "@/types";
+import { apiBffFetch } from "@/lib/api";
 
 function ShopContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const initialCategory = searchParams.get("category") || "all";
-  const initialConcern = searchParams.get("concern") || "all";
-  const searchQuery = searchParams.get("search") || "";
 
-  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
-  const [selectedConcern, setSelectedConcern] = useState(initialConcern);
-  const [sortBy, setSortBy] = useState("featured");
+  const activeCategory = searchParams.get("category") || "all";
+  const activeConcern = searchParams.get("concern") || "all";
+  const searchQuery = searchParams.get("search") || "";
+  const activeSort = searchParams.get("sort") || "featured";
+
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [concerns, setConcerns] = useState<Concern[]>([]);
+  const [meta, setMeta] = useState<PaginationMeta | null>(null);
+  const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Fetch categories and concerns once
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 350);
-    return () => clearTimeout(timer);
+    async function loadTaxonomies() {
+      try {
+        const [catRes, conRes] = await Promise.all([
+          apiBffFetch<Category[]>("categories"),
+          apiBffFetch<Concern[]>("concerns"),
+        ]);
+        setCategories(catRes.data || []);
+        setConcerns(conRes.data || []);
+      } catch {
+        // Handled silently
+      }
+    }
+    loadTaxonomies();
   }, []);
 
-  const handleCategoryChange = (slug: string) => {
+  // Fetch products based on active filters and pagination
+  useEffect(() => {
+    let isCurrent = true;
     setIsLoading(true);
-    setSelectedCategory(slug);
-    setTimeout(() => setIsLoading(false), 200);
-  };
 
-  const handleConcernChange = (slug: string) => {
-    setIsLoading(true);
-    setSelectedConcern(slug);
-    setTimeout(() => setIsLoading(false), 200);
+    async function loadProducts() {
+      const sortMap: Record<string, string> = {
+        featured: "popularity",
+        "price-asc": "price_asc",
+        "price-desc": "price_desc",
+        rating: "rating",
+      };
+
+      const params = new URLSearchParams();
+      if (activeCategory !== "all") params.set("category", activeCategory);
+      if (activeConcern !== "all") params.set("concern", activeConcern);
+      if (searchQuery) params.set("q", searchQuery);
+      params.set("sort", sortMap[activeSort] || "popularity");
+      params.set("per_page", "48");
+      params.set("page", page.toString());
+
+      try {
+        const res = await apiBffFetch<Product[]>(`products?${params.toString()}`);
+        if (isCurrent) {
+          if (page === 1) {
+            setProducts(res.data || []);
+          } else {
+            setProducts((prev) => [...prev, ...(res.data || [])]);
+          }
+          if (res.meta) {
+            setMeta(res.meta);
+          }
+        }
+      } catch {
+        if (isCurrent) {
+          setProducts([]);
+        }
+      } finally {
+        if (isCurrent) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadProducts();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [activeCategory, activeConcern, searchQuery, activeSort, page]);
+
+  const updateFilters = (newParams: Record<string, string>) => {
+    setPage(1);
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key, val] of Object.entries(newParams)) {
+      if (val === "all" || !val) {
+        params.delete(key);
+      } else {
+        params.set(key, val);
+      }
+    }
+    router.push(`/shop?${params.toString()}`);
   };
 
   const resetFilters = () => {
-    setIsLoading(true);
-    setSelectedCategory("all");
-    setSelectedConcern("all");
-    setSortBy("featured");
-    setTimeout(() => setIsLoading(false), 200);
+    setPage(1);
+    router.push("/shop");
   };
-
-  const filteredProducts = useMemo(() => {
-    return PRODUCTS.filter((p) => {
-      if (selectedCategory !== "all" && p.categorySlug !== selectedCategory) {
-        return false;
-      }
-      if (selectedConcern !== "all" && p.concernSlug !== selectedConcern) {
-        return false;
-      }
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        const matches =
-          p.name.toLowerCase().includes(q) ||
-          p.category.toLowerCase().includes(q) ||
-          p.subtitle.toLowerCase().includes(q);
-        if (!matches) return false;
-      }
-      return true;
-    }).sort((a, b) => {
-      if (sortBy === "price-asc") return a.price - b.price;
-      if (sortBy === "price-desc") return b.price - a.price;
-      if (sortBy === "rating") return b.rating - a.rating;
-      return 0;
-    });
-  }, [selectedCategory, selectedConcern, sortBy, searchQuery]);
 
   return (
     <div className="bg-[#FBF9F5] min-h-screen py-8 lg:py-12 border-b border-[#E8E3DA]">
@@ -97,7 +136,7 @@ function ShopContent() {
 
           <div className="flex items-center gap-3">
             <span className="text-[15px] text-[#736E67]">
-              Showing <span className="font-bold text-[#1A1A1A]">{filteredProducts.length}</span> of {PRODUCTS.length} products
+              Showing <span className="font-bold text-[#1A1A1A]">{meta?.total ?? products.length}</span> products
             </span>
           </div>
         </div>
@@ -110,7 +149,7 @@ function ShopContent() {
               <span className="text-[15px] uppercase tracking-wider font-semibold text-[#1A1A1A]">
                 Category
               </span>
-              {(selectedCategory !== "all" || selectedConcern !== "all") && (
+              {(activeCategory !== "all" || activeConcern !== "all" || searchQuery) && (
                 <button
                   onClick={resetFilters}
                   className="text-[14px] text-[#A94438] hover:underline flex items-center gap-1 font-medium"
@@ -121,21 +160,21 @@ function ShopContent() {
             </div>
             <div className="flex flex-wrap gap-2.5">
               <button
-                onClick={() => handleCategoryChange("all")}
+                onClick={() => updateFilters({ category: "all" })}
                 className={`text-[15px] px-3.5 py-1.5 rounded-full border transition-all ${
-                  selectedCategory === "all"
+                  activeCategory === "all"
                     ? "bg-[#1A1A1A] text-[#FBF9F5] border-[#1A1A1A] font-semibold"
                     : "bg-[#FBF9F5] text-[#4A4640] border-[#E8E3DA] hover:border-[#1A1A1A]"
                 }`}
               >
                 All Categories
               </button>
-              {CATEGORIES.map((cat) => (
+              {categories.map((cat) => (
                 <button
                   key={cat.id}
-                  onClick={() => handleCategoryChange(cat.slug)}
+                  onClick={() => updateFilters({ category: cat.slug })}
                   className={`text-[15px] px-3.5 py-1.5 rounded-full border transition-all ${
-                    selectedCategory === cat.slug
+                    activeCategory === cat.slug
                       ? "bg-[#1A1A1A] text-[#FBF9F5] border-[#1A1A1A] font-semibold"
                       : "bg-[#FBF9F5] text-[#4A4640] border-[#E8E3DA] hover:border-[#1A1A1A]"
                   }`}
@@ -154,21 +193,21 @@ function ShopContent() {
               </span>
               <div className="flex flex-wrap gap-2.5">
                 <button
-                  onClick={() => handleConcernChange("all")}
+                  onClick={() => updateFilters({ concern: "all" })}
                   className={`text-[15px] px-3.5 py-1.5 rounded-full border transition-all ${
-                    selectedConcern === "all"
+                    activeConcern === "all"
                       ? "bg-[#4E5942] text-[#FBF9F5] border-[#4E5942] font-semibold"
                       : "bg-[#FBF9F5] text-[#4A4640] border-[#E8E3DA] hover:border-[#4E5942]"
                   }`}
                 >
                   All Concerns
                 </button>
-                {CONCERNS.map((con) => (
+                {concerns.map((con) => (
                   <button
                     key={con.id}
-                    onClick={() => handleConcernChange(con.slug)}
+                    onClick={() => updateFilters({ concern: con.slug })}
                     className={`text-[15px] px-3.5 py-1.5 rounded-full border transition-all ${
-                      selectedConcern === con.slug
+                      activeConcern === con.slug
                         ? "bg-[#4E5942] text-[#FBF9F5] border-[#4E5942] font-semibold"
                         : "bg-[#FBF9F5] text-[#4A4640] border-[#E8E3DA] hover:border-[#4E5942]"
                     }`}
@@ -186,8 +225,8 @@ function ShopContent() {
               </label>
               <select
                 id="sort-select"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
+                value={activeSort}
+                onChange={(e) => updateFilters({ sort: e.target.value })}
                 className="bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] text-[#1A1A1A] px-3.5 py-2.5 rounded-xs focus:outline-hidden focus:border-[#1A1A1A] font-medium"
               >
                 <option value="featured">Featured / Recommended</option>
@@ -200,14 +239,30 @@ function ShopContent() {
         </div>
 
         {/* Product Grid or Skeleton */}
-        {isLoading ? (
+        {isLoading && page === 1 ? (
           <ProductGridSkeleton count={8} />
-        ) : filteredProducts.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            {filteredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+        ) : products.length > 0 ? (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+              {products.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+
+            {/* Load More Button */}
+            {meta && meta.currentPage < meta.lastPage && (
+              <div className="mt-12 text-center">
+                <button
+                  type="button"
+                  onClick={() => setPage((prev) => prev + 1)}
+                  disabled={isLoading}
+                  className="bg-[#1A1A1A] text-white hover:bg-[#333333] px-8 py-3.5 text-[15px] font-semibold uppercase tracking-wider rounded-2xs transition-colors disabled:opacity-50"
+                >
+                  {isLoading ? "Loading..." : "Load More Formulations"}
+                </button>
+              </div>
+            )}
+          </>
         ) : (
           <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-12 text-center rounded-xs">
             <h3 className="text-2xl font-semibold text-[#1A1A1A] mb-2">

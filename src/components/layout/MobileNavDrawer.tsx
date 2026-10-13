@@ -3,13 +3,20 @@
 import React, { useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { X, ChevronRight, Search, User, ShoppingBag, ArrowRight } from "lucide-react";
+import { X, ChevronRight, Search, User, ShoppingBag, ArrowRight, Heart } from "lucide-react";
 import { useUIStore } from "@/stores/uiStore";
 import { useCartStore } from "@/stores/cartStore";
+import { useCart } from "@/hooks/useCart";
+import { useAuth } from "@/hooks/useAuth";
+import { useWishlist } from "@/hooks/useWishlist";
+import LanguageSwitcher from "@/components/layout/LanguageSwitcher";
 
 export default function MobileNavDrawer() {
   const { isMobileMenuOpen, closeMobileMenu, openSearch } = useUIStore();
-  const { openCart, getTotalItems } = useCartStore();
+  const { openCart } = useCartStore();
+  const { cart } = useCart();
+  const { user } = useAuth();
+  const { wishlistCount } = useWishlist();
   const [mounted, setMounted] = React.useState(false);
 
   useEffect(() => {
@@ -26,7 +33,8 @@ export default function MobileNavDrawer() {
 
   if (!isMobileMenuOpen) return null;
 
-  const totalItems = mounted ? getTotalItems() : 0;
+  const totalItems = mounted ? cart.itemCount : 0;
+  const accountHref = user ? "/account" : "/auth/login";
 
   const handleSearchClick = () => {
     closeMobileMenu();
@@ -61,13 +69,16 @@ export default function MobileNavDrawer() {
               className="h-7 w-auto object-contain"
             />
           </Link>
-          <button
-            onClick={closeMobileMenu}
-            className="p-2 text-[#5A5650] hover:text-[#1A1A1A] transition-colors rounded-full"
-            aria-label="Close navigation"
-          >
-            <X className="w-6 h-6" />
-          </button>
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher />
+            <button
+              onClick={closeMobileMenu}
+              className="p-1.5 text-[#5A5650] hover:text-[#1A1A1A] transition-colors rounded-full"
+              aria-label="Close navigation"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
         </div>
 
         {/* Links Navigation List */}
@@ -92,11 +103,20 @@ export default function MobileNavDrawer() {
             </Link>
 
             <Link
+              href="/collections/toners"
+              onClick={closeMobileMenu}
+              className="flex items-center justify-between py-3 pl-3 text-[15px] font-medium text-[#4A4640] hover:text-[#1A1A1A] transition-colors"
+            >
+              <span>Toners & Mists</span>
+              <ChevronRight className="w-4 h-4 text-[#8C867D]" />
+            </Link>
+
+            <Link
               href="/collections/serums"
               onClick={closeMobileMenu}
               className="flex items-center justify-between py-3 pl-3 text-[15px] font-medium text-[#4A4640] hover:text-[#1A1A1A] transition-colors"
             >
-              <span>Serums</span>
+              <span>Serums & Treatments</span>
               <ChevronRight className="w-4 h-4 text-[#8C867D]" />
             </Link>
 
@@ -110,6 +130,15 @@ export default function MobileNavDrawer() {
             </Link>
 
             <Link
+              href="/collections/sunscreen"
+              onClick={closeMobileMenu}
+              className="flex items-center justify-between py-3 pl-3 text-[15px] font-medium text-[#4A4640] hover:text-[#1A1A1A] transition-colors"
+            >
+              <span>Sun Protection</span>
+              <ChevronRight className="w-4 h-4 text-[#8C867D]" />
+            </Link>
+
+            <Link
               href="/about"
               onClick={closeMobileMenu}
               className="flex items-center justify-between py-3.5 text-[17px] font-semibold text-[#1A1A1A] hover:text-[#4E5942] transition-colors"
@@ -119,7 +148,7 @@ export default function MobileNavDrawer() {
             </Link>
 
             <Link
-              href="/about#journal"
+              href="/journal"
               onClick={closeMobileMenu}
               className="flex items-center justify-between py-3.5 text-[17px] font-semibold text-[#1A1A1A] hover:text-[#4E5942] transition-colors"
             >
@@ -142,13 +171,25 @@ export default function MobileNavDrawer() {
             </button>
 
             <Link
-              href="/about#contact"
+              href={accountHref}
               onClick={closeMobileMenu}
               className="flex items-center justify-between py-3.5 text-[16px] font-medium text-[#1A1A1A] hover:text-[#4E5942] transition-colors"
             >
               <span className="flex items-center gap-3">
                 <User className="w-5 h-5 text-[#8C867D]" />
-                Account
+                {user ? `Account (${user.name.split(" ")[0]})` : "Sign In / Register"}
+              </span>
+              <ChevronRight className="w-5 h-5 text-[#8C867D]" />
+            </Link>
+
+            <Link
+              href="/wishlist"
+              onClick={closeMobileMenu}
+              className="flex items-center justify-between py-3.5 text-[16px] font-medium text-[#1A1A1A] hover:text-[#4E5942] transition-colors"
+            >
+              <span className="flex items-center gap-3">
+                <Heart className="w-5 h-5 text-[#8C867D]" />
+                Wishlist ({mounted ? wishlistCount : 0})
               </span>
               <ChevronRight className="w-5 h-5 text-[#8C867D]" />
             </Link>

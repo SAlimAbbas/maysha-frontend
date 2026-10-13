@@ -4,15 +4,24 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Search, ShoppingBag, Menu, User } from "lucide-react";
+import { Search, ShoppingBag, Menu, User as UserIcon, Heart } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
 import { useUIStore } from "@/stores/uiStore";
+import { useCart } from "@/hooks/useCart";
+import { useAuth } from "@/hooks/useAuth";
+import { useWishlist } from "@/hooks/useWishlist";
+import LanguageSwitcher from "@/components/layout/LanguageSwitcher";
+import { useLanguage } from "@/providers/LanguageProvider";
 
 export default function Header() {
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
-  const { openCart, getTotalItems } = useCartStore();
+  const { openCart } = useCartStore();
   const { openSearch, openMobileMenu } = useUIStore();
+  const { cart } = useCart();
+  const { user } = useAuth();
+  const { wishlistCount } = useWishlist();
+  const { t } = useLanguage();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -24,12 +33,13 @@ export default function Header() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const totalItems = mounted ? getTotalItems() : 0;
+  const totalItems = mounted ? cart.itemCount : 0;
+  const accountHref = user ? "/account" : "/auth/login";
 
   const navLinks = [
-    { label: "Shop", href: "/shop" },
-    { label: "About", href: "/about" },
-    { label: "Journal", href: "/about#journal" },
+    { label: t("shop", "Shop"), href: "/shop" },
+    { label: t("about", "About"), href: "/about" },
+    { label: t("journal", "Journal"), href: "/journal" },
   ];
 
   return (
@@ -68,13 +78,13 @@ export default function Header() {
               />
             </Link>
 
-            {/* Desktop Navigation Links (16px) */}
+            {/* Desktop Navigation Links */}
             <nav className="hidden lg:flex items-center gap-8 ml-6">
               {navLinks.map((link) => {
-                const isActive = pathname === link.href;
+                const isActive = pathname === link.href || (link.href !== "/" && pathname.startsWith(link.href));
                 return (
                   <Link
-                    key={link.label}
+                    key={link.href}
                     href={link.href}
                     className={`relative text-[16px] tracking-wide transition-colors py-1 group ${
                       isActive ? "text-[#1A1A1A] font-semibold" : "text-[#4A4640] hover:text-[#1A1A1A]"
@@ -94,7 +104,10 @@ export default function Header() {
 
           {/* Right Action Icons */}
           <div className="flex items-center gap-1.5 sm:gap-3">
-            {/* Search Trigger (15px label) */}
+            {/* Language Switcher */}
+            <LanguageSwitcher className="mr-1" />
+
+            {/* Search Trigger */}
             <button
               onClick={openSearch}
               className="p-2 text-[#1A1A1A] hover:text-[#4E5942] hover:bg-[#F5F2EB] rounded-full transition-all active:scale-95 flex items-center gap-2"
@@ -108,11 +121,27 @@ export default function Header() {
 
             {/* Account Link */}
             <Link
-              href="/about#contact"
+              href={accountHref}
               className="p-2 text-[#1A1A1A] hover:text-[#4E5942] hover:bg-[#F5F2EB] rounded-full transition-all active:scale-95"
-              aria-label="User Account"
+              aria-label={user ? `Account (${user.name})` : "Sign In to Account"}
+              title={user ? `Account (${user.name})` : "Sign In"}
             >
-              <User className="w-5 h-5" />
+              <UserIcon className="w-5 h-5" />
+            </Link>
+
+            {/* Wishlist Link */}
+            <Link
+              href="/wishlist"
+              className="p-2 text-[#1A1A1A] hover:text-[#4E5942] hover:bg-[#F5F2EB] rounded-full transition-all active:scale-95 relative flex items-center"
+              aria-label={`Wishlist (${mounted ? wishlistCount : 0} items)`}
+              title="Saved Wishlist"
+            >
+              <Heart className="w-5 h-5" />
+              {mounted && wishlistCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-[#A94438] text-white text-[11px] font-bold min-w-4 h-4 rounded-full flex items-center justify-center px-1 shadow-xs">
+                  {wishlistCount}
+                </span>
+              )}
             </Link>
 
             {/* Cart Drawer Trigger with Badge */}

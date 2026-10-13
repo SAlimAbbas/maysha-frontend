@@ -21,7 +21,7 @@ export interface Product {
   size: string;
   rating: number;
   reviewCount: number;
-  badge?: "Bestseller" | "New Launch" | "Award Winner" | "Trending";
+  badge?: string;
   inStock: boolean;
   images: string[];
   hoverImage?: string;
@@ -59,13 +59,40 @@ export interface Review {
   isVerified: boolean;
   title: string;
   comment: string;
+  images?: string[];
   productId: string;
   productName: string;
   helpfulCount: number;
+  age?: string;
+  skinType?: string;
+  skinConcerns?: string;
 }
 
-export interface CartItem {
+export interface Banner {
   id: string;
+  title: string;
+  subtitle: string;
+  desktopImage: string;
+  mobileImage: string;
+  linkUrl: string;
+  badgeText?: string | null;
+  sortOrder: number;
+}
+
+export interface StoreInfo {
+  brand: string;
+  tagline: string;
+  currency: string;
+  symbol: string;
+  freeShippingThreshold: number;
+  shippingFee: number;
+  status: string;
+  supportEmail: string;
+}
+
+export interface CartLine {
+  id: string;
+  variantId: string;
   productId: string;
   productSlug: string;
   name: string;
@@ -74,6 +101,135 @@ export interface CartItem {
   mrp: number;
   quantity: number;
   image: string;
+  lineTotal: number;
+  stock: number;
+}
+
+export interface CartSummary {
+  items: CartLine[];
+  subtotal: number;
+  discount: number;
+  shipping: number;
+  total: number;
+  subtotalPaise: number;
+  discountPaise: number;
+  shippingPaise: number;
+  totalPaise: number;
+  couponCode: string | null;
+  warnings: string[];
+  itemCount: number;
+}
+
+export interface ShippingAddress {
+  name: string;
+  phone: string;
+  line1: string;
+  line2?: string;
+  city: string;
+  state: string;
+  pincode: string;
+}
+
+export interface OrderItem {
+  id: string;
+  productId?: string;
+  productName: string;
+  productSlug: string;
+  size: string;
+  unitPrice: number;
+  unitMrp: number;
+  quantity: number;
+  total: number;
+  image: string;
+}
+
+export type OrderStatus =
+  | "pending_payment"
+  | "paid"
+  | "processing"
+  | "shipped"
+  | "delivered"
+  | "cancelled"
+  | "refunded"
+  | "failed";
+
+export interface Order {
+  id: string;
+  reference: string;
+  status: OrderStatus;
+  subtotal: number;
+  discount: number;
+  shipping: number;
+  total: number;
+  currency: string;
+  couponCode: string | null;
+  paymentMethod: "razorpay" | "cod";
+  shippingAddress: ShippingAddress;
+  items: OrderItem[];
+  createdAt: string;
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  avatar: string | null;
+  phone: string | null;
+  emailVerified: boolean;
+  createdAt: string;
+}
+
+export interface RazorpayOrder {
+  paymentId: string;
+  keyId: string;
+  razorpayOrderId: string;
+  amount: number;
+  amountPaise: number;
+  currency: string;
+  orderReference: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+}
+
+export interface Article {
+  id: string;
+  slug: string;
+  title: string;
+  subtitle: string;
+  excerpt: string;
+  content: string;
+  heroImage: string;
+  category: string;
+  readingTime: string;
+  author: string;
+  authorRole: string;
+  authorAvatar: string | null;
+  isFeatured: boolean;
+  recommendedProductSlugs: string[];
+  publishedAt: string;
+  createdAt: string;
+}
+
+export interface PaginationMeta {
+  total: number;
+  currentPage: number;
+  lastPage: number;
+  perPage?: number;
+}
+
+export interface ApiEnvelope<T> {
+  success: boolean;
+  message: string;
+  data: T;
+  meta?: PaginationMeta & { cartToken?: string; count?: number; maxAllowed?: number; [key: string]: any };
+}
+
+export interface ApiError {
+  status: number;
+  message: string;
+  errors?: Record<string, string[]>;
 }
 
 export interface ToastMessage {

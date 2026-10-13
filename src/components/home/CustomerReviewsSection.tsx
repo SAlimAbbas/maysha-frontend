@@ -2,21 +2,27 @@
 
 import React, { useState } from "react";
 import { Star, CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
-import { CUSTOMER_REVIEWS } from "@/data/reviews";
+import { Review } from "@/types";
 
-export default function CustomerReviewsSection() {
+interface CustomerReviewsSectionProps {
+  reviews: Review[];
+}
+
+export default function CustomerReviewsSection({ reviews = [] }: CustomerReviewsSectionProps) {
   const [startIndex, setStartIndex] = useState(0);
   const visibleCount = 3;
 
+  if (!reviews || reviews.length === 0) return null;
+
   const handlePrev = () => {
-    setStartIndex((prev) => (prev === 0 ? Math.max(0, CUSTOMER_REVIEWS.length - visibleCount) : prev - 1));
+    setStartIndex((prev) => (prev === 0 ? Math.max(0, reviews.length - visibleCount) : prev - 1));
   };
 
   const handleNext = () => {
-    setStartIndex((prev) => (prev + visibleCount >= CUSTOMER_REVIEWS.length ? 0 : prev + 1));
+    setStartIndex((prev) => (prev + visibleCount >= reviews.length ? 0 : prev + 1));
   };
 
-  const displayedReviews = CUSTOMER_REVIEWS.slice(startIndex, startIndex + visibleCount);
+  const displayedReviews = reviews.slice(startIndex, startIndex + visibleCount);
 
   return (
     <section className="py-12 sm:py-16 bg-[#FBF9F5] border-b border-[#E8E3DA]">
@@ -31,22 +37,24 @@ export default function CustomerReviewsSection() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handlePrev}
-              className="p-2.5 border border-[#E8E3DA] hover:border-[#1A1A1A] rounded-full transition-colors"
-              aria-label="Previous reviews"
-            >
-              <ChevronLeft className="w-5 h-5 text-[#1A1A1A]" />
-            </button>
-            <button
-              onClick={handleNext}
-              className="p-2.5 border border-[#E8E3DA] hover:border-[#1A1A1A] rounded-full transition-colors"
-              aria-label="Next reviews"
-            >
-              <ChevronRight className="w-5 h-5 text-[#1A1A1A]" />
-            </button>
-          </div>
+          {reviews.length > visibleCount && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handlePrev}
+                className="p-2.5 border border-[#E8E3DA] hover:border-[#1A1A1A] rounded-full transition-colors"
+                aria-label="Previous reviews"
+              >
+                <ChevronLeft className="w-5 h-5 text-[#1A1A1A]" />
+              </button>
+              <button
+                onClick={handleNext}
+                className="p-2.5 border border-[#E8E3DA] hover:border-[#1A1A1A] rounded-full transition-colors"
+                aria-label="Next reviews"
+              >
+                <ChevronRight className="w-5 h-5 text-[#1A1A1A]" />
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
@@ -83,9 +91,11 @@ export default function CustomerReviewsSection() {
                       </span>
                     )}
                   </p>
-                  <p className="text-[14px] text-[#736E67] mt-0.5 font-normal">
-                    Purchased: <span className="text-[#1A1A1A] font-medium">{rev.productName}</span>
-                  </p>
+                  {rev.productName && (
+                    <p className="text-[14px] text-[#736E67] mt-0.5 font-normal">
+                      Purchased: <span className="text-[#1A1A1A] font-medium">{rev.productName}</span>
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

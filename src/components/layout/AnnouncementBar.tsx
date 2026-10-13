@@ -2,29 +2,34 @@
 
 import React, { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-
-const ANNOUNCEMENTS = [
-  "Free shipping on orders above ₹999",
-  "Use code MAYSHA10 for 10% off your first order",
-  "Dermatologically tested • 100% clean & cruelty-free"
-];
+import { useCart } from "@/hooks/useCart";
+import { formatINR } from "@/lib/api";
 
 export default function AnnouncementBar() {
+  const { storeInfo, threshold } = useCart();
   const [index, setIndex] = useState(0);
+
+  const formattedThreshold = formatINR(threshold);
+
+  const announcements = [
+    `FREE Express Shipping on orders over ${formattedThreshold}`,
+    "Use code MAYSHA10 for 10% off your order",
+    "Clean, Dermatologically Tested Botanical Formulations",
+  ];
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setIndex((prev) => (prev + 1) % ANNOUNCEMENTS.length);
+      setIndex((prev) => (prev + 1) % announcements.length);
     }, 4500);
     return () => clearInterval(timer);
-  }, []);
+  }, [announcements.length]);
 
   const handlePrev = () => {
-    setIndex((prev) => (prev === 0 ? ANNOUNCEMENTS.length - 1 : prev - 1));
+    setIndex((prev) => (prev === 0 ? announcements.length - 1 : prev - 1));
   };
 
   const handleNext = () => {
-    setIndex((prev) => (prev + 1) % ANNOUNCEMENTS.length);
+    setIndex((prev) => (prev + 1) % announcements.length);
   };
 
   return (
@@ -42,7 +47,7 @@ export default function AnnouncementBar() {
         </button>
 
         <div className="flex-1 text-center font-medium tracking-wide transition-opacity duration-300">
-          <span>{ANNOUNCEMENTS[index]}</span>
+          <span>{announcements[index]}</span>
         </div>
 
         <button

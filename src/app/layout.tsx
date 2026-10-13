@@ -7,6 +7,9 @@ import CartDrawer from "@/components/cart/CartDrawer";
 import SearchModal from "@/components/ui/SearchModal";
 import MobileNavDrawer from "@/components/layout/MobileNavDrawer";
 import ToastProvider from "@/components/ui/ToastProvider";
+import QueryProvider from "@/providers/QueryProvider";
+import { LanguageProvider } from "@/providers/LanguageProvider";
+import GTranslate from "@/components/layout/GTranslate";
 
 export const metadata: Metadata = {
   title: "Maysha | Clean Skincare for Real Skin",
@@ -27,16 +30,21 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen flex flex-col bg-[#FBF9F5] text-[#1A1A1A] selection:bg-[#E2DDD2] selection:text-[#1A1A1A]">
-        <AnnouncementBar />
-        <Header />
-        <main className="flex-1">{children}</main>
-        <Footer />
-        
-        {/* Global Interactive Overlays */}
-        <CartDrawer />
-        <SearchModal />
-        <MobileNavDrawer />
-        <ToastProvider />
+        <QueryProvider>
+          <LanguageProvider>
+            <AnnouncementBar />
+            <Header />
+            <main className="flex-1">{children}</main>
+            <Footer />
+            
+            {/* Global Interactive Overlays */}
+            <CartDrawer />
+            <SearchModal />
+            <MobileNavDrawer />
+            <ToastProvider />
+            <GTranslate />
+          </LanguageProvider>
+        </QueryProvider>
       </body>
     </html>
   );

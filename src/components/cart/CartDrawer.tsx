@@ -3,26 +3,27 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight, ShieldCheck, Tag, Check } from "lucide-react";
+import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight, ShieldCheck, Tag, Check, AlertCircle } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
 import { useUIStore } from "@/stores/uiStore";
+import { useCart } from "@/hooks/useCart";
+import { formatINR } from "@/lib/api";
 
 export default function CartDrawer() {
+  const { isOpen, closeCart } = useCartStore();
   const {
-    items,
-    isOpen,
-    closeCart,
-    removeItem,
+    cart,
+    threshold,
+    freeShippingRemaining,
+    freeShippingProgress,
     updateQuantity,
-    getSubtotal,
-    getTotal,
-    getTotalItems,
-    getRemainingForFreeShipping,
-    couponCode,
-    couponDiscount,
+    removeItem,
     applyCoupon,
-    removeCoupon
-  } = useCartStore();
+    removeCoupon,
+    isUpdating,
+    isApplyingCoupon,
+    isRemovingCoupon,
+  } = useCart();
 
   const { addToast } = useUIStore();
   const [promoInput, setPromoInput] = useState("");
@@ -42,23 +43,27 @@ export default function CartDrawer() {
 
   if (!isOpen) return null;
 
-  const subtotal = getSubtotal();
-  const remainingForFreeShipping = getRemainingForFreeShipping();
-  const progressPercent = Math.min(100, Math.round(((999 - remainingForFreeShipping) / 999) * 100));
-  const totalItems = getTotalItems();
-  const total = getTotal();
-
-  const handleApplyPromo = (e: React.FormEvent) => {
+  const handleApplyPromo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!promoInput) return;
-    const success = applyCoupon(promoInput);
-    if (success) {
-      addToast("Promo Code Applied", "10% discount has been applied to your order.", "success");
+    setPromoError("");
+
+    try {
+      const res = await applyCoupon(promoInput);
+      addToast("Coupon Applied", res.message || "Discount applied successfully.", "success");
       setPromoInput("");
-      setPromoError("");
       setShowPromoBox(false);
-    } else {
-      setPromoError("Invalid code. Try MAYSHA10");
+    } catch (err: any) {
+      setPromoError(err.message || "Invalid coupon code.");
+    }
+  };
+
+  const handleRemovePromo = async () => {
+    try {
+      await removeCoupon();
+      addToast("Coupon Removed", "Discount code has been removed.", "info");
+    } catch (err: any) {
+      addToast("Notice", err.message || "Failed to remove coupon.", "error");
     }
   };
 
@@ -81,7 +86,7 @@ export default function CartDrawer() {
               Your Cart
             </h2>
             <span className="text-[14px] font-bold bg-[#EFECE4] text-[#1A1A1A] px-2.5 py-0.5 rounded-full">
-              {totalItems}
+              {cart.itemCount}
             </span>
           </div>
           <button
@@ -95,9 +100,9 @@ export default function CartDrawer() {
 
         {/* Free Shipping Progress Meter */}
         <div className="px-6 py-4 bg-[#F6F3EC] border-b border-[#E8E3DA]">
-          {remainingForFreeShipping > 0 ? (
+          {freeShippingRemaining > 0 ? (
             <p className="text-[15px] text-[#4A4640] mb-2 font-normal">
-              Add <span className="font-semibold text-[#1A1A1A]">₹{remainingForFreeShipping}</span> more to unlock <span className="font-semibold text-[#4E5942]">FREE Delivery</span>
+              Add <span className="font-semibold text-[#1A1A1A]">{formatINR(freeShippingRemaining)}</span> more to unlock <span className="font-semibold text-[#4E5942]">FREE Delivery</span>
             </p>
           ) : (
             <p className="text-[15px] font-semibold text-[#4E5942] mb-2 flex items-center gap-1.5">
@@ -108,14 +113,22 @@ export default function CartDrawer() {
           <div className="w-full h-2 bg-[#E8E3DA] rounded-full overflow-hidden">
             <div
               className="h-full bg-[#4E5942] transition-all duration-500 ease-out"
-              style={{ width: `${progressPercent}%` }}
+              style={{ width: `${freeShippingProgress}%` }}
             />
           </div>
         </div>
 
+        {/* Warnings Banner if available */}
+        {cart.warnings && cart.warnings.length > 0 && (
+          <div className="px-6 py-3 bg-[#FFF9E6] border-b border-[#FFE082] text-xs text-[#8F6215] flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{cart.warnings.join(" ")}</span>
+          </div>
+        )}
+
         {/* Cart Item List */}
         <div className="flex-1 overflow-y-auto px-6 py-4 divide-y divide-[#F0ECE4]">
-          {items.length === 0 ? (
+          {cart.items.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center py-12">
               <div className="w-16 h-16 rounded-full bg-[#F5F2EB] flex items-center justify-center text-[#736E67] mb-4">
                 <ShoppingBag className="w-8 h-8" />
@@ -134,94 +147,100 @@ export default function CartDrawer() {
               </button>
             </div>
           ) : (
-            items.map((item) => (
-              <div key={item.id} className="py-4 flex gap-4 items-start group">
-                {/* Product Thumbnail */}
-                <Link
-                  href={`/products/${item.productSlug}`}
-                  onClick={closeCart}
-                  className="w-20 h-20 relative bg-[#EFECE4] rounded-2xs overflow-hidden shrink-0"
-                >
-                  <Image
-                    src={item.image}
-                    alt={item.name}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-300"
-                    sizes="80px"
-                  />
-                </Link>
+            cart.items.map((item) => {
+              const maxAllowed = Math.min(10, item.stock || 10);
+              return (
+                <div key={item.id} className="py-4 flex gap-4 items-start group">
+                  {/* Product Thumbnail */}
+                  <Link
+                    href={`/products/${item.productSlug}`}
+                    onClick={closeCart}
+                    className="w-20 h-20 relative bg-[#EFECE4] rounded-2xs overflow-hidden shrink-0"
+                  >
+                    <Image
+                      src={item.image || "/logo.png"}
+                      alt={item.name}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      sizes="80px"
+                    />
+                  </Link>
 
-                {/* Details & Controls */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-start gap-2">
-                    <Link
-                      href={`/products/${item.productSlug}`}
-                      onClick={closeCart}
-                      className="text-[18px] font-semibold text-[#1A1A1A] hover:text-[#4E5942] transition-colors line-clamp-1"
-                    >
-                      {item.name}
-                    </Link>
-                    <button
-                      onClick={() => removeItem(item.id)}
-                      className="text-[#736E67] hover:text-[#A94438] p-1 transition-colors"
-                      aria-label={`Remove ${item.name} from cart`}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  <p className="text-[15px] text-[#736E67] mt-0.5 font-normal">{item.size}</p>
-
-                  <div className="flex items-center justify-between mt-3">
-                    {/* Stepper */}
-                    <div className="flex items-center border border-[#E8E3DA] rounded-2xs bg-[#FBF9F5]">
-                      <button
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        className="p-2 text-[#4A4640] hover:text-[#1A1A1A] transition-colors"
-                        aria-label="Decrease quantity"
+                  {/* Details & Controls */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start gap-2">
+                      <Link
+                        href={`/products/${item.productSlug}`}
+                        onClick={closeCart}
+                        className="text-[18px] font-semibold text-[#1A1A1A] hover:text-[#4E5942] transition-colors line-clamp-1"
                       >
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="text-[15px] font-semibold px-3 min-w-8 text-center text-[#1A1A1A]">
-                        {item.quantity}
-                      </span>
+                        {item.name}
+                      </Link>
                       <button
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        className="p-2 text-[#4A4640] hover:text-[#1A1A1A] transition-colors"
-                        aria-label="Increase quantity"
+                        onClick={() => removeItem(item.id)}
+                        className="text-[#736E67] hover:text-[#A94438] p-1 transition-colors"
+                        aria-label={`Remove ${item.name} from cart`}
                       >
-                        <Plus className="w-3.5 h-3.5" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
 
-                    {/* Price */}
-                    <div className="text-right">
-                      <span className="text-[18px] font-bold text-[#1A1A1A]">
-                        ₹{item.price * item.quantity}
-                      </span>
+                    <p className="text-[15px] text-[#736E67] mt-0.5 font-normal">{item.size}</p>
+
+                    <div className="flex items-center justify-between mt-3">
+                      {/* Stepper */}
+                      <div className="flex items-center border border-[#E8E3DA] rounded-2xs bg-[#FBF9F5]">
+                        <button
+                          onClick={() => updateQuantity({ itemId: item.id, quantity: item.quantity - 1 })}
+                          disabled={isUpdating}
+                          className="p-2 text-[#4A4640] hover:text-[#1A1A1A] disabled:opacity-50 transition-colors"
+                          aria-label="Decrease quantity"
+                        >
+                          <Minus className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="text-[15px] font-semibold px-3 min-w-8 text-center text-[#1A1A1A]">
+                          {item.quantity}
+                        </span>
+                        <button
+                          onClick={() => updateQuantity({ itemId: item.id, quantity: Math.min(maxAllowed, item.quantity + 1) })}
+                          disabled={isUpdating || item.quantity >= maxAllowed}
+                          className="p-2 text-[#4A4640] hover:text-[#1A1A1A] disabled:opacity-50 transition-colors"
+                          aria-label="Increase quantity"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Price */}
+                      <div className="text-right">
+                        <span className="text-[18px] font-bold text-[#1A1A1A]">
+                          {formatINR(item.lineTotal || item.price * item.quantity)}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
         {/* Drawer Footer & Checkout */}
-        {items.length > 0 && (
+        {cart.items.length > 0 && (
           <div className="border-t border-[#E8E3DA] bg-[#FBF9F5] p-6 space-y-4">
-            {/* Promo Code Toggle */}
+            {/* Promo Code Box */}
             <div>
-              {couponCode ? (
+              {cart.couponCode ? (
                 <div className="flex items-center justify-between p-3 bg-[#EDF3E8] border border-[#C5D7BD] rounded-2xs text-[15px] text-[#3E4534]">
                   <span className="flex items-center gap-2 font-semibold">
-                    <Tag className="w-4 h-4" /> Code &lsquo;{couponCode}&rsquo; (-₹{couponDiscount})
+                    <Tag className="w-4 h-4" /> Code &lsquo;{cart.couponCode}&rsquo; (-{formatINR(cart.discountPaise, true)})
                   </span>
                   <button
-                    onClick={removeCoupon}
+                    onClick={handleRemovePromo}
+                    disabled={isRemovingCoupon}
                     className="text-[#736E67] hover:text-[#A94438] underline text-[14px]"
                   >
-                    Remove
+                    {isRemovingCoupon ? "Removing..." : "Remove"}
                   </button>
                 </div>
               ) : showPromoBox ? (
@@ -236,9 +255,10 @@ export default function CartDrawer() {
                     />
                     <button
                       type="submit"
-                      className="bg-[#1A1A1A] text-white px-4 py-2 text-[15px] font-semibold rounded-2xs hover:bg-[#333333] transition-colors"
+                      disabled={isApplyingCoupon}
+                      className="bg-[#1A1A1A] text-white px-4 py-2 text-[15px] font-semibold rounded-2xs hover:bg-[#333333] disabled:opacity-50 transition-colors"
                     >
-                      Apply
+                      {isApplyingCoupon ? "..." : "Apply"}
                     </button>
                   </div>
                   {promoError && (
@@ -255,31 +275,31 @@ export default function CartDrawer() {
               )}
             </div>
 
-            {/* Calculations */}
+            {/* Calculations from Paise */}
             <div className="space-y-2.5 text-[15px] text-[#4A4640]">
               <div className="flex justify-between">
                 <span>Subtotal</span>
-                <span className="font-semibold text-[#1A1A1A]">₹{subtotal}</span>
+                <span className="font-semibold text-[#1A1A1A]">{formatINR(cart.subtotalPaise, true)}</span>
               </div>
-              {couponDiscount > 0 && (
+              {cart.discountPaise > 0 && (
                 <div className="flex justify-between text-[#4E5942] font-semibold">
                   <span>Discount</span>
-                  <span>-₹{couponDiscount}</span>
+                  <span>-{formatINR(cart.discountPaise, true)}</span>
                 </div>
               )}
               <div className="flex justify-between">
                 <span>Shipping</span>
                 <span>
-                  {remainingForFreeShipping === 0 ? (
+                  {cart.shippingPaise === 0 ? (
                     <span className="font-semibold text-[#4E5942]">FREE</span>
                   ) : (
-                    "Calculated at checkout"
+                    formatINR(cart.shippingPaise, true)
                   )}
                 </span>
               </div>
               <div className="flex justify-between text-[18px] font-bold text-[#1A1A1A] pt-2.5 border-t border-[#E8E3DA]">
                 <span>Total</span>
-                <span>₹{total}</span>
+                <span>{formatINR(cart.totalPaise, true)}</span>
               </div>
             </div>
 

@@ -5,19 +5,42 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, CheckCircle2, ShieldCheck, Sparkles, Leaf, HeartHandshake } from "lucide-react";
 import { useUIStore } from "@/stores/uiStore";
+import { apiBffFetch } from "@/lib/api";
+import { SITE_CONFIG } from "@/config/site";
 
 export default function Footer() {
   const [email, setEmail] = useState("");
-  const [subscribed, setSubscribed] = useState(false);
+  const [website, setWebsite] = useState(""); // Hidden honeypot
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { addToast } = useUIStore();
 
-  const handleSubscribe = (e: React.FormEvent) => {
+  const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !email.includes("@")) return;
-    setSubscribed(true);
-    addToast("Welcome to Maysha", "You've successfully subscribed to our weekly skincare journal.", "success");
-    setEmail("");
-    setTimeout(() => setSubscribed(false), 5000);
+
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      const res = await apiBffFetch<{ message?: string }>("newsletter", {
+        method: "POST",
+        body: JSON.stringify({ email, website }),
+      });
+
+      const msg = res.message || "Thank you for subscribing to Maysha Journal.";
+      setSuccessMessage(msg);
+      addToast("Subscribed", msg, "success");
+      setEmail("");
+      setTimeout(() => setSuccessMessage(null), 6000);
+    } catch (err: any) {
+      const msg = err.message || "Failed to subscribe. Please try again later.";
+      setErrorMessage(msg);
+      addToast("Subscription Error", msg, "error");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -92,31 +115,49 @@ export default function Footer() {
                 Join the Maysha Circle
               </h5>
               <p className="text-[15px] text-[#A69F93] mb-3 font-normal">
-                Receive 10% off your first purchase and exclusive skincare rituals.
+                Receive exclusive skincare rituals, early releases, and formulation insights.
               </p>
 
-              {subscribed ? (
+              {successMessage ? (
                 <div className="flex items-center gap-2 p-3.5 bg-[#2A3125] border border-[#4E5942] text-[#EFECE4] text-[15px] rounded-xs">
                   <CheckCircle2 className="w-5 h-5 text-[#8EA07E]" />
-                  <span>Thank you for subscribing! Check your inbox soon.</span>
+                  <span>{successMessage}</span>
                 </div>
               ) : (
-                <form onSubmit={handleSubscribe} className="flex gap-2">
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email address"
-                    required
-                    className="flex-1 bg-[#262626] border border-[#3E3E3E] text-[15px] text-[#FBF9F5] px-4 py-3 rounded-xs focus:outline-hidden focus:border-[#8EA07E] transition-colors placeholder-[#736E67]"
-                  />
-                  <button
-                    type="submit"
-                    className="bg-[#4E5942] hover:bg-[#5E6B51] text-[#FBF9F5] px-5 py-3 text-[15px] font-semibold rounded-xs transition-colors shrink-0 flex items-center gap-1.5 active:scale-95"
-                  >
-                    <span>Subscribe</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
+                <form onSubmit={handleSubscribe} className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    {/* Honeypot field for spam prevention */}
+                    <input
+                      type="text"
+                      name="website"
+                      value={website}
+                      onChange={(e) => setWebsite(e.target.value)}
+                      tabIndex={-1}
+                      autoComplete="off"
+                      className="hidden"
+                      aria-hidden="true"
+                    />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Enter your email address"
+                      required
+                      disabled={isSubmitting}
+                      className="flex-1 bg-[#262626] border border-[#3E3E3E] text-[15px] text-[#FBF9F5] px-4 py-3 rounded-xs focus:outline-hidden focus:border-[#8EA07E] transition-colors placeholder-[#736E67]"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="bg-[#4E5942] hover:bg-[#5E6B51] disabled:opacity-50 text-[#FBF9F5] px-5 py-3 text-[15px] font-semibold rounded-xs transition-colors shrink-0 flex items-center gap-1.5 active:scale-95"
+                    >
+                      <span>{isSubmitting ? "..." : "Subscribe"}</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {errorMessage && (
+                    <p className="text-xs text-[#E57373] mt-1">{errorMessage}</p>
+                  )}
                 </form>
               )}
             </div>
@@ -139,13 +180,18 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/collections/toners" className="hover:text-white transition-colors">
+                  Toners & Floral Mists
+                </Link>
+              </li>
+              <li>
                 <Link href="/collections/serums" className="hover:text-white transition-colors">
-                  Active Serums
+                  Active Serums & Peptides
                 </Link>
               </li>
               <li>
                 <Link href="/collections/moisturizers" className="hover:text-white transition-colors">
-                  Barrier Moisturizers
+                  Barrier Moisture Creams
                 </Link>
               </li>
               <li>
@@ -164,7 +210,7 @@ export default function Footer() {
             <ul className="space-y-2.5 text-[15px] text-[#A69F93]">
               <li>
                 <Link href="/about" className="hover:text-white transition-colors">
-                  Our Philosophy
+                  Our Story & Philosophy
                 </Link>
               </li>
               <li>
@@ -173,13 +219,13 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/about#journal" className="hover:text-white transition-colors">
+                <Link href="/journal" className="hover:text-white transition-colors">
                   Skincare Journal
                 </Link>
               </li>
               <li>
-                <Link href="/about#sustainability" className="hover:text-white transition-colors">
-                  Sustainability
+                <Link href="/orders/track" className="hover:text-white transition-colors">
+                  Track Your Order
                 </Link>
               </li>
             </ul>
@@ -194,16 +240,16 @@ export default function Footer() {
               Have questions about your skincare routine or order? Our skincare specialists are here to guide you.
             </p>
             <div className="text-[15px] text-[#D8D2C6] space-y-2 pt-1 font-normal">
-              <p>Email: <span className="text-[#8EA07E] font-medium">care@mayshaskincare.com</span></p>
-              <p>WhatsApp Care: <span className="text-[#8EA07E] font-medium">+91 98765 43210</span></p>
-              <p className="text-[14px] text-[#736E67]">Mon – Sat: 9:30 AM – 6:30 PM IST</p>
+              <p>Email: <span className="text-[#8EA07E] font-medium">{SITE_CONFIG.supportEmail}</span></p>
+              <p>WhatsApp: <span className="text-[#8EA07E] font-medium">{SITE_CONFIG.supportPhone}</span></p>
+              <p className="text-[14px] text-[#736E67]">{SITE_CONFIG.hours}</p>
             </div>
           </div>
         </div>
 
         {/* Bottom Copyright Strip */}
         <div className="border-t border-[#2C2C2C] mt-12 pt-8 flex flex-col sm:flex-row items-center justify-between text-[14px] text-[#736E67] gap-4 font-normal">
-          <p>© {new Date().getFullYear()} Maysha Skincare Technologies Pvt. Ltd. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} {SITE_CONFIG.name} Skincare Technologies Pvt. Ltd. All rights reserved.</p>
           <div className="flex gap-6">
             <Link href="/about#privacy" className="hover:text-[#A69F93] transition-colors">
               Privacy Policy
