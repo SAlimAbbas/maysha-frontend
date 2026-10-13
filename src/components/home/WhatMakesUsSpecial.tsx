@@ -154,16 +154,19 @@ export default function WhatMakesUsSpecial({
               className="border border-[#E8E3DA] p-6 md:p-8 rounded-[25px] hover:border-[#4E5942]/40 transition-all duration-300 group shadow-[0_2px_8px_rgba(0,0,0,0.02)]"
             >
               <div className="flex items-center justify-between mb-6">
+                {/* <div className="w-12 h-12 rounded-full bg-[#EFECE4]/60 flex items-center justify-center group-hover:bg-[#EFF7F2] transition-colors">
+                  {pillar.icon}
+                </div> */}
+                <h3 className="text-[22px] font-normal text-[#1A1A1A] mb-2 tracking-tight group-hover:text-[#4E5942] transition-colors">
+                  {pillar.title}
+                </h3>
                 <div className="w-12 h-12 rounded-full bg-[#EFECE4]/60 flex items-center justify-center group-hover:bg-[#EFF7F2] transition-colors">
                   {pillar.icon}
                 </div>
-                <span className="text-xs font-semibold text-[#A6A095] tracking-widest">
+                {/* <span className="text-xs font-semibold text-[#A6A095] tracking-widest">
                   {pillar.number}
-                </span>
+                </span> */}
               </div>
-              <h3 className="text-[22px] font-normal text-[#1A1A1A] mb-2 tracking-tight group-hover:text-[#4E5942] transition-colors">
-                {pillar.title}
-              </h3>
               <p className="text-[15px] text-[#5A5650] leading-relaxed">
                 {pillar.description}
               </p>

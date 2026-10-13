@@ -26,20 +26,17 @@ export default async function HomePage() {
   ]);
 
   const banners = bannersRes.status === "fulfilled" ? bannersRes.value : [];
-  let bestsellers =
-    bestsellersRes.status === "fulfilled" ? bestsellersRes.value : [];
-  let newProducts =
-    newProductsRes.status === "fulfilled" ? newProductsRes.value : [];
-
-  // Fallback if catalog is fresh or filtered
-  if (!bestsellers || bestsellers.length === 0) {
-    try {
-      const allRes = await apiServerFetch<Product[]>("products?per_page=8", { revalidate: 60 });
-      bestsellers = allRes || [];
-    } catch {
-      bestsellers = [];
-    }
-  }
+  const bestsellers =
+    bestsellersRes.status === "fulfilled" && Array.isArray(bestsellersRes.value)
+      ? bestsellersRes.value.filter((p) => {
+          const b = (p.badge || "").toLowerCase();
+          return b.includes("bestseller") || b.includes("best seller") || Boolean(p.isFeatured);
+        })
+      : [];
+  const newProducts =
+    newProductsRes.status === "fulfilled" && Array.isArray(newProductsRes.value)
+      ? newProductsRes.value
+      : [];
 
   return (
     <div className="flex flex-col">

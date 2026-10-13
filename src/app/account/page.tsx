@@ -183,14 +183,49 @@ export default function AccountPage() {
             </div>
           </div>
 
-          <button
-            onClick={handleLogout}
-            className="inline-flex items-center gap-2 bg-[#F5F2EB] hover:bg-[#EFECE4] text-[#1A1A1A] border border-[#E8E3DA] px-4 py-2.5 rounded-2xs text-[14px] font-semibold transition-colors shrink-0"
-          >
-            <LogOut className="w-4 h-4 text-[#736E67]" />
-            <span>Sign Out</span>
-          </button>
+          <div className="flex items-center gap-3 flex-wrap shrink-0">
+            {user.role === "admin" && (
+              <Link
+                href="/admin"
+                className="inline-flex items-center gap-2 bg-[#1A1A1A] hover:bg-[#333333] text-white px-5 py-2.5 rounded-2xs text-[14px] font-semibold transition-all shadow-md border border-black group"
+              >
+                <ShieldCheck className="w-4 h-4 text-[#E6C687]" />
+                <span>Go to Admin Panel</span>
+                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+              </Link>
+            )}
+
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center gap-2 bg-[#F5F2EB] hover:bg-[#EFECE4] text-[#1A1A1A] border border-[#E8E3DA] px-4 py-2.5 rounded-2xs text-[14px] font-semibold transition-colors shrink-0"
+            >
+              <LogOut className="w-4 h-4 text-[#736E67]" />
+              <span>Sign Out</span>
+            </button>
+          </div>
         </div>
+
+        {/* Admin Quick Jump Banner */}
+        {user.role === "admin" && (
+          <div className="p-5 bg-gradient-to-r from-[#1A1A1A] via-[#2B2B2B] to-[#1A1A1A] text-white rounded-xs border border-black shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-[#E6C687]/20 border border-[#E6C687]/40 flex items-center justify-center text-[#E6C687] shrink-0">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-[15px] font-semibold text-white">Administrator Access Enabled</p>
+                <p className="text-[13px] text-[#A6A095]">You have full access to manage products, categories, orders, journal articles, and store SEO.</p>
+              </div>
+            </div>
+            <Link
+              href="/admin"
+              className="inline-flex items-center gap-2 bg-[#E6C687] hover:bg-[#D9B774] text-[#1A1A1A] px-5 py-2.5 rounded-2xs text-[13px] font-bold uppercase tracking-wider transition-colors shrink-0 shadow-sm"
+            >
+              <span>Open Admin Panel</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        )}
 
         {/* Unverified Email Warning Banner */}
         {!user.emailVerified && (

@@ -15,7 +15,13 @@ export default function Bestsellers({
   title = "Bestsellers",
   subtitle = "Our most celebrated formulations, backed by glowing customer reviews",
 }: BestsellersProps) {
-  if (!products || products.length === 0) return null;
+  // Ensure strictly only products with Bestseller badge or marked featured are rendered
+  const bestsellersOnly = products.filter((p) => {
+    const b = (p.badge || "").toLowerCase();
+    return b.includes("bestseller") || b.includes("best seller") || Boolean(p.isFeatured);
+  });
+
+  if (!bestsellersOnly || bestsellersOnly.length === 0) return null;
 
   return (
     <section className="py-12 sm:py-16 bg-[#FBF9F5] border-b border-[#E8E3DA]">
@@ -31,16 +37,16 @@ export default function Bestsellers({
           </div>
 
           <Link
-            href="/shop"
+            href="/shop?sort=popularity"
             className="group flex items-center gap-1.5 text-[15px] uppercase tracking-wider font-semibold text-[#1A1A1A] hover:text-[#4E5942] transition-colors"
           >
-            <span>View All</span>
+            <span>View All Bestsellers</span>
             <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1" />
           </Link>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-          {products.slice(0, 4).map((product, idx) => (
+          {bestsellersOnly.slice(0, 4).map((product, idx) => (
             <ProductCard key={product.id} product={product} priority={idx < 2} />
           ))}
         </div>

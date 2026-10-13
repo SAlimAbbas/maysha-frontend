@@ -97,7 +97,29 @@ export default function CloudinaryUploader({
             className="object-cover"
             sizes="(max-width: 768px) 100vw, 400px"
           />
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+          {/* Mobile always-accessible controls */}
+          <div className="sm:hidden absolute top-2 right-2 flex items-center gap-1.5 z-10">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="bg-white/95 text-[#1A1A1A] px-2.5 py-1 rounded-2xs text-[11px] font-semibold shadow-xs"
+            >
+              Replace
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPreviewUrl(null);
+                onUploadSuccess("");
+              }}
+              className="bg-[#A94438] text-white px-2.5 py-1 rounded-2xs text-[11px] font-semibold shadow-xs"
+            >
+              Remove
+            </button>
+          </div>
+
+          {/* Desktop hover controls */}
+          <div className="hidden sm:flex absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity items-center justify-center gap-3">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}

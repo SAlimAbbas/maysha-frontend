@@ -25,7 +25,7 @@ const FALLBACK_PRODUCTS = [
     discount: "20% OFF",
     rating: 4.9,
     reviewCount: 186,
-    badge: "NEW",
+    badges: ["New Launch", "Bestseller"],
     image: "/images/products/face-wash/face-wash-1.png",
     variantId: "1",
   },
@@ -39,7 +39,7 @@ const FALLBACK_PRODUCTS = [
     discount: "28% OFF",
     rating: 4.9,
     reviewCount: 142,
-    badge: "NEW",
+    badges: ["New Launch", "Clean Botanical"],
     image: "/images/products/rosemary-hair-oil/hair-oil-1.png",
     variantId: "2",
   },
@@ -70,6 +70,10 @@ export default function MoreWaysToCare({ products = [] }: MoreWaysToCareProps) {
               ? `${Math.round(((primaryVar.mrp - primaryVar.price) / primaryVar.mrp) * 100)}% OFF`
               : "";
 
+          const parsedBadges = p.badge
+            ? p.badge.split(",").map((b) => b.trim()).filter(Boolean)
+            : ["New Launch"];
+
           return {
             id: p.id,
             slug: p.slug,
@@ -80,7 +84,7 @@ export default function MoreWaysToCare({ products = [] }: MoreWaysToCareProps) {
             discount: discountStr,
             rating: p.rating || 4.8,
             reviewCount: p.reviewCount || 48,
-            badge: p.badge ? p.badge.split(",")[0].trim() : "NEW",
+            badges: parsedBadges.length > 0 ? parsedBadges : ["New Launch"],
             image: safeImg,
             variantId: primaryVar?.id || p.id,
           };
@@ -119,14 +123,30 @@ export default function MoreWaysToCare({ products = [] }: MoreWaysToCareProps) {
             return (
               <div
                 key={prod.id}
-                className="border border-[#E8E3DA] rounded-xs overflow-hidden flex flex-col justify-between group hover:border-[#1A1A1A]/40 transition-all shadow-2xs"
+                className="border border-[#E8E3DA] rounded-xs overflow-hidden flex flex-col justify-between group hover:border-[#1A1A1A]/40 transition-all shadow-2xs bg-white"
               >
                 <div>
                   {/* Photo area */}
                   <div className="relative aspect-square bg-[#F5F2EB] flex items-center justify-center overflow-hidden">
-                    <span className="absolute top-4 left-4 bg-[#4E5942] text-white text-[11px] font-bold tracking-wider px-2 py-0.5 rounded-2xs z-10">
-                      {prod.badge}
-                    </span>
+                    {/* All Multi-Badges Container */}
+                    <div className="absolute top-3.5 left-3.5 flex flex-col gap-1.5 items-start z-10">
+                      {prod.badges.map((bLabel, bIdx) => (
+                        <span
+                          key={bIdx}
+                          className={`text-[11px] font-bold tracking-wider px-2.5 py-0.5 rounded-full shadow-2xs ${
+                            bLabel.toLowerCase().includes("new")
+                              ? "bg-[#4E5942] text-white"
+                              : bLabel.toLowerCase().includes("bestseller")
+                              ? "bg-[#1A1A1A] text-white"
+                              : bLabel.toLowerCase().includes("off") || bLabel.includes("%")
+                              ? "bg-[#A94438] text-white"
+                              : "bg-[#EDF3E8] text-[#3E4534] border border-[#C5D7BD]"
+                          }`}
+                        >
+                          {bLabel}
+                        </span>
+                      ))}
+                    </div>
 
                     <button
                       type="button"

@@ -32,6 +32,8 @@ export interface Product {
   description: string;
   skinTypes: string[];
   isFeatured?: boolean;
+  seoTitle?: string;
+  seoDescription?: string;
 }
 
 export interface Category {

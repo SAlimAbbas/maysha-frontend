@@ -20,13 +20,35 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     const { product } = data;
     if (!product) return { title: "Product | Maysha" };
 
+    const metaTitle = (product as any).seoTitle || `${product.name} — Maysha Botanical Skincare`;
+    const metaDescription =
+      (product as any).seoDescription ||
+      product.subtitle ||
+      product.description?.replace(/<[^>]*>?/gm, "").slice(0, 160);
+    const ogImage = product.images?.[0] || "/logo.png";
+
     return {
-      title: `${product.name} — Maysha Skincare`,
-      description: product.subtitle || product.description?.slice(0, 160),
+      title: metaTitle,
+      description: metaDescription,
+      keywords: product.keyBenefits && product.keyBenefits.length > 0
+        ? product.keyBenefits.join(", ")
+        : "botanical skincare, clean beauty, natural barrier care",
+      alternates: {
+        canonical: `/products/${product.slug}`,
+      },
       openGraph: {
-        title: `${product.name} | Maysha`,
-        description: product.subtitle,
-        images: product.images?.[0] ? [{ url: product.images[0] }] : [],
+        title: metaTitle,
+        description: metaDescription,
+        url: `/products/${product.slug}`,
+        siteName: "Maysha Skincare",
+        images: [{ url: ogImage, width: 800, height: 800, alt: product.name }],
+        type: "website",
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: metaTitle,
+        description: metaDescription,
+        images: [ogImage],
       },
     };
   } catch {

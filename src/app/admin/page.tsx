@@ -47,6 +47,11 @@ import {
   Eye,
   Tag,
   FileText,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  Globe2,
+  Sliders,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { apiBffFetch, formatINR } from "@/lib/api";
@@ -72,6 +77,12 @@ export default function AdminPage() {
   const { addToast } = useUIStore();
 
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
+  const tabNavRef = React.useRef<HTMLDivElement>(null);
+  const scrollTabs = (dir: "left" | "right") => {
+    if (tabNavRef.current) {
+      tabNavRef.current.scrollBy({ left: dir === "left" ? -280 : 280, behavior: "smooth" });
+    }
+  };
 
   // Admin login form states
   const [loginEmail, setLoginEmail] = useState("admin@maysha.com");
@@ -103,6 +114,22 @@ export default function AdminPage() {
     first_order_only: false,
     is_active: true,
   });
+
+  // Category CRUD state
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<any | null>(null);
+  const [isSavingCategory, setIsSavingCategory] = useState(false);
+  const [categoryFormData, setCategoryFormData] = useState({
+    name: "",
+    slug: "",
+    description: "",
+    image: "",
+    sort_order: 0,
+    is_active: true,
+    seo_title: "",
+    seo_description: "",
+  });
+
   const [subscribersData, setSubscribersData] = useState<{
     subscribers: any[];
     totalSubscribers: number;
@@ -125,6 +152,14 @@ export default function AdminPage() {
     about_philosophy_image: "https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&w=1200&q=85",
     admin_2fa_enabled: false,
     admin_2fa_pin: "9281",
+    seo_home_title: "Maysha | Clean Botanical Science for Real Skin",
+    seo_home_description: "Discover clean, bio-compatible skincare rituals formulated with pure botanical extracts and clinical actives for resilient, radiant skin.",
+    seo_about_title: "About Our Botanical Philosophy | Maysha Skincare",
+    seo_about_description: "Learn about Maysha's formulation ethos, ethical sourcing of Damask rose, and biocompatible skincare science.",
+    seo_journal_title: "The Skincare Journal | Maysha Skincare Science",
+    seo_journal_description: "Expert skincare guides, ingredient deep-dives, barrier repair science, and holistic rituals.",
+    seo_shop_title: "Shop All Botanical Formulations | Maysha",
+    seo_shop_description: "Explore all cleansers, serums, toners, moisturizers, and room mists thoughtfully engineered for real skin.",
   });
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
@@ -176,6 +211,8 @@ export default function AdminPage() {
     usage_instructions: "",
     key_benefits: "Barrier support, Deep hydration, Antioxidant rich",
     skin_types: "All Skin Types, Sensitive, Dry",
+    seo_title: "",
+    seo_description: "",
     images: [] as string[],
     variants: [
       { id: "", size: "50ml", price: 699, mrp: 899, stock: 50, sku: "" },
@@ -234,7 +271,7 @@ export default function AdminPage() {
         apiBffFetch<any>("admin/dashboard/stats").catch(() => null),
         apiBffFetch<any>("admin/products").catch(() => null),
         apiBffFetch<any>("admin/orders").catch(() => null),
-        apiBffFetch<any>("categories").catch(() => null),
+        apiBffFetch<any>("admin/categories").catch(() => apiBffFetch<any>("categories")).catch(() => null),
         apiBffFetch<any>("banners").catch(() => null),
         apiBffFetch<any>("admin/articles").catch(() => null),
         apiBffFetch<any>("admin/reviews").catch(() => null),
@@ -474,6 +511,8 @@ export default function AdminPage() {
       usage_instructions: "",
       key_benefits: "Barrier support, Deep hydration, Antioxidant rich",
       skin_types: "All Skin Types, Sensitive, Dry",
+      seo_title: "",
+      seo_description: "",
       images: [],
       variants: [
         { id: "", size: "50ml", price: 699, mrp: 899, stock: 50, sku: "" },
@@ -536,6 +575,8 @@ export default function AdminPage() {
       skin_types: Array.isArray(prod.skinTypes)
         ? prod.skinTypes.join(", ")
         : (prod.skin_types ? (Array.isArray(prod.skin_types) ? prod.skin_types.join(", ") : String(prod.skin_types)) : "All Skin Types"),
+      seo_title: prod.seoTitle || prod.seo_title || "",
+      seo_description: prod.seoDescription || prod.seo_description || "",
       images: prod.images && prod.images.length > 0 ? prod.images : [prod.image].filter(Boolean),
       variants: variantsList,
     });
@@ -569,6 +610,8 @@ export default function AdminPage() {
       skin_types: productFormData.skin_types
         ? productFormData.skin_types.split(",").map((s) => s.trim()).filter(Boolean)
         : [],
+      seo_title: productFormData.seo_title.trim() || null,
+      seo_description: productFormData.seo_description.trim() || null,
       images: productFormData.images,
       price: Number(primaryVariant.price),
       mrp: Number(primaryVariant.mrp),
@@ -921,6 +964,109 @@ export default function AdminPage() {
   };
 
   // -------------------------------------------------------------
+  // Category Operations
+  // -------------------------------------------------------------
+  const handleOpenAddCategory = () => {
+    setEditingCategory(null);
+    setCategoryFormData({
+      name: "",
+      slug: "",
+      description: "",
+      image: "",
+      sort_order: categories.length + 1,
+      is_active: true,
+      seo_title: "",
+      seo_description: "",
+    });
+    setShowAddCategoryModal(true);
+  };
+
+  const handleOpenEditCategory = (cat: any) => {
+    setEditingCategory(cat);
+    setCategoryFormData({
+      name: cat.name || "",
+      slug: cat.slug || "",
+      description: cat.subtitle || cat.description || "",
+      image: cat.image || "",
+      sort_order: cat.sortOrder ?? cat.sort_order ?? 0,
+      is_active: cat.isActive !== undefined ? Boolean(cat.isActive) : (cat.is_active !== undefined ? Boolean(cat.is_active) : true),
+      seo_title: cat.seoTitle || cat.seo_title || "",
+      seo_description: cat.seoDescription || cat.seo_description || "",
+    });
+    setShowAddCategoryModal(true);
+  };
+
+  const handleSaveCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!categoryFormData.name) {
+      addToast("Name Required", "Please enter category name.", "error");
+      return;
+    }
+
+    setIsSavingCategory(true);
+    try {
+      const payload: any = {
+        name: categoryFormData.name.trim(),
+        slug: categoryFormData.slug ? categoryFormData.slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") : categoryFormData.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        subtitle: categoryFormData.description.trim(),
+        description: categoryFormData.description.trim(),
+        image: categoryFormData.image || null,
+        sort_order: Number(categoryFormData.sort_order || 0),
+        is_active: Boolean(categoryFormData.is_active),
+        seo_title: categoryFormData.seo_title.trim() || null,
+        seo_description: categoryFormData.seo_description.trim() || null,
+      };
+
+      if (editingCategory) {
+        await apiBffFetch(`admin/categories/${editingCategory.id}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+        addToast("Category Updated", `Category "${payload.name}" updated successfully.`, "success");
+      } else {
+        await apiBffFetch("admin/categories", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        addToast("Category Created", `Category "${payload.name}" added to catalog.`, "success");
+      }
+
+      setShowAddCategoryModal(false);
+      loadAdminData();
+    } catch (err: any) {
+      addToast("Error", err.message || "Failed to save category.", "error");
+    } finally {
+      setIsSavingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = async (catId: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete category "${name}"?`)) return;
+    try {
+      await apiBffFetch(`admin/categories/${catId}`, { method: "DELETE" });
+      addToast("Category Deleted", `Category "${name}" removed.`, "info");
+      loadAdminData();
+    } catch (err: any) {
+      addToast("Cannot Delete", err.message || "Failed to delete category.", "error");
+    }
+  };
+
+  const handleToggleCategoryStatus = async (cat: any) => {
+    try {
+      const currentActive = cat.isActive !== undefined ? Boolean(cat.isActive) : (cat.is_active !== undefined ? Boolean(cat.is_active) : true);
+      const newStatus = !currentActive;
+      await apiBffFetch(`admin/categories/${cat.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ is_active: newStatus }),
+      });
+      addToast("Status Updated", `Category "${cat.name}" is now ${newStatus ? "active" : "inactive"}.`, "success");
+      loadAdminData();
+    } catch (err: any) {
+      addToast("Error", err.message || "Failed to update category status.", "error");
+    }
+  };
+
+  // -------------------------------------------------------------
   // Site Settings Operations
   // -------------------------------------------------------------
   const handleSaveSettings = async (e: React.FormEvent) => {
@@ -1093,146 +1239,247 @@ export default function AdminPage() {
   return (
     <div className="bg-[#FBF9F5] min-h-screen border-b border-[#E8E3DA]">
       {/* Top Admin Header Bar */}
-      <div className="bg-[#1A1A1A] text-white px-4 sm:px-8 py-4 border-b border-black flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-[#4E5942] flex items-center justify-center font-bold text-xs uppercase text-white">
+      <div className="bg-[#1A1A1A] text-white px-3 sm:px-8 py-3 sm:py-4 border-b border-black flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="w-8 h-8 rounded-full bg-[#4E5942] flex items-center justify-center font-bold text-xs uppercase text-white shrink-0">
             MA
           </div>
-          <div>
-            <h1 className="text-base font-semibold leading-none">Maysha Control Panel</h1>
-            <span className="text-[11px] text-[#A6A095]">Logged in as {user.name} (Super Admin)</span>
+          <div className="min-w-0">
+            <h1 className="text-sm sm:text-base font-semibold leading-tight truncate">Maysha Control Panel</h1>
+            <span className="text-[10px] sm:text-[11px] text-[#A6A095] block truncate">Admin: {user.name}</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <Link
             href="/"
             target="_blank"
-            className="inline-flex items-center gap-1.5 bg-[#2B2B2B] hover:bg-[#383838] px-3 py-1.5 rounded-2xs text-[13px] text-white transition-colors"
+            className="inline-flex items-center gap-1 bg-[#2B2B2B] hover:bg-[#383838] px-2.5 sm:px-3 py-1.5 rounded-2xs text-[12px] sm:text-[13px] text-white transition-colors"
+            title="Open Live Store"
           >
-            <span>Live Store</span>
+            <span className="hidden sm:inline">Live Store</span>
             <ExternalLink className="w-3.5 h-3.5" />
           </Link>
 
           <button
             onClick={() => loadAdminData()}
             disabled={isLoadingData}
-            className="inline-flex items-center gap-1.5 bg-[#2B2B2B] hover:bg-[#383838] px-3 py-1.5 rounded-2xs text-[13px] text-white transition-colors disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center gap-1 bg-[#2B2B2B] hover:bg-[#383838] px-2.5 sm:px-3 py-1.5 rounded-2xs text-[12px] sm:text-[13px] text-white transition-colors disabled:opacity-50 cursor-pointer"
+            title="Sync Database"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoadingData ? "animate-spin" : ""}`} />
-            <span>Sync</span>
+            <span className="hidden sm:inline">Sync</span>
           </button>
 
           <button
             onClick={() => logout()}
-            className="inline-flex items-center gap-1 bg-[#A94438] hover:bg-[#8B342B] px-3 py-1.5 rounded-2xs text-[13px] text-white transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1 bg-[#A94438] hover:bg-[#8B342B] px-2.5 sm:px-3 py-1.5 rounded-2xs text-[12px] sm:text-[13px] text-white transition-colors cursor-pointer"
+            title="Sign Out"
           >
             <LogOut className="w-3.5 h-3.5" />
-            <span>Exit</span>
+            <span className="hidden sm:inline">Exit</span>
           </button>
         </div>
       </div>
 
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Navigation Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-8 border-b border-[#E8E3DA] scrollbar-none">
-          {[
-            { id: "overview", label: "Overview", icon: LayoutDashboard },
-            { id: "products", label: `Products (${products.length})`, icon: Package },
-            { id: "orders", label: `Orders (${orders.length})`, icon: ShoppingBag },
-            { id: "categories", label: `Categories (${categories.length})`, icon: Layers },
-            { id: "banners", label: `Banners (${banners.length}/7)`, icon: ImageIcon },
-            { id: "articles", label: `Journal Articles (${articles.length})`, icon: BookOpen },
-            { id: "reviews", label: `Reviews (${reviews.length})`, icon: MessageSquare },
-            { id: "coupons", label: `Coupons (${coupons.length})`, icon: Tag },
-            { id: "subscribers", label: `Subscribers (${subscribersData.totalSubscribers})`, icon: Users },
-            { id: "settings", label: "Site Settings & 2FA", icon: Settings },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isCurrent = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as AdminTab)}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-2xs text-[14px] font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                  isCurrent
-                    ? "bg-[#1A1A1A] text-white shadow-xs"
-                    : "bg-[#FFFFFF] text-[#4A4640] border border-[#E8E3DA] hover:border-[#1A1A1A]"
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
+      <div className="max-w-[1440px] mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8">
+        {/* Mobile Tab Quick Dropdown (Instant Selection on Phones) */}
+        <div className="block sm:hidden mb-4">
+          <label className="text-[11px] uppercase tracking-wider font-bold text-[#736E67] block mb-1">
+            Jump to Section
+          </label>
+          <div className="relative">
+            <select
+              value={activeTab}
+              onChange={(e) => setActiveTab(e.target.value as AdminTab)}
+              className="w-full bg-white border border-[#E8E3DA] text-[14px] font-semibold text-[#1A1A1A] py-2.5 px-3 rounded-2xs appearance-none focus:outline-none focus:border-[#1A1A1A] shadow-2xs"
+            >
+              <option value="overview">📊 Overview Dashboard</option>
+              <option value="products">📦 Products Catalog ({products.length})</option>
+              <option value="orders">🛍️ Orders Fulfillment ({orders.length})</option>
+              <option value="categories">🗂️ Categories ({categories.length})</option>
+              <option value="banners">🖼️ Banners ({banners.length}/7)</option>
+              <option value="articles">📖 Journal Articles ({articles.length})</option>
+              <option value="reviews">💬 Reviews Moderation ({reviews.length})</option>
+              <option value="coupons">🏷️ Coupons & Vouchers ({coupons.length})</option>
+              <option value="subscribers">👥 Subscribers ({subscribersData.totalSubscribers})</option>
+              <option value="settings">⚙️ Site Settings & SEO</option>
+            </select>
+            <ChevronDown className="w-4 h-4 text-[#736E67] absolute right-3 top-3.5 pointer-events-none" />
+          </div>
+        </div>
+
+        {/* Navigation Tabs with Left/Right Scroll Controls */}
+        <div className="relative mb-6 sm:mb-8">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <button
+              type="button"
+              onClick={() => scrollTabs("left")}
+              className="hidden sm:flex shrink-0 w-8 h-8 rounded-full bg-white border border-[#E8E3DA] hover:border-[#1A1A1A] items-center justify-center text-[#1A1A1A] shadow-xs cursor-pointer z-10 transition-colors"
+              aria-label="Scroll tabs left"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+
+            <div
+              ref={tabNavRef}
+              className="flex-1 flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-2 sm:pb-3 scroll-smooth scrollbar-thin scrollbar-thumb-stone-300"
+            >
+              {[
+                { id: "overview", label: "Overview", icon: LayoutDashboard },
+                { id: "products", label: `Products (${products.length})`, icon: Package },
+                { id: "orders", label: `Orders (${orders.length})`, icon: ShoppingBag },
+                { id: "categories", label: `Categories (${categories.length})`, icon: Layers },
+                { id: "banners", label: `Banners (${banners.length}/7)`, icon: ImageIcon },
+                { id: "articles", label: `Journal Articles (${articles.length})`, icon: BookOpen },
+                { id: "reviews", label: `Reviews (${reviews.length})`, icon: MessageSquare },
+                { id: "coupons", label: `Coupons (${coupons.length})`, icon: Tag },
+                { id: "subscribers", label: `Subscribers (${subscribersData.totalSubscribers})`, icon: Users },
+                { id: "settings", label: "Site Settings & SEO", icon: Settings },
+              ].map((tab) => {
+                const Icon = tab.icon;
+                const isCurrent = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as AdminTab)}
+                    className={`inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xs text-[12px] sm:text-[14px] font-semibold whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
+                      isCurrent
+                        ? "bg-[#1A1A1A] text-white shadow-xs"
+                        : "bg-[#FFFFFF] text-[#4A4640] border border-[#E8E3DA] hover:border-[#1A1A1A]"
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => scrollTabs("right")}
+              className="hidden sm:flex shrink-0 w-8 h-8 rounded-full bg-white border border-[#E8E3DA] hover:border-[#1A1A1A] items-center justify-center text-[#1A1A1A] shadow-xs cursor-pointer z-10 transition-colors"
+              aria-label="Scroll tabs right"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="h-[1px] bg-[#E8E3DA] w-full mt-2" />
         </div>
 
         {/* ------------------------------------------------------------- */}
         {/* TAB 1: OVERVIEW */}
         {/* ------------------------------------------------------------- */}
         {activeTab === "overview" && (
-          <div className="space-y-8 animate-fadeIn">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-6 rounded-xs shadow-2xs space-y-2">
-                <span className="text-[13px] uppercase tracking-wider font-semibold text-[#736E67]">
-                  Total Gross Revenue
+          <div className="space-y-6 sm:space-y-8 animate-fadeIn">
+            {/* Quick Metrics: 2 columns on mobile, 4 on desktop */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+              <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-3.5 sm:p-6 rounded-xs shadow-2xs space-y-1 sm:space-y-2">
+                <span className="text-[11px] sm:text-[13px] uppercase tracking-wider font-semibold text-[#736E67] block">
+                  Gross Revenue
                 </span>
-                <p className="text-3xl font-bold font-mono text-[#1A1A1A]">
+                <p className="text-xl sm:text-3xl font-bold font-mono text-[#1A1A1A] truncate">
                   {formatINR(stats?.totalRevenueRupees ?? 0)}
                 </p>
-                <p className="text-[12px] text-[#4E5942] font-semibold">Real order settlements</p>
+                <p className="text-[10px] sm:text-[12px] text-[#4E5942] font-semibold truncate">Real settlements</p>
               </div>
 
-              <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-6 rounded-xs shadow-2xs space-y-2">
-                <span className="text-[13px] uppercase tracking-wider font-semibold text-[#736E67]">
+              <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-3.5 sm:p-6 rounded-xs shadow-2xs space-y-1 sm:space-y-2">
+                <span className="text-[11px] sm:text-[13px] uppercase tracking-wider font-semibold text-[#736E67] block">
                   Total Orders
                 </span>
-                <p className="text-3xl font-bold font-mono text-[#1A1A1A]">
+                <p className="text-xl sm:text-3xl font-bold font-mono text-[#1A1A1A]">
                   {stats?.totalOrders ?? orders.length}
                 </p>
-                <p className="text-[12px] text-[#736E67]">
+                <p className="text-[10px] sm:text-[12px] text-[#736E67] truncate">
                   {stats?.pendingOrders ?? 0} awaiting fulfillment
                 </p>
               </div>
 
-              <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-6 rounded-xs shadow-2xs space-y-2">
-                <span className="text-[13px] uppercase tracking-wider font-semibold text-[#736E67]">
+              <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-3.5 sm:p-6 rounded-xs shadow-2xs space-y-1 sm:space-y-2">
+                <span className="text-[11px] sm:text-[13px] uppercase tracking-wider font-semibold text-[#736E67] block">
                   Catalog Products
                 </span>
-                <p className="text-3xl font-bold font-mono text-[#1A1A1A]">
+                <p className="text-xl sm:text-3xl font-bold font-mono text-[#1A1A1A]">
                   {products.length}
                 </p>
-                <p className="text-[12px] text-[#736E67]">Across {categories.length} categories</p>
+                <p className="text-[10px] sm:text-[12px] text-[#736E67] truncate">Across {categories.length} categories</p>
               </div>
 
-              <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-6 rounded-xs shadow-2xs space-y-2">
-                <span className="text-[13px] uppercase tracking-wider font-semibold text-[#736E67]">
-                  Newsletter Audience
+              <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-3.5 sm:p-6 rounded-xs shadow-2xs space-y-1 sm:space-y-2">
+                <span className="text-[11px] sm:text-[13px] uppercase tracking-wider font-semibold text-[#736E67] block">
+                  Newsletter
                 </span>
-                <p className="text-3xl font-bold font-mono text-[#4E5942]">
+                <p className="text-xl sm:text-3xl font-bold font-mono text-[#4E5942]">
                   {subscribersData.totalSubscribers}
                 </p>
-                <p className="text-[12px] text-[#736E67]">
-                  {subscribersData.totalRegisteredCustomers} registered customers
+                <p className="text-[10px] sm:text-[12px] text-[#736E67] truncate">
+                  {subscribersData.totalRegisteredCustomers} registered buyers
                 </p>
               </div>
             </div>
 
             {/* Recent Orders Overview */}
-            <div className="bg-[#FFFFFF] border border-[#E8E3DA] rounded-xs p-6 shadow-2xs space-y-4">
+            <div className="bg-[#FFFFFF] border border-[#E8E3DA] rounded-xs p-4 sm:p-6 shadow-2xs space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-[#F0ECE4]">
-                <h3 className="text-lg font-semibold text-[#1A1A1A] flex items-center gap-2">
-                  <ShoppingBag className="w-5 h-5 text-[#4E5942]" /> Recent Storefront Orders
+                <h3 className="text-base sm:text-lg font-semibold text-[#1A1A1A] flex items-center gap-2">
+                  <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 text-[#4E5942]" /> Recent Storefront Orders
                 </h3>
                 <button
                   onClick={() => setActiveTab("orders")}
-                  className="text-[13px] font-semibold text-[#4E5942] hover:text-[#1A1A1A] underline"
+                  className="text-[12px] sm:text-[13px] font-semibold text-[#4E5942] hover:text-[#1A1A1A] underline"
                 >
-                  View All Orders
+                  View All ({orders.length})
                 </button>
               </div>
 
-              <div className="overflow-x-auto">
+              {/* Mobile Card List (< 768px) */}
+              <div className="md:hidden divide-y divide-[#F0ECE4]">
+                {orders.slice(0, 5).map((ord) => (
+                  <div key={ord.id} className="py-3.5 first:pt-0 last:pb-0 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-bold text-[13px] text-[#1A1A1A]">
+                        {ord.reference}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase ${
+                        ord.status === "delivered"
+                          ? "bg-[#EDF3E8] text-[#3E4534]"
+                          : ord.status === "shipped"
+                          ? "bg-[#E8F0FE] text-[#1967D2]"
+                          : ord.status === "cancelled"
+                          ? "bg-[#FDF2F2] text-[#9B1C1C]"
+                          : "bg-[#FFF8EB] text-[#8C6D1F]"
+                      }`}>
+                        {ord.status?.replace("_", " ")}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[13px]">
+                      <span className="text-[#4A4640] font-medium truncate">
+                        {ord.shippingAddress?.name || "Customer"}
+                      </span>
+                      <span className="font-bold text-[#1A1A1A]">
+                        {formatINR(ord.total)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-[#736E67]">
+                      <span>{ord.items?.length || 1} item(s) • <span className="uppercase">{ord.paymentMethod}</span></span>
+                      <Link
+                        href={`/orders/${ord.reference}`}
+                        target="_blank"
+                        className="text-[#4E5942] font-semibold hover:underline inline-flex items-center gap-1"
+                      >
+                        Details <ExternalLink className="w-3 h-3" />
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table (>= 768px) */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left text-[14px]">
                   <thead className="bg-[#FBF9F5] text-[#736E67] uppercase text-[12px] border-b border-[#E8E3DA]">
                     <tr>
@@ -1280,18 +1527,18 @@ export default function AdminPage() {
         {/* TAB 2: PRODUCTS & CATALOG CRUD */}
         {/* ------------------------------------------------------------- */}
         {activeTab === "products" && (
-          <div className="space-y-6 animate-fadeIn">
-            <div className="flex items-center justify-between">
+          <div className="space-y-4 sm:space-y-6 animate-fadeIn">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-xl font-semibold text-[#1A1A1A]">Products Catalog Management</h2>
-                <p className="text-[14px] text-[#736E67]">
+                <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">Products Catalog Management</h2>
+                <p className="text-[12px] sm:text-[14px] text-[#736E67]">
                   View, add, edit all rich attributes, and upload photos directly to Cloudinary.
                 </p>
               </div>
 
               <button
                 onClick={handleOpenAddProduct}
-                className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-4 py-2.5 rounded-2xs text-[14px] uppercase tracking-wider font-semibold inline-flex items-center gap-2 transition-colors cursor-pointer"
+                className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-4 py-2.5 rounded-2xs text-[13px] sm:text-[14px] uppercase tracking-wider font-semibold inline-flex items-center justify-center gap-2 transition-colors cursor-pointer w-full sm:w-auto"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add New Product</span>
@@ -1299,12 +1546,93 @@ export default function AdminPage() {
             </div>
 
             <div className="bg-[#FFFFFF] border border-[#E8E3DA] rounded-xs overflow-hidden shadow-2xs">
-              <div className="overflow-x-auto">
+              {/* Mobile Product Cards (< 768px) */}
+              <div className="md:hidden divide-y divide-[#F0ECE4]">
+                {products.map((prod) => (
+                  <div key={prod.id} className="p-3.5 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-14 h-14 relative bg-[#EFECE4] rounded-2xs overflow-hidden shrink-0 border border-[#E8E3DA]">
+                        <Image
+                          src={prod.images?.[0] || prod.image || "/logo.png"}
+                          alt={prod.name}
+                          fill
+                          className="object-cover"
+                          sizes="56px"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold text-[#4E5942] bg-[#F5F2EB] px-2 py-0.5 rounded-full border border-[#E8E3DA] truncate">
+                            {prod.category || "Unassigned"}
+                          </span>
+                          <span className={`text-[11px] font-semibold ${prod.inStock ? "text-[#4E5942]" : "text-[#A94438]"}`}>
+                            {prod.inStock ? "● In Stock" : "● Out of Stock"}
+                          </span>
+                        </div>
+                        <h3 className="font-semibold text-[14px] text-[#1A1A1A] mt-1 leading-snug line-clamp-1">
+                          {prod.name}
+                        </h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="font-bold text-[14px] text-[#1A1A1A]">₹{prod.price}</span>
+                          {prod.mrp && prod.mrp > prod.price && (
+                            <span className="text-[12px] text-[#736E67] line-through">₹{prod.mrp}</span>
+                          )}
+                          {prod.badge && (
+                            <span className="px-2 py-0.2 rounded-full text-[10px] font-semibold bg-[#EDF3E8] text-[#3E4534]">
+                              {prod.badge}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Variant badge if multiple */}
+                    {prod.variants && prod.variants.length > 1 && (
+                      <div className="text-[11px] font-medium text-[#5A5650] bg-[#FBF9F5] p-1.5 rounded-2xs border border-[#F0ECE4] flex items-center justify-between">
+                        <span>{prod.variants.length} Sizes:</span>
+                        <span className="font-mono text-[#1A1A1A]">
+                          {prod.variants.map((v: any) => v.size || v.size_label).join(", ")}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Touch Action Buttons Row */}
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        onClick={() => handleOpenEditProduct(prod)}
+                        className="flex-1 bg-[#FBF9F5] hover:bg-[#F5F2EB] border border-[#E8E3DA] text-[#1A1A1A] py-2 px-3 rounded-2xs text-[12px] font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Edit className="w-3.5 h-3.5 text-[#4E5942]" />
+                        <span>Edit</span>
+                      </button>
+                      <Link
+                        href={`/products/${prod.slug}`}
+                        target="_blank"
+                        className="flex-1 bg-[#FBF9F5] hover:bg-[#F5F2EB] border border-[#E8E3DA] text-[#1A1A1A] py-2 px-3 rounded-2xs text-[12px] font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 text-[#736E67]" />
+                        <span>Live PDP</span>
+                      </Link>
+                      <button
+                        onClick={() => handleDeleteProduct(prod.id)}
+                        className="bg-[#FDF2F2] hover:bg-[#FDE8E8] border border-[#F8B4B4] text-[#A94438] py-2 px-3 rounded-2xs text-[12px] font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                        title="Delete Product"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Delete</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Catalog Table (>= 768px) */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left text-[14px]">
                   <thead className="bg-[#FBF9F5] text-[#736E67] uppercase text-[12px] border-b border-[#E8E3DA]">
                     <tr>
                       <th className="py-3 px-4">Product</th>
-                      <th className="py-3 px-4">Slug</th>
+                      <th className="py-3 px-4">Category</th>
                       <th className="py-3 px-4">Price / MRP</th>
                       <th className="py-3 px-4">Badge</th>
                       <th className="py-3 px-4">Stock</th>
@@ -1327,14 +1655,24 @@ export default function AdminPage() {
                             </div>
                             <div>
                               <p className="font-semibold text-[#1A1A1A]">{prod.name}</p>
-                              <span className="text-[12px] text-[#736E67]">
-                                {prod.size || prod.variants?.[0]?.size || "50ml"} • {prod.category}
-                              </span>
+                              {prod.variants && prod.variants.length > 1 ? (
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#EFECE4] text-[#1A1A1A] border border-[#DCD7CD]">
+                                    {prod.variants.length} Variants ({prod.variants.map((v: any) => v.size || v.size_label).join(", ")})
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-[12px] text-[#736E67]">
+                                  {prod.size || prod.variants?.[0]?.size || "50ml"}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </td>
-                        <td className="py-3.5 px-4 font-mono text-[13px] text-[#736E67]">
-                          {prod.slug}
+                        <td className="py-3.5 px-4">
+                          <span className="px-2.5 py-1 rounded-full text-[12px] font-semibold bg-[#F5F2EB] text-[#4E5942] border border-[#E8E3DA]">
+                            {prod.category || "Unassigned"}
+                          </span>
                         </td>
                         <td className="py-3.5 px-4">
                           <span className="font-semibold text-[#1A1A1A]">₹{prod.price}</span>{" "}
@@ -1397,16 +1735,79 @@ export default function AdminPage() {
         {/* TAB 3: ORDERS MANAGEMENT */}
         {/* ------------------------------------------------------------- */}
         {activeTab === "orders" && (
-          <div className="space-y-6 animate-fadeIn">
+          <div className="space-y-4 sm:space-y-6 animate-fadeIn">
             <div>
-              <h2 className="text-xl font-semibold text-[#1A1A1A]">Customer Orders Fulfillment</h2>
-              <p className="text-[14px] text-[#736E67]">
+              <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">Customer Orders Fulfillment</h2>
+              <p className="text-[12px] sm:text-[14px] text-[#736E67]">
                 Track incoming purchases, update shipping dispatch status, and manage receipts.
               </p>
             </div>
 
             <div className="bg-[#FFFFFF] border border-[#E8E3DA] rounded-xs overflow-hidden shadow-2xs">
-              <div className="overflow-x-auto">
+              {/* Mobile Orders Cards (< 768px) */}
+              <div className="md:hidden divide-y divide-[#F0ECE4]">
+                {orders.map((ord) => (
+                  <div key={ord.id} className="p-3.5 space-y-3">
+                    {/* Header: Ref & Status */}
+                    <div className="flex items-center justify-between">
+                      <Link
+                        href={`/orders/${ord.reference}`}
+                        target="_blank"
+                        className="font-mono font-bold text-[14px] text-[#1A1A1A] hover:underline flex items-center gap-1"
+                      >
+                        {ord.reference}
+                        <ExternalLink className="w-3 h-3 text-[#736E67]" />
+                      </Link>
+                      <span
+                        className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold uppercase ${
+                          ord.status === "delivered"
+                            ? "bg-[#EDF3E8] text-[#3E4534]"
+                            : ord.status === "shipped"
+                            ? "bg-[#E8F0FE] text-[#1967D2]"
+                            : ord.status === "cancelled"
+                            ? "bg-[#FDF2F2] text-[#9B1C1C]"
+                            : "bg-[#FFF8EB] text-[#8C6D1F]"
+                        }`}
+                      >
+                        {ord.status?.replace("_", " ")}
+                      </span>
+                    </div>
+
+                    {/* Customer & City */}
+                    <div className="text-[13px] bg-[#FBF9F5] p-2.5 rounded-2xs border border-[#F0ECE4] space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-[#1A1A1A]">{ord.shippingAddress?.name || "Customer"}</span>
+                        <span className="text-[#736E67] text-[12px]">{ord.shippingAddress?.city || "India"}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[12px] text-[#736E67] pt-1 border-t border-[#E8E3DA]/60">
+                        <span>{ord.items?.length || 1} product(s) • <span className="uppercase">{ord.paymentMethod}</span></span>
+                        <span className="font-bold text-[#1A1A1A] text-[13px]">{formatINR(ord.total)}</span>
+                      </div>
+                    </div>
+
+                    {/* Quick Status Select on Mobile */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] uppercase tracking-wider font-bold text-[#736E67] shrink-0">
+                        Status:
+                      </span>
+                      <select
+                        value={ord.status}
+                        onChange={(e) => handleUpdateOrderStatus(ord.id, e.target.value)}
+                        className="flex-1 bg-[#FBF9F5] border border-[#E8E3DA] text-[13px] font-medium py-2 px-3 rounded-2xs focus:outline-none focus:border-[#1A1A1A] cursor-pointer"
+                      >
+                        <option value="pending_payment">Pending Payment</option>
+                        <option value="processing">Processing</option>
+                        <option value="shipped">Dispatched / Shipped</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Orders Table (>= 768px) */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left text-[14px]">
                   <thead className="bg-[#FBF9F5] text-[#736E67] uppercase text-[12px] border-b border-[#E8E3DA]">
                     <tr>
@@ -1479,33 +1880,88 @@ export default function AdminPage() {
         )}
 
         {/* ------------------------------------------------------------- */}
-        {/* TAB 4: CATEGORIES */}
+        {/* TAB 4: CATEGORIES CRUD */}
         {/* ------------------------------------------------------------- */}
         {activeTab === "categories" && (
-          <div className="space-y-6 animate-fadeIn">
-            <div>
-              <h2 className="text-xl font-semibold text-[#1A1A1A]">Store Categories Architecture</h2>
-              <p className="text-[14px] text-[#736E67]">
-                Product collections currently indexed in the Maysha navigation and filters.
-              </p>
+          <div className="space-y-4 sm:space-y-6 animate-fadeIn">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">Store Categories Architecture</h2>
+                <p className="text-[12px] sm:text-[14px] text-[#736E67]">
+                  Manage product collections, descriptions, banner visuals, and catalog indexing.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleOpenAddCategory}
+                className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-4 py-2.5 rounded-2xs text-[13px] sm:text-[14px] uppercase tracking-wider font-semibold inline-flex items-center justify-center gap-2 transition-colors cursor-pointer w-full sm:w-auto"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add New Category</span>
+              </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {categories.map((cat) => (
-                <div key={cat.id} className="bg-[#FFFFFF] border border-[#E8E3DA] p-6 rounded-xs space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[12px] uppercase tracking-wider font-semibold text-[#4E5942] bg-[#EDF3E8] px-2.5 py-0.5 rounded-full">
-                      Active Collection
-                    </span>
-                    <span className="text-[13px] text-[#736E67]">
-                      {cat.productCount ?? cat.productsCount ?? "Active"}
-                    </span>
+                <div key={cat.id} className="bg-[#FFFFFF] border border-[#E8E3DA] p-4 sm:p-6 rounded-xs space-y-4 shadow-2xs flex flex-col justify-between hover:border-[#1A1A1A] transition-colors">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleCategoryStatus(cat)}
+                        className={`text-[11px] sm:text-[12px] uppercase tracking-wider font-semibold px-2.5 py-0.5 rounded-full cursor-pointer transition-colors ${
+                          (cat.isActive ?? cat.is_active ?? true)
+                            ? "bg-[#EDF3E8] text-[#4E5942] hover:bg-[#DEEACF]"
+                            : "bg-[#F5F5F5] text-[#888888] hover:bg-[#EAEAEA]"
+                        }`}
+                        title="Click to toggle active status"
+                      >
+                        {(cat.isActive ?? cat.is_active ?? true) ? "Active Collection" : "Inactive"}
+                      </button>
+                      <span className="text-[11px] sm:text-[12px] font-semibold text-[#736E67] bg-[#F5F2EB] px-2.5 py-0.5 rounded-full border border-[#E8E3DA]">
+                        {cat.itemCount ?? cat.productsCount ?? cat.products_count ?? 0} Products
+                      </span>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      {cat.image && (
+                        <div className="w-12 h-12 relative bg-[#EFECE4] rounded-2xs overflow-hidden shrink-0 border border-[#E8E3DA]">
+                          <Image src={cat.image} alt={cat.name} fill className="object-cover" sizes="48px" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-lg sm:text-xl font-semibold text-[#1A1A1A] truncate">{cat.name}</h3>
+                        <p className="text-[13px] sm:text-[14px] text-[#5A5650] leading-relaxed mt-1 line-clamp-2">
+                          {cat.subtitle || cat.description || "No description configured."}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <h3 className="text-xl font-semibold text-[#1A1A1A]">{cat.name}</h3>
-                  <p className="text-[14px] text-[#5A5650] leading-relaxed">{cat.subtitle}</p>
-                  <p className="text-[12px] font-mono text-[#736E67] pt-2 border-t border-[#F0ECE4]">
-                    Slug: /collections/{cat.slug}
-                  </p>
+
+                  <div className="pt-3 border-t border-[#F0ECE4] flex items-center justify-between">
+                    <span className="text-[11px] sm:text-[12px] font-mono text-[#736E67] truncate mr-2">
+                      /collections/{cat.slug}
+                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditCategory(cat)}
+                        className="p-2 text-[#736E67] hover:text-[#4E5942] hover:bg-[#F5F2EB] rounded-2xs transition-colors cursor-pointer"
+                        title="Edit Category"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteCategory(cat.id, cat.name)}
+                        className="p-2 text-[#A94438] hover:text-[#8B342B] hover:bg-[#FDF2F2] rounded-2xs transition-colors cursor-pointer"
+                        title="Delete Category"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1516,11 +1972,11 @@ export default function AdminPage() {
         {/* TAB 5: BANNERS & REARRANGE */}
         {/* ------------------------------------------------------------- */}
         {activeTab === "banners" && (
-          <div className="space-y-6 animate-fadeIn">
-            <div className="flex items-center justify-between">
+          <div className="space-y-4 sm:space-y-6 animate-fadeIn">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-xl font-semibold text-[#1A1A1A]">Homepage Carousel Banners</h2>
-                <p className="text-[14px] text-[#736E67]">
+                <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">Homepage Carousel Banners</h2>
+                <p className="text-[12px] sm:text-[14px] text-[#736E67]">
                   Manage dynamic slider hero banners (up to 7 maximum). Reorder slides with single clicks.
                 </p>
               </div>
@@ -1528,14 +1984,14 @@ export default function AdminPage() {
               <button
                 onClick={handleOpenAddBanner}
                 disabled={banners.length >= 7}
-                className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-4 py-2.5 rounded-2xs text-[14px] uppercase tracking-wider font-semibold inline-flex items-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
+                className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-4 py-2.5 rounded-2xs text-[13px] sm:text-[14px] uppercase tracking-wider font-semibold inline-flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer w-full sm:w-auto"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Banner ({banners.length}/7)</span>
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               {banners.map((ban, idx) => (
                 <div
                   key={ban.id || idx}
@@ -1549,16 +2005,16 @@ export default function AdminPage() {
                       className="object-cover"
                       sizes="(max-width: 768px) 100vw, 50vw"
                     />
-                    <span className="absolute top-3 left-3 bg-white/90 backdrop-blur-xs px-2.5 py-0.5 rounded-full text-[12px] font-semibold text-[#1A1A1A]">
+                    <span className="absolute top-3 left-3 bg-white/90 backdrop-blur-xs px-2.5 py-0.5 rounded-full text-[11px] sm:text-[12px] font-semibold text-[#1A1A1A]">
                       Slide #{idx + 1}
                     </span>
                   </div>
 
-                  <div className="p-6 flex-1 flex flex-col justify-between space-y-4">
+                  <div className="p-4 sm:p-6 flex-1 flex flex-col justify-between space-y-4">
                     <div>
-                      <h3 className="text-lg font-semibold text-[#1A1A1A]">{ban.title}</h3>
-                      <p className="text-[14px] text-[#5A5650] mt-1">{ban.subtitle}</p>
-                      <p className="text-[12px] text-[#4E5942] font-semibold mt-2">
+                      <h3 className="text-base sm:text-lg font-semibold text-[#1A1A1A]">{ban.title}</h3>
+                      <p className="text-[13px] sm:text-[14px] text-[#5A5650] mt-1">{ban.subtitle}</p>
+                      <p className="text-[11px] sm:text-[12px] text-[#4E5942] font-semibold mt-2 truncate">
                         CTA: &ldquo;{ban.ctaText || ban.cta_text || "Shop"}&rdquo; → {ban.ctaLink || ban.linkUrl || ban.link_url}
                       </p>
                     </div>
@@ -1587,17 +2043,17 @@ export default function AdminPage() {
                         <span className="text-[11px] font-mono text-[#736E67] ml-1">Pos {idx + 1}</span>
                       </div>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => handleOpenEditBanner(ban)}
-                          className="text-[#736E67] hover:text-[#4E5942] p-1.5 transition-colors cursor-pointer"
+                          className="text-[#736E67] hover:text-[#4E5942] p-2 transition-colors cursor-pointer"
                           title="Edit Banner"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteBanner(ban.id)}
-                          className="text-[#736E67] hover:text-[#A94438] p-1.5 transition-colors cursor-pointer"
+                          className="text-[#736E67] hover:text-[#A94438] p-2 transition-colors cursor-pointer"
                           title="Delete Banner"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -1615,18 +2071,18 @@ export default function AdminPage() {
         {/* TAB 6: JOURNAL & EDITORIAL ARTICLES */}
         {/* ------------------------------------------------------------- */}
         {activeTab === "articles" && (
-          <div className="space-y-6 animate-fadeIn">
-            <div className="flex items-center justify-between">
+          <div className="space-y-4 sm:space-y-6 animate-fadeIn">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-xl font-semibold text-[#1A1A1A]">Journal Stories & Editorial Articles</h2>
-                <p className="text-[14px] text-[#736E67]">
+                <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">Journal Stories & Editorial Articles</h2>
+                <p className="text-[12px] sm:text-[14px] text-[#736E67]">
                   Publish botanical science blogs, ingredient spotlights, and rituals.
                 </p>
               </div>
 
               <button
                 onClick={handleOpenAddArticle}
-                className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-4 py-2.5 rounded-2xs text-[14px] uppercase tracking-wider font-semibold inline-flex items-center gap-2 transition-colors cursor-pointer"
+                className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-4 py-2.5 rounded-2xs text-[13px] sm:text-[14px] uppercase tracking-wider font-semibold inline-flex items-center justify-center gap-2 transition-colors cursor-pointer w-full sm:w-auto"
               >
                 <Plus className="w-4 h-4" />
                 <span>Write New Article</span>
@@ -1634,7 +2090,64 @@ export default function AdminPage() {
             </div>
 
             <div className="bg-[#FFFFFF] border border-[#E8E3DA] rounded-xs overflow-hidden shadow-2xs">
-              <div className="overflow-x-auto">
+              {/* Mobile Articles Card List (< 768px) */}
+              <div className="md:hidden divide-y divide-[#F0ECE4]">
+                {articles.map((art) => (
+                  <div key={art.id} className="p-3.5 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-14 h-14 relative bg-[#EFECE4] rounded-2xs overflow-hidden shrink-0 border border-[#E8E3DA]">
+                        <Image
+                          src={art.heroImage || art.hero_image || "/logo.png"}
+                          alt={art.title}
+                          fill
+                          className="object-cover"
+                          sizes="56px"
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[11px] font-semibold text-[#4E5942] bg-[#EDF3E8] px-2 py-0.5 rounded-full">
+                          {art.category}
+                        </span>
+                        <h3 className="font-semibold text-[14px] text-[#1A1A1A] mt-1 leading-snug line-clamp-1">
+                          {art.title}
+                        </h3>
+                        <p className="text-[11px] text-[#736E67] mt-0.5">
+                          {art.author} • {art.readingTime || art.reading_time || "4 min"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        onClick={() => handleOpenEditArticle(art)}
+                        className="flex-1 bg-[#FBF9F5] hover:bg-[#F5F2EB] border border-[#E8E3DA] text-[#1A1A1A] py-2 px-3 rounded-2xs text-[12px] font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <Edit className="w-3.5 h-3.5 text-[#4E5942]" />
+                        <span>Edit</span>
+                      </button>
+                      <Link
+                        href={`/journal/${art.slug}`}
+                        target="_blank"
+                        className="flex-1 bg-[#FBF9F5] hover:bg-[#F5F2EB] border border-[#E8E3DA] text-[#1A1A1A] py-2 px-3 rounded-2xs text-[12px] font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 text-[#736E67]" />
+                        <span>Read</span>
+                      </Link>
+                      <button
+                        onClick={() => handleDeleteArticle(art.id)}
+                        className="bg-[#FDF2F2] hover:bg-[#FDE8E8] border border-[#F8B4B4] text-[#A94438] py-2 px-3 rounded-2xs text-[12px] font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                        title="Delete Article"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Delete</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Articles Table (>= 768px) */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left text-[14px]">
                   <thead className="bg-[#FBF9F5] text-[#736E67] uppercase text-[12px] border-b border-[#E8E3DA]">
                     <tr>
@@ -1713,63 +2226,63 @@ export default function AdminPage() {
         {/* TAB 7: REVIEWS MODERATION & CLIENT PHOTOS */}
         {/* ------------------------------------------------------------- */}
         {activeTab === "reviews" && (
-          <div className="space-y-6 animate-fadeIn">
+          <div className="space-y-4 sm:space-y-6 animate-fadeIn">
             <div>
-              <h2 className="text-xl font-semibold text-[#1A1A1A]">Customer Reviews Moderation Queue</h2>
-              <p className="text-[14px] text-[#736E67]">
+              <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">Customer Reviews Moderation Queue</h2>
+              <p className="text-[12px] sm:text-[14px] text-[#736E67]">
                 Review customer submissions, verify order delivery status, and inspect Cloudinary-hosted photos.
               </p>
             </div>
 
             {reviews.length === 0 ? (
-              <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-12 text-center rounded-xs space-y-2">
+              <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-8 sm:p-12 text-center rounded-xs space-y-2">
                 <CheckCircle2 className="w-8 h-8 text-[#4E5942] mx-auto" />
                 <h3 className="text-base font-semibold text-[#1A1A1A]">No pending reviews</h3>
-                <p className="text-[14px] text-[#736E67]">
+                <p className="text-[13px] sm:text-[14px] text-[#736E67]">
                   All submitted customer ratings have been reviewed and approved.
                 </p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {reviews.map((rev) => (
                   <div
                     key={rev.id}
-                    className="bg-[#FFFFFF] border border-[#E8E3DA] p-6 rounded-xs shadow-2xs flex flex-col sm:flex-row sm:items-start justify-between gap-4"
+                    className="bg-[#FFFFFF] border border-[#E8E3DA] p-4 sm:p-6 rounded-xs shadow-2xs flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4"
                   >
                     <div className="space-y-2 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-[#1A1A1A]">{rev.author || rev.userName || rev.user_name}</span>
-                        <span className="text-[#736E67] text-[13px]">• {rev.rating} ★★★★★</span>
+                        <span className="font-semibold text-[#1A1A1A] text-[14px]">{rev.author || rev.userName || rev.user_name}</span>
+                        <span className="text-[#736E67] text-[12px]">• {rev.rating} ★★★★★</span>
                         {rev.isVerified && (
-                          <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#EDF3E8] text-[#3E4534]">
-                            ✓ Verified Delivered Order
+                          <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-semibold bg-[#EDF3E8] text-[#3E4534]">
+                            ✓ Verified Order
                           </span>
                         )}
                         {rev.isApproved || rev.is_approved ? (
-                          <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#EDF3E8] text-[#3E4534]">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-semibold bg-[#EDF3E8] text-[#3E4534]">
                             Approved
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#FFF8EB] text-[#8C6D1F]">
-                            Queued for Moderation
+                          <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-semibold bg-[#FFF8EB] text-[#8C6D1F]">
+                            Queued
                           </span>
                         )}
                       </div>
 
-                      <p className="text-[13px] text-[#736E67]">Product: <span className="font-semibold text-[#1A1A1A]">{rev.productName || "Product"}</span></p>
-                      <p className="text-[15px] font-semibold text-[#1A1A1A]">{rev.title}</p>
-                      <p className="text-[14px] text-[#5A5650] leading-relaxed">{rev.comment}</p>
+                      <p className="text-[12px] sm:text-[13px] text-[#736E67]">Product: <span className="font-semibold text-[#1A1A1A]">{rev.productName || "Product"}</span></p>
+                      <p className="text-[14px] sm:text-[15px] font-semibold text-[#1A1A1A]">{rev.title}</p>
+                      <p className="text-[13px] sm:text-[14px] text-[#5A5650] leading-relaxed">{rev.comment}</p>
 
-                      {/* Display attached customer photos */}
+                      {/* Attached customer photos */}
                       {rev.images && rev.images.length > 0 && (
-                        <div className="pt-2 flex items-center gap-2">
+                        <div className="pt-2 flex items-center gap-2 overflow-x-auto pb-1">
                           {rev.images.map((imgUrl: string, idx: number) => (
                             <a
                               key={idx}
                               href={imgUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="relative w-16 h-16 rounded-2xs overflow-hidden border border-[#E8E3DA] bg-[#EFECE4] group"
+                              className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xs overflow-hidden border border-[#E8E3DA] bg-[#EFECE4] group shrink-0"
                             >
                               <Image
                                 src={imgUrl}
@@ -1784,11 +2297,11 @@ export default function AdminPage() {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0">
+                    <div className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 w-full sm:w-auto">
                       {!(rev.isApproved || rev.is_approved) && (
                         <button
                           onClick={() => handleApproveReview(rev.id)}
-                          className="bg-[#4E5942] hover:bg-[#3E4534] text-white px-4 py-2 rounded-2xs text-[13px] font-semibold tracking-wide transition-colors flex items-center gap-1.5 cursor-pointer"
+                          className="flex-1 sm:flex-none bg-[#4E5942] hover:bg-[#3E4534] text-white px-4 py-2 rounded-2xs text-[13px] font-semibold tracking-wide transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                         >
                           <Check className="w-3.5 h-3.5" />
                           <span>Approve</span>
@@ -1796,7 +2309,7 @@ export default function AdminPage() {
                       )}
                       <button
                         onClick={() => handleDeleteReview(rev.id)}
-                        className="bg-[#FFFFFF] hover:bg-[#FDF2F2] text-[#A94438] border border-[#E8E3DA] hover:border-[#A94438] px-3.5 py-2 rounded-2xs text-[13px] font-semibold tracking-wide transition-colors cursor-pointer"
+                        className="flex-1 sm:flex-none bg-[#FFFFFF] hover:bg-[#FDF2F2] text-[#A94438] border border-[#E8E3DA] hover:border-[#A94438] px-3.5 py-2 rounded-2xs text-[13px] font-semibold tracking-wide transition-colors cursor-pointer text-center"
                       >
                         Delete
                       </button>
@@ -1809,21 +2322,21 @@ export default function AdminPage() {
         )}
 
         {/* ------------------------------------------------------------- */}
-        {/* TAB: COUPONS & PROMOTIONAL OFFERS */}
+        {/* TAB 8: COUPONS & PROMOTIONAL OFFERS */}
         {/* ------------------------------------------------------------- */}
         {activeTab === "coupons" && (
-          <div className="space-y-8 animate-fadeIn">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-6 sm:space-y-8 animate-fadeIn">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-xl font-semibold text-[#1A1A1A]">Promotional Coupons & Vouchers</h2>
-                <p className="text-[14px] text-[#736E67]">
+                <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">Promotional Coupons & Vouchers</h2>
+                <p className="text-[12px] sm:text-[14px] text-[#736E67]">
                   Manage active checkout discount codes, cart minimum order thresholds, and voucher caps.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={handleOpenAddCouponModal}
-                className="inline-flex items-center gap-2 bg-[#1A1A1A] hover:bg-[#333333] text-white px-4 py-2.5 rounded-2xs text-[14px] font-semibold transition-colors cursor-pointer self-start sm:self-auto"
+                className="inline-flex items-center justify-center gap-2 bg-[#1A1A1A] hover:bg-[#333333] text-white px-4 py-2.5 rounded-2xs text-[13px] sm:text-[14px] font-semibold transition-colors cursor-pointer w-full sm:w-auto"
               >
                 <Plus className="w-4 h-4" />
                 <span>Create New Coupon</span>
@@ -1831,46 +2344,46 @@ export default function AdminPage() {
             </div>
 
             {/* Metrics */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-6 rounded-xs shadow-2xs space-y-1">
-                <span className="text-[12px] uppercase tracking-wider font-semibold text-[#736E67]">
-                  Total Discount Codes
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-6">
+              <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-3.5 sm:p-6 rounded-xs shadow-2xs space-y-1">
+                <span className="text-[11px] sm:text-[12px] uppercase tracking-wider font-semibold text-[#736E67] block">
+                  Total Codes
                 </span>
-                <p className="text-3xl font-bold font-mono text-[#1A1A1A]">{coupons.length}</p>
-                <p className="text-[12px] text-[#736E67]">Configured in system</p>
+                <p className="text-xl sm:text-3xl font-bold font-mono text-[#1A1A1A]">{coupons.length}</p>
+                <p className="text-[10px] sm:text-[12px] text-[#736E67] truncate">Configured in system</p>
               </div>
-              <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-6 rounded-xs shadow-2xs space-y-1">
-                <span className="text-[12px] uppercase tracking-wider font-semibold text-[#736E67]">
-                  Active Shopper Vouchers
+              <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-3.5 sm:p-6 rounded-xs shadow-2xs space-y-1">
+                <span className="text-[11px] sm:text-[12px] uppercase tracking-wider font-semibold text-[#736E67] block">
+                  Active Vouchers
                 </span>
-                <p className="text-3xl font-bold font-mono text-[#4E5942]">
+                <p className="text-xl sm:text-3xl font-bold font-mono text-[#4E5942]">
                   {coupons.filter((c) => c.isActive).length}
                 </p>
-                <p className="text-[12px] text-[#4E5942] font-semibold">Available at checkout</p>
+                <p className="text-[10px] sm:text-[12px] text-[#4E5942] font-semibold truncate">Available at checkout</p>
               </div>
-              <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-6 rounded-xs shadow-2xs space-y-1">
-                <span className="text-[12px] uppercase tracking-wider font-semibold text-[#736E67]">
-                  Total Redemptions
+              <div className="col-span-2 sm:col-span-1 bg-[#FFFFFF] border border-[#E8E3DA] p-3.5 sm:p-6 rounded-xs shadow-2xs space-y-1">
+                <span className="text-[11px] sm:text-[12px] uppercase tracking-wider font-semibold text-[#736E67] block">
+                  Redemptions
                 </span>
-                <p className="text-3xl font-bold font-mono text-[#1A1A1A]">
+                <p className="text-xl sm:text-3xl font-bold font-mono text-[#1A1A1A]">
                   {coupons.reduce((sum, c) => sum + (c.redemptionsCount || 0), 0)}
                 </p>
-                <p className="text-[12px] text-[#736E67]">Successfully redeemed</p>
+                <p className="text-[10px] sm:text-[12px] text-[#736E67] truncate">Redeemed by shoppers</p>
               </div>
             </div>
 
-            {/* Coupons Table */}
+            {/* Coupons Container */}
             <div className="bg-[#FFFFFF] border border-[#E8E3DA] rounded-xs overflow-hidden shadow-2xs">
-              <div className="p-4 border-b border-[#F0ECE4] flex items-center justify-between">
-                <h3 className="text-base font-semibold text-[#1A1A1A] flex items-center gap-2">
+              <div className="p-3.5 sm:p-4 border-b border-[#F0ECE4] flex items-center justify-between">
+                <h3 className="text-sm sm:text-base font-semibold text-[#1A1A1A] flex items-center gap-2">
                   <Tag className="w-4 h-4 text-[#4E5942]" /> All Coupon Codes
                 </h3>
-                <span className="text-[13px] text-[#736E67] font-medium">{coupons.length} vouchers</span>
+                <span className="text-[12px] sm:text-[13px] text-[#736E67] font-medium">{coupons.length} vouchers</span>
               </div>
 
               {coupons.length === 0 ? (
-                <div className="p-12 text-center text-[#736E67]">
-                  <Tag className="w-10 h-10 mx-auto mb-3 text-[#B3AEA3]" />
+                <div className="p-8 sm:p-12 text-center text-[#736E67]">
+                  <Tag className="w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-3 text-[#B3AEA3]" />
                   <p className="text-base font-semibold text-[#1A1A1A]">No coupon codes yet</p>
                   <p className="text-[13px] mt-1 mb-4">Create your first coupon voucher code to run promotions.</p>
                   <button
@@ -1882,127 +2395,201 @@ export default function AdminPage() {
                   </button>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-[14px]">
-                    <thead className="bg-[#FBF9F5] text-[#736E67] uppercase text-[12px] border-b border-[#E8E3DA]">
-                      <tr>
-                        <th className="py-3.5 px-4">Coupon Code</th>
-                        <th className="py-3.5 px-4">Discount</th>
-                        <th className="py-3.5 px-4">Min. Subtotal</th>
-                        <th className="py-3.5 px-4">Max. Discount</th>
-                        <th className="py-3.5 px-4">Usage Limit</th>
-                        <th className="py-3.5 px-4">Redemptions</th>
-                        <th className="py-3.5 px-4">Audience</th>
-                        <th className="py-3.5 px-4">Status</th>
-                        <th className="py-3.5 px-4 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#F0ECE4]">
-                      {coupons.map((coupon) => (
-                        <tr key={coupon.id} className="hover:bg-[#FBF9F5] transition-colors">
-                          <td className="py-4 px-4">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono font-bold text-[#1A1A1A] bg-[#F5F2EB] px-2.5 py-1 rounded-2xs border border-[#E8E3DA] tracking-wider text-[13px]">
-                                {coupon.code}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="py-4 px-4 font-semibold text-[#1A1A1A]">
-                            {coupon.type === "percent" ? (
-                              <span className="text-[#4E5942]">{coupon.value}% OFF</span>
-                            ) : (
-                              <span className="text-[#4E5942]">{formatINR(coupon.value)} FLAT</span>
-                            )}
-                          </td>
-                          <td className="py-4 px-4 text-[#4A4640]">
-                            {coupon.minSubtotalRupees ? (
-                              <span>Orders &ge; {formatINR(coupon.minSubtotalRupees)}</span>
-                            ) : (
-                              <span className="text-[#736E67]">None</span>
-                            )}
-                          </td>
-                          <td className="py-4 px-4 text-[#736E67]">
-                            {coupon.maxDiscountRupees ? formatINR(coupon.maxDiscountRupees) : "No cap"}
-                          </td>
-                          <td className="py-4 px-4 text-[#736E67]">
-                            {coupon.usageLimit ? `${coupon.usageLimit} total` : "Unlimited"}
-                          </td>
-                          <td className="py-4 px-4 font-mono font-semibold text-[#1A1A1A]">
-                            {coupon.redemptionsCount || 0}
-                          </td>
-                          <td className="py-4 px-4">
-                            {coupon.firstOrderOnly ? (
-                              <span className="text-[11px] font-semibold bg-[#FFF4E5] text-[#B76E00] px-2 py-0.5 rounded-2xs border border-[#FFE2B8]">
-                                First Order Only
-                              </span>
-                            ) : (
-                              <span className="text-[11px] text-[#736E67]">All Orders</span>
-                            )}
-                          </td>
-                          <td className="py-4 px-4">
-                            <button
-                              type="button"
-                              onClick={() => handleToggleCouponStatus(coupon)}
-                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold transition-colors cursor-pointer ${
-                                coupon.isActive
-                                  ? "bg-[#EDF3E8] text-[#4E5942] hover:bg-[#DEEACF]"
-                                  : "bg-[#F5F5F5] text-[#888888] hover:bg-[#EAEAEA]"
-                              }`}
-                            >
-                              <span
-                                className={`w-1.5 h-1.5 rounded-full ${
-                                  coupon.isActive ? "bg-[#4E5942]" : "bg-[#888888]"
-                                }`}
-                              />
-                              <span>{coupon.isActive ? "Active" : "Inactive"}</span>
-                            </button>
-                          </td>
-                          <td className="py-4 px-4 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleEditCoupon(coupon)}
-                                className="p-1.5 text-[#736E67] hover:text-[#1A1A1A] hover:bg-[#F5F2EB] rounded-2xs transition-colors cursor-pointer"
-                                title="Edit Coupon"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteCoupon(coupon.id, coupon.code)}
-                                className="p-1.5 text-[#A94438] hover:text-[#8B342B] hover:bg-[#FDF2F2] rounded-2xs transition-colors cursor-pointer"
-                                title="Delete Coupon"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
+                <>
+                  {/* Mobile Coupons Card List (< 768px) */}
+                  <div className="md:hidden divide-y divide-[#F0ECE4]">
+                    {coupons.map((coupon) => (
+                      <div key={coupon.id} className="p-3.5 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono font-bold text-[#1A1A1A] bg-[#F5F2EB] px-2.5 py-1 rounded-2xs border border-[#E8E3DA] tracking-wider text-[13px]">
+                            {coupon.code}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleCouponStatus(coupon)}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${
+                              coupon.isActive
+                                ? "bg-[#EDF3E8] text-[#4E5942]"
+                                : "bg-[#F5F5F5] text-[#888888]"
+                            }`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${coupon.isActive ? "bg-[#4E5942]" : "bg-[#888888]"}`} />
+                            <span>{coupon.isActive ? "Active" : "Inactive"}</span>
+                          </button>
+                        </div>
+
+                        <div className="text-[13px] bg-[#FBF9F5] p-2.5 rounded-2xs border border-[#F0ECE4] space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[#736E67]">Discount:</span>
+                            <span className="font-bold text-[#4E5942]">
+                              {coupon.type === "percent" ? `${coupon.value}% OFF` : `${formatINR(coupon.value)} FLAT`}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-[12px]">
+                            <span className="text-[#736E67]">Min Order:</span>
+                            <span className="text-[#4A4640]">
+                              {coupon.minSubtotalRupees ? formatINR(coupon.minSubtotalRupees) : "None"}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-[12px]">
+                            <span className="text-[#736E67]">Audience:</span>
+                            <span className="text-[#4A4640]">
+                              {coupon.firstOrderOnly ? "First Order Only" : "All Orders"}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-[12px] pt-1 border-t border-[#E8E3DA]/60">
+                            <span className="text-[#736E67]">Redeemed:</span>
+                            <span className="font-mono font-semibold text-[#1A1A1A]">
+                              {coupon.redemptionsCount || 0} times
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => handleEditCoupon(coupon)}
+                            className="flex-1 bg-[#FBF9F5] hover:bg-[#F5F2EB] border border-[#E8E3DA] text-[#1A1A1A] py-2 px-3 rounded-2xs text-[12px] font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                          >
+                            <Edit className="w-3.5 h-3.5 text-[#4E5942]" />
+                            <span>Edit Coupon</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCoupon(coupon.id, coupon.code)}
+                            className="bg-[#FDF2F2] hover:bg-[#FDE8E8] border border-[#F8B4B4] text-[#A94438] py-2 px-3 rounded-2xs text-[12px] font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop Coupons Table (>= 768px) */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full text-left text-[14px]">
+                      <thead className="bg-[#FBF9F5] text-[#736E67] uppercase text-[12px] border-b border-[#E8E3DA]">
+                        <tr>
+                          <th className="py-3.5 px-4">Coupon Code</th>
+                          <th className="py-3.5 px-4">Discount</th>
+                          <th className="py-3.5 px-4">Min. Subtotal</th>
+                          <th className="py-3.5 px-4">Max. Discount</th>
+                          <th className="py-3.5 px-4">Usage Limit</th>
+                          <th className="py-3.5 px-4">Redemptions</th>
+                          <th className="py-3.5 px-4">Audience</th>
+                          <th className="py-3.5 px-4">Status</th>
+                          <th className="py-3.5 px-4 text-right">Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="divide-y divide-[#F0ECE4]">
+                        {coupons.map((coupon) => (
+                          <tr key={coupon.id} className="hover:bg-[#FBF9F5] transition-colors">
+                            <td className="py-4 px-4">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-bold text-[#1A1A1A] bg-[#F5F2EB] px-2.5 py-1 rounded-2xs border border-[#E8E3DA] tracking-wider text-[13px]">
+                                  {coupon.code}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4 font-semibold text-[#1A1A1A]">
+                              {coupon.type === "percent" ? (
+                                <span className="text-[#4E5942]">{coupon.value}% OFF</span>
+                              ) : (
+                                <span className="text-[#4E5942]">{formatINR(coupon.value)} FLAT</span>
+                              )}
+                            </td>
+                            <td className="py-4 px-4 text-[#4A4640]">
+                              {coupon.minSubtotalRupees ? (
+                                <span>Orders &ge; {formatINR(coupon.minSubtotalRupees)}</span>
+                              ) : (
+                                <span className="text-[#736E67]">None</span>
+                              )}
+                            </td>
+                            <td className="py-4 px-4 text-[#736E67]">
+                              {coupon.maxDiscountRupees ? formatINR(coupon.maxDiscountRupees) : "No cap"}
+                            </td>
+                            <td className="py-4 px-4 text-[#736E67]">
+                              {coupon.usageLimit ? `${coupon.usageLimit} total` : "Unlimited"}
+                            </td>
+                            <td className="py-4 px-4 font-mono font-semibold text-[#1A1A1A]">
+                              {coupon.redemptionsCount || 0}
+                            </td>
+                            <td className="py-4 px-4">
+                              {coupon.firstOrderOnly ? (
+                                <span className="text-[11px] font-semibold bg-[#FFF4E5] text-[#B76E00] px-2 py-0.5 rounded-2xs border border-[#FFE2B8]">
+                                  First Order Only
+                                </span>
+                              ) : (
+                                <span className="text-[11px] text-[#736E67]">All Orders</span>
+                              )}
+                            </td>
+                            <td className="py-4 px-4">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleCouponStatus(coupon)}
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold transition-colors cursor-pointer ${
+                                  coupon.isActive
+                                    ? "bg-[#EDF3E8] text-[#4E5942] hover:bg-[#DEEACF]"
+                                    : "bg-[#F5F5F5] text-[#888888] hover:bg-[#EAEAEA]"
+                                }`}
+                              >
+                                <span
+                                  className={`w-1.5 h-1.5 rounded-full ${
+                                    coupon.isActive ? "bg-[#4E5942]" : "bg-[#888888]"
+                                  }`}
+                                />
+                                <span>{coupon.isActive ? "Active" : "Inactive"}</span>
+                              </button>
+                            </td>
+                            <td className="py-4 px-4 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditCoupon(coupon)}
+                                  className="p-1.5 text-[#736E67] hover:text-[#1A1A1A] hover:bg-[#F5F2EB] rounded-2xs transition-colors cursor-pointer"
+                                  title="Edit Coupon"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteCoupon(coupon.id, coupon.code)}
+                                  className="p-1.5 text-[#A94438] hover:text-[#8B342B] hover:bg-[#FDF2F2] rounded-2xs transition-colors cursor-pointer"
+                                  title="Delete Coupon"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
               )}
             </div>
           </div>
         )}
 
         {/* ------------------------------------------------------------- */}
-        {/* TAB 8: SUBSCRIBERS & EMAIL CAMPAIGN BROADCAST */}
+        {/* TAB 9: SUBSCRIBERS & EMAIL CAMPAIGN BROADCAST */}
         {/* ------------------------------------------------------------- */}
         {activeTab === "subscribers" && (
-          <div className="space-y-8 animate-fadeIn">
+          <div className="space-y-6 sm:space-y-8 animate-fadeIn">
             <div>
-              <h2 className="text-xl font-semibold text-[#1A1A1A]">Newsletter & Subscriber Campaigns</h2>
-              <p className="text-[14px] text-[#736E67]">
+              <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">Newsletter & Subscriber Campaigns</h2>
+              <p className="text-[12px] sm:text-[14px] text-[#736E67]">
                 View newsletter subscribers, registered customers, and craft email campaigns to broadcast.
               </p>
             </div>
 
             {/* Campaign Composer */}
-            <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-6 rounded-xs shadow-2xs space-y-4">
-              <h3 className="text-lg font-semibold text-[#1A1A1A] flex items-center gap-2">
-                <Send className="w-5 h-5 text-[#4E5942]" /> Craft & Broadcast Email Campaign
+            <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-4 sm:p-6 rounded-xs shadow-2xs space-y-4">
+              <h3 className="text-base sm:text-lg font-semibold text-[#1A1A1A] flex items-center gap-2">
+                <Send className="w-4 h-4 sm:w-5 sm:h-5 text-[#4E5942]" /> Craft & Broadcast Email Campaign
               </h3>
               <form onSubmit={handleBroadcastCampaign} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -2053,7 +2640,7 @@ export default function AdminPage() {
                   <button
                     type="submit"
                     disabled={isBroadcasting}
-                    className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-6 py-2.5 rounded-2xs text-[14px] font-semibold inline-flex items-center gap-2 transition-colors disabled:opacity-60 cursor-pointer"
+                    className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-6 py-2.5 rounded-2xs text-[13px] sm:text-[14px] font-semibold inline-flex items-center justify-center gap-2 transition-colors disabled:opacity-60 cursor-pointer w-full sm:w-auto"
                   >
                     <Send className="w-4 h-4" />
                     <span>{isBroadcasting ? "Sending Broadcast..." : "Send Campaign Broadcast"}</span>
@@ -2062,15 +2649,37 @@ export default function AdminPage() {
               </form>
             </div>
 
-            {/* Subscribers Table */}
-            <div className="bg-[#FFFFFF] border border-[#E8E3DA] rounded-xs overflow-hidden shadow-2xs space-y-4">
-              <div className="p-4 border-b border-[#F0ECE4] flex items-center justify-between">
-                <h3 className="text-base font-semibold text-[#1A1A1A]">Subscriber List</h3>
-                <span className="text-[13px] text-[#736E67]">
+            {/* Subscribers List */}
+            <div className="bg-[#FFFFFF] border border-[#E8E3DA] rounded-xs overflow-hidden shadow-2xs space-y-2">
+              <div className="p-3.5 sm:p-4 border-b border-[#F0ECE4] flex items-center justify-between">
+                <h3 className="text-sm sm:text-base font-semibold text-[#1A1A1A]">Subscriber List</h3>
+                <span className="text-[12px] sm:text-[13px] text-[#736E67]">
                   {subscribersData.subscribers.length} total recorded
                 </span>
               </div>
-              <div className="overflow-x-auto">
+
+              {/* Mobile Subscribers Card List (< 768px) */}
+              <div className="md:hidden divide-y divide-[#F0ECE4]">
+                {subscribersData.subscribers.map((sub: any) => (
+                  <div key={sub.id} className="p-3.5 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-medium text-[13px] text-[#1A1A1A] truncate max-w-[220px]">
+                        {sub.email}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#EDF3E8] text-[#3E4534]">
+                        {sub.isActive ? "Subscribed" : "Unsubscribed"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-[#736E67]">
+                      <span className="uppercase">Via {sub.source || "Storefront"}</span>
+                      <span>{sub.createdAt ? new Date(sub.createdAt).toLocaleDateString() : "Recent"}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Subscribers Table (>= 768px) */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left text-[14px]">
                   <thead className="bg-[#FBF9F5] text-[#736E67] uppercase text-[12px] border-b border-[#E8E3DA]">
                     <tr>
@@ -2274,6 +2883,186 @@ export default function AdminPage() {
                 </div>
               </div>
 
+              {/* Store Pages SEO Meta Settings (Home, About, Journal, Shop) */}
+              <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-6 rounded-xs space-y-6 shadow-2xs">
+                <div className="pb-3 border-b border-[#F0ECE4]">
+                  <h3 className="text-base font-semibold text-[#1A1A1A] flex items-center gap-2">
+                    <Globe2 className="w-5 h-5 text-[#4E5942]" /> Store Pages SEO & OpenGraph Meta Management
+                  </h3>
+                  <p className="text-[13px] text-[#736E67] mt-0.5">
+                    Configure Google search snippet titles and descriptions for key storefront landing pages.
+                  </p>
+                </div>
+
+                {/* Homepage SEO */}
+                <div className="p-4 bg-[#FBF9F5] border border-[#E8E3DA] rounded-xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[14px] font-bold text-[#1A1A1A] flex items-center gap-2">
+                      🏠 Homepage (/)
+                    </span>
+                    <span className="text-[12px] text-[#736E67]">Primary Brand Portal</span>
+                  </div>
+                  <div className="space-y-2">
+                    <div>
+                      <div className="flex justify-between text-[12px] mb-1">
+                        <span className="font-semibold text-[#4A4640]">Meta Title</span>
+                        <span className={(siteSettings.seo_home_title?.length || 0) > 60 ? "text-[#A94438]" : "text-[#736E67]"}>
+                          {siteSettings.seo_home_title?.length || 0} / 60 chars
+                        </span>
+                      </div>
+                      <input
+                        type="text"
+                        value={siteSettings.seo_home_title || ""}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, seo_home_title: e.target.value })}
+                        placeholder="Maysha | Clean Botanical Science for Real Skin"
+                        className="w-full bg-white border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-[12px] mb-1">
+                        <span className="font-semibold text-[#4A4640]">Meta Description</span>
+                        <span className={(siteSettings.seo_home_description?.length || 0) > 160 ? "text-[#A94438]" : "text-[#736E67]"}>
+                          {siteSettings.seo_home_description?.length || 0} / 160 chars
+                        </span>
+                      </div>
+                      <textarea
+                        rows={2}
+                        value={siteSettings.seo_home_description || ""}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, seo_home_description: e.target.value })}
+                        placeholder="Discover clean, bio-compatible skincare rituals formulated with pure botanical extracts..."
+                        className="w-full bg-white border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* About Us Page SEO */}
+                <div className="p-4 bg-[#FBF9F5] border border-[#E8E3DA] rounded-xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[14px] font-bold text-[#1A1A1A] flex items-center gap-2">
+                      🌿 About Us (/about)
+                    </span>
+                    <span className="text-[12px] text-[#736E67]">Brand Philosophy & Sourcing</span>
+                  </div>
+                  <div className="space-y-2">
+                    <div>
+                      <div className="flex justify-between text-[12px] mb-1">
+                        <span className="font-semibold text-[#4A4640]">Meta Title</span>
+                        <span className={(siteSettings.seo_about_title?.length || 0) > 60 ? "text-[#A94438]" : "text-[#736E67]"}>
+                          {siteSettings.seo_about_title?.length || 0} / 60 chars
+                        </span>
+                      </div>
+                      <input
+                        type="text"
+                        value={siteSettings.seo_about_title || ""}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, seo_about_title: e.target.value })}
+                        placeholder="About Our Botanical Philosophy | Maysha Skincare"
+                        className="w-full bg-white border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-[12px] mb-1">
+                        <span className="font-semibold text-[#4A4640]">Meta Description</span>
+                        <span className={(siteSettings.seo_about_description?.length || 0) > 160 ? "text-[#A94438]" : "text-[#736E67]"}>
+                          {siteSettings.seo_about_description?.length || 0} / 160 chars
+                        </span>
+                      </div>
+                      <textarea
+                        rows={2}
+                        value={siteSettings.seo_about_description || ""}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, seo_about_description: e.target.value })}
+                        placeholder="Learn about Maysha's formulation ethos, ethical sourcing, and bio-compatible science..."
+                        className="w-full bg-white border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Skincare Journal SEO */}
+                <div className="p-4 bg-[#FBF9F5] border border-[#E8E3DA] rounded-xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[14px] font-bold text-[#1A1A1A] flex items-center gap-2">
+                      📖 Skincare Journal (/journal)
+                    </span>
+                    <span className="text-[12px] text-[#736E67]">Editorial & Science Articles</span>
+                  </div>
+                  <div className="space-y-2">
+                    <div>
+                      <div className="flex justify-between text-[12px] mb-1">
+                        <span className="font-semibold text-[#4A4640]">Meta Title</span>
+                        <span className={(siteSettings.seo_journal_title?.length || 0) > 60 ? "text-[#A94438]" : "text-[#736E67]"}>
+                          {siteSettings.seo_journal_title?.length || 0} / 60 chars
+                        </span>
+                      </div>
+                      <input
+                        type="text"
+                        value={siteSettings.seo_journal_title || ""}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, seo_journal_title: e.target.value })}
+                        placeholder="The Skincare Journal | Maysha Skincare Science"
+                        className="w-full bg-white border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-[12px] mb-1">
+                        <span className="font-semibold text-[#4A4640]">Meta Description</span>
+                        <span className={(siteSettings.seo_journal_description?.length || 0) > 160 ? "text-[#A94438]" : "text-[#736E67]"}>
+                          {siteSettings.seo_journal_description?.length || 0} / 160 chars
+                        </span>
+                      </div>
+                      <textarea
+                        rows={2}
+                        value={siteSettings.seo_journal_description || ""}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, seo_journal_description: e.target.value })}
+                        placeholder="Expert skincare guides, ingredient deep-dives, barrier repair science, and holistic rituals..."
+                        className="w-full bg-white border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Shop Catalog SEO */}
+                <div className="p-4 bg-[#FBF9F5] border border-[#E8E3DA] rounded-xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[14px] font-bold text-[#1A1A1A] flex items-center gap-2">
+                      🛍️ Shop Catalog (/shop)
+                    </span>
+                    <span className="text-[12px] text-[#736E67]">Product Directory & Filter Collection</span>
+                  </div>
+                  <div className="space-y-2">
+                    <div>
+                      <div className="flex justify-between text-[12px] mb-1">
+                        <span className="font-semibold text-[#4A4640]">Meta Title</span>
+                        <span className={(siteSettings.seo_shop_title?.length || 0) > 60 ? "text-[#A94438]" : "text-[#736E67]"}>
+                          {siteSettings.seo_shop_title?.length || 0} / 60 chars
+                        </span>
+                      </div>
+                      <input
+                        type="text"
+                        value={siteSettings.seo_shop_title || ""}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, seo_shop_title: e.target.value })}
+                        placeholder="Shop All Botanical Formulations | Maysha"
+                        className="w-full bg-white border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-[12px] mb-1">
+                        <span className="font-semibold text-[#4A4640]">Meta Description</span>
+                        <span className={(siteSettings.seo_shop_description?.length || 0) > 160 ? "text-[#A94438]" : "text-[#736E67]"}>
+                          {siteSettings.seo_shop_description?.length || 0} / 160 chars
+                        </span>
+                      </div>
+                      <textarea
+                        rows={2}
+                        value={siteSettings.seo_shop_description || ""}
+                        onChange={(e) => setSiteSettings({ ...siteSettings, seo_shop_description: e.target.value })}
+                        placeholder="Explore all cleansers, serums, toners, moisturizers, and room mists thoughtfully engineered for real skin..."
+                        className="w-full bg-white border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* 2-Step Authentication (2FA) */}
               <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-6 rounded-xs space-y-4 shadow-2xs">
                 <h3 className="text-base font-semibold text-[#1A1A1A] pb-2 border-b border-[#F0ECE4] flex items-center gap-2">
@@ -2335,21 +3124,21 @@ export default function AdminPage() {
       {/* MODAL: ADD / EDIT PRODUCT (EXPANDED PRODUCTION SUITE) */}
       {/* ------------------------------------------------------------- */}
       {showAddProductModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-6 overflow-y-auto">
-          <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-6 sm:p-8 lg:p-10 rounded-xs max-w-4xl lg:max-w-5xl w-full max-h-[92vh] overflow-y-auto space-y-6 shadow-2xl my-auto">
-            <div className="flex items-center justify-between pb-4 border-b border-[#F0ECE4]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 sm:p-6 overflow-y-auto">
+          <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-4 sm:p-8 lg:p-10 rounded-xs max-w-4xl lg:max-w-5xl w-full max-h-[94vh] overflow-y-auto space-y-5 sm:space-y-6 shadow-2xl my-auto">
+            <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-[#F0ECE4]">
               <div>
-                <span className="text-[12px] uppercase tracking-wider font-semibold text-[#4E5942] block">
+                <span className="text-[11px] sm:text-[12px] uppercase tracking-wider font-semibold text-[#4E5942] block">
                   Catalog Inventory Manager
                 </span>
-                <h3 className="text-2xl font-semibold text-[#1A1A1A] mt-0.5">
+                <h3 className="text-lg sm:text-2xl font-semibold text-[#1A1A1A] mt-0.5">
                   {editingProduct ? `Edit Product: ${editingProduct.name}` : "Add New Botanical Product"}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowAddProductModal(false)}
-                className="text-[#736E67] hover:text-[#1A1A1A] p-2 text-xl font-bold rounded-2xs"
+                className="text-[#736E67] hover:text-[#1A1A1A] p-2 text-xl font-bold rounded-2xs cursor-pointer"
               >
                 ✕
               </button>
@@ -2423,18 +3212,18 @@ export default function AdminPage() {
               </div>
 
               {/* SECTION 2: Multi-Badge Selection */}
-              <div className="p-5 bg-[#FBF9F5] border border-[#E8E3DA] rounded-xs space-y-3">
-                <div className="flex items-center justify-between">
+              <div className="p-4 sm:p-5 bg-[#FBF9F5] border border-[#E8E3DA] rounded-xs space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                   <div>
                     <label className="text-[14px] font-semibold text-[#1A1A1A] block">
                       Product Badges (Multi-Select Enabled)
                     </label>
                     <p className="text-[12px] text-[#736E67]">
-                      Click pills to toggle multiple promotional badges simultaneously on product cards and PDP.
+                      Click pills to toggle multiple promotional badges simultaneously.
                     </p>
                   </div>
                   {productFormData.selectedBadges.length > 0 && (
-                    <span className="text-[12px] font-semibold text-[#4E5942] bg-[#EDF3E8] px-2.5 py-1 rounded-full border border-[#C5D7BD]">
+                    <span className="text-[12px] font-semibold text-[#4E5942] bg-[#EDF3E8] px-2.5 py-0.5 rounded-full border border-[#C5D7BD] self-start sm:self-auto">
                       {productFormData.selectedBadges.length} Active
                     </span>
                   )}
@@ -2449,7 +3238,7 @@ export default function AdminPage() {
                         key={badgeName}
                         type="button"
                         onClick={() => handleToggleBadge(badgeName)}
-                        className={`px-3.5 py-1.5 rounded-full text-[13px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                        className={`px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-[12px] sm:text-[13px] font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                           isSelected
                             ? "bg-[#4E5942] text-white shadow-xs border border-[#3E4534]"
                             : "bg-[#FFFFFF] text-[#4A4640] border border-[#E8E3DA] hover:border-[#1A1A1A]"
@@ -2468,21 +3257,21 @@ export default function AdminPage() {
                     type="text"
                     value={productFormData.customBadgeInput}
                     onChange={(e) => setProductFormData({ ...productFormData, customBadgeInput: e.target.value })}
-                    placeholder="Type custom badge (e.g. Autumn Special)..."
-                    className="flex-1 bg-white border border-[#E8E3DA] text-[13px] px-3.5 py-2 rounded-2xs focus:outline-none focus:border-[#4E5942]"
+                    placeholder="Type custom badge..."
+                    className="flex-1 bg-white border border-[#E8E3DA] text-[13px] px-3 py-2 rounded-2xs focus:outline-none focus:border-[#4E5942]"
                   />
                   <button
                     type="button"
                     onClick={handleAddCustomBadge}
-                    className="bg-[#1A1A1A] hover:bg-[#333333] text-white text-[13px] font-semibold px-4 py-2 rounded-2xs transition-colors shrink-0"
+                    className="bg-[#1A1A1A] hover:bg-[#333333] text-white text-[13px] font-semibold px-3.5 py-2 rounded-2xs transition-colors shrink-0"
                   >
-                    + Add Badge
+                    + Add
                   </button>
                 </div>
               </div>
 
               {/* SECTION 3: Dynamic Product Variants & Pricing Table */}
-              <div className="p-5 bg-[#FFFFFF] border border-[#E8E3DA] rounded-xs space-y-4">
+              <div className="p-4 sm:p-5 bg-[#FFFFFF] border border-[#E8E3DA] rounded-xs space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[#F0ECE4]">
                   <div>
                     <h4 className="text-[15px] font-semibold text-[#1A1A1A] flex items-center gap-2">
@@ -2495,7 +3284,7 @@ export default function AdminPage() {
                   <button
                     type="button"
                     onClick={handleAddVariantRow}
-                    className="inline-flex items-center gap-1.5 bg-[#4E5942] hover:bg-[#3E4534] text-white text-[13px] font-semibold px-3.5 py-2 rounded-2xs transition-colors self-start cursor-pointer"
+                    className="inline-flex items-center gap-1.5 bg-[#4E5942] hover:bg-[#3E4534] text-white text-[12px] sm:text-[13px] font-semibold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-2xs transition-colors self-start cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Add Another Variant</span>
@@ -2509,10 +3298,10 @@ export default function AdminPage() {
                     return (
                       <div
                         key={vIdx}
-                        className="p-4 bg-[#FBF9F5] border border-[#E8E3DA] rounded-2xs grid grid-cols-1 sm:grid-cols-12 gap-3 items-center"
+                        className="p-3 sm:p-4 bg-[#FBF9F5] border border-[#E8E3DA] rounded-2xs grid grid-cols-2 sm:grid-cols-12 gap-2 sm:gap-3 items-end sm:items-center"
                       >
-                        <div className="sm:col-span-3">
-                          <label className="text-[12px] font-semibold text-[#736E67] block mb-1">
+                        <div className="col-span-2 sm:col-span-3">
+                          <label className="text-[11px] sm:text-[12px] font-semibold text-[#736E67] block mb-1">
                             Size / Volume *
                           </label>
                           <input
@@ -2521,12 +3310,12 @@ export default function AdminPage() {
                             value={v.size}
                             onChange={(e) => handleUpdateVariantRow(vIdx, "size", e.target.value)}
                             placeholder="e.g. 50ml or 100ml"
-                            className="w-full bg-white border border-[#E8E3DA] text-[14px] py-2 px-3 rounded-2xs focus:outline-none focus:border-[#4E5942]"
+                            className="w-full bg-white border border-[#E8E3DA] text-[13px] sm:text-[14px] py-2 px-3 rounded-2xs focus:outline-none focus:border-[#4E5942]"
                           />
                         </div>
 
-                        <div className="sm:col-span-2">
-                          <label className="text-[12px] font-semibold text-[#736E67] block mb-1">
+                        <div className="col-span-1 sm:col-span-2">
+                          <label className="text-[11px] sm:text-[12px] font-semibold text-[#736E67] block mb-1">
                             Price (₹) *
                           </label>
                           <input
@@ -2535,12 +3324,12 @@ export default function AdminPage() {
                             min={1}
                             value={v.price}
                             onChange={(e) => handleUpdateVariantRow(vIdx, "price", Number(e.target.value))}
-                            className="w-full bg-white border border-[#E8E3DA] text-[14px] py-2 px-3 rounded-2xs focus:outline-none focus:border-[#4E5942]"
+                            className="w-full bg-white border border-[#E8E3DA] text-[13px] sm:text-[14px] py-2 px-3 rounded-2xs focus:outline-none focus:border-[#4E5942]"
                           />
                         </div>
 
-                        <div className="sm:col-span-2">
-                          <label className="text-[12px] font-semibold text-[#736E67] block mb-1">
+                        <div className="col-span-1 sm:col-span-2">
+                          <label className="text-[11px] sm:text-[12px] font-semibold text-[#736E67] block mb-1">
                             MRP (₹) *
                           </label>
                           <input
@@ -2549,12 +3338,12 @@ export default function AdminPage() {
                             min={1}
                             value={v.mrp}
                             onChange={(e) => handleUpdateVariantRow(vIdx, "mrp", Number(e.target.value))}
-                            className="w-full bg-white border border-[#E8E3DA] text-[14px] py-2 px-3 rounded-2xs focus:outline-none focus:border-[#4E5942]"
+                            className="w-full bg-white border border-[#E8E3DA] text-[13px] sm:text-[14px] py-2 px-3 rounded-2xs focus:outline-none focus:border-[#4E5942]"
                           />
                         </div>
 
-                        <div className="sm:col-span-2">
-                          <label className="text-[12px] font-semibold text-[#736E67] block mb-1">
+                        <div className="col-span-1 sm:col-span-2">
+                          <label className="text-[11px] sm:text-[12px] font-semibold text-[#736E67] block mb-1">
                             Stock Units *
                           </label>
                           <input
@@ -2563,21 +3352,19 @@ export default function AdminPage() {
                             min={0}
                             value={v.stock}
                             onChange={(e) => handleUpdateVariantRow(vIdx, "stock", Number(e.target.value))}
-                            className="w-full bg-white border border-[#E8E3DA] text-[14px] py-2 px-3 rounded-2xs focus:outline-none focus:border-[#4E5942]"
+                            className="w-full bg-white border border-[#E8E3DA] text-[13px] sm:text-[14px] py-2 px-3 rounded-2xs focus:outline-none focus:border-[#4E5942]"
                           />
                         </div>
 
-                        <div className="sm:col-span-2 flex items-center gap-2 pt-4 sm:pt-0">
+                        <div className="col-span-1 sm:col-span-3 flex items-center justify-between sm:justify-end gap-2 pt-1 sm:pt-0">
                           {discountPct > 0 ? (
-                            <span className="text-[12px] font-bold text-[#A94438] bg-[#FDF2F0] border border-[#F8B4B4] px-2 py-1 rounded-2xs shrink-0">
+                            <span className="text-[11px] sm:text-[12px] font-bold text-[#A94438] bg-[#FDF2F0] border border-[#F8B4B4] px-2 py-1 rounded-2xs shrink-0">
                               {discountPct}% OFF
                             </span>
                           ) : (
-                            <span className="text-[12px] text-[#736E67]">Standard</span>
+                            <span className="text-[11px] sm:text-[12px] text-[#736E67]">Standard</span>
                           )}
-                        </div>
 
-                        <div className="sm:col-span-1 text-right pt-4 sm:pt-0">
                           <button
                             type="button"
                             disabled={productFormData.variants.length <= 1}
@@ -2814,25 +3601,129 @@ export default function AdminPage() {
                 </div>
               </div>
 
+              {/* SECTION 9: Search Engine Optimization (SEO) & Google SERP Live Preview */}
+              <div className="p-5 bg-[#FBF9F5] border border-[#E8E3DA] rounded-xs space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-[#E8E3DA]">
+                  <div>
+                    <h4 className="text-[15px] font-semibold text-[#1A1A1A] flex items-center gap-2">
+                      <Globe2 className="w-4 h-4 text-[#4E5942]" /> Product Page SEO (Google & Meta Tags)
+                    </h4>
+                    <p className="text-[12px] text-[#736E67]">
+                      Follow SEO best practices: 50–60 character title tag, 140–160 character meta description.
+                    </p>
+                  </div>
+                  <span className="text-[11px] font-semibold text-[#4E5942] bg-[#EDF3E8] px-2.5 py-1 rounded-full border border-[#C5D7BD]">
+                    Bluestone PIM Standard
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-[14px] font-semibold text-[#1A1A1A]">
+                        SEO Meta Title
+                      </label>
+                      <span className={`text-[12px] font-mono ${
+                        productFormData.seo_title.length > 60
+                          ? "text-[#A94438] font-bold"
+                          : productFormData.seo_title.length >= 45
+                          ? "text-[#4E5942] font-semibold"
+                          : "text-[#736E67]"
+                      }`}>
+                        {productFormData.seo_title.length} / 60 chars
+                      </span>
+                    </div>
+                    <input
+                      type="text"
+                      value={productFormData.seo_title}
+                      onChange={(e) => setProductFormData({ ...productFormData, seo_title: e.target.value })}
+                      placeholder={productFormData.name ? `${productFormData.name} | Maysha Skincare` : "e.g. Pure Damask Rose Water | Maysha Skincare"}
+                      className="w-full bg-[#FFFFFF] border border-[#E8E3DA] text-[14px] py-2.5 px-3 rounded-2xs focus:outline-none focus:border-[#1A1A1A]"
+                    />
+                    <p className="text-[11px] text-[#736E67] mt-1">
+                      Target primary product keyword + brand name.
+                    </p>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-[14px] font-semibold text-[#1A1A1A]">
+                        SEO Meta Description
+                      </label>
+                      <span className={`text-[12px] font-mono ${
+                        productFormData.seo_description.length > 160
+                          ? "text-[#A94438] font-bold"
+                          : productFormData.seo_description.length >= 130
+                          ? "text-[#4E5942] font-semibold"
+                          : "text-[#736E67]"
+                      }`}>
+                        {productFormData.seo_description.length} / 160 chars
+                      </span>
+                    </div>
+                    <textarea
+                      rows={2}
+                      value={productFormData.seo_description}
+                      onChange={(e) => setProductFormData({ ...productFormData, seo_description: e.target.value })}
+                      placeholder={productFormData.subtitle || "Shop pure Damask rose water mist to soothe, balance, and rehydrate thirsty skin..."}
+                      className="w-full bg-[#FFFFFF] border border-[#E8E3DA] text-[14px] py-2.5 px-3 rounded-2xs focus:outline-none focus:border-[#1A1A1A]"
+                    />
+                    <p className="text-[11px] text-[#736E67] mt-1">
+                      Summarize core value, benefits, and call to action.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Google SERP Live Snippet Preview */}
+                <div className="mt-3 p-4 bg-[#FFFFFF] border border-[#DCD7CD] rounded-xs shadow-2xs space-y-1 font-sans">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] uppercase tracking-wider font-bold text-[#736E67]">
+                      Google Search Result Preview (Live Snippet)
+                    </span>
+                    <span className="text-[11px] text-[#4E5942] font-medium">Desktop & Mobile SERP</span>
+                  </div>
+                  <div className="pt-2">
+                    <div className="text-[13px] text-[#202124] flex items-center gap-1.5">
+                      <span className="w-4 h-4 rounded-full bg-[#4E5942] text-white flex items-center justify-center text-[9px] font-bold">M</span>
+                      <span className="text-[#4D5156] text-[12px]">mayshaskincare.com</span>
+                      <span className="text-[#5F6368] text-[12px]">› products › {productFormData.slug || "product-url"}</span>
+                    </div>
+                    <h5 className="text-[18px] text-[#1a0dab] font-normal hover:underline cursor-pointer leading-snug mt-1">
+                      {productFormData.seo_title || (productFormData.name ? `${productFormData.name} | Maysha Skincare` : "Product Name | Maysha Skincare")}
+                    </h5>
+                    <div className="flex items-center gap-2 text-[12px] text-[#5F6368] my-0.5">
+                      <span className="text-[#e37400]">★★★★★</span>
+                      <span>4.9 (48)</span>
+                      <span>•</span>
+                      <span>₹{productFormData.variants[0]?.price || 599}.00</span>
+                      <span>•</span>
+                      <span className="text-[#137333]">In stock</span>
+                    </div>
+                    <p className="text-[13px] text-[#4d5156] leading-normal line-clamp-2">
+                      {productFormData.seo_description || productFormData.short_description || productFormData.subtitle || "Experience biocompatible, botanical skincare thoughtfully formulated with pure Damask rose and clinical actives for resilient, balanced skin."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Action Buttons */}
-              <div className="pt-5 border-t border-[#F0ECE4] flex items-center justify-between">
-                <span className="text-[13px] text-[#736E67]">
+              <div className="pt-4 sm:pt-5 border-t border-[#F0ECE4] flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3">
+                <span className="text-[12px] sm:text-[13px] text-[#736E67]">
                   {productFormData.variants.length} variant(s) configured • {productFormData.selectedBadges.length} badge(s)
                 </span>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={() => setShowAddProductModal(false)}
-                    className="px-5 py-2.5 text-[14px] font-semibold text-[#736E67] hover:text-[#1A1A1A] transition-colors"
+                    className="flex-1 sm:flex-none px-4 sm:px-5 py-2.5 text-[13px] sm:text-[14px] font-semibold text-[#736E67] hover:text-[#1A1A1A] transition-colors text-center cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-8 py-3 rounded-2xs text-[14px] font-semibold transition-colors cursor-pointer shadow-xs"
+                    className="flex-1 sm:flex-none bg-[#1A1A1A] hover:bg-[#333333] text-white px-5 sm:px-8 py-2.5 sm:py-3 rounded-2xs text-[13px] sm:text-[14px] font-semibold transition-colors cursor-pointer shadow-xs text-center"
                   >
-                    {editingProduct ? "Update Product & Variations" : "Save Botanical Product"}
+                    {editingProduct ? "Update Product" : "Save Botanical Product"}
                   </button>
                 </div>
               </div>
@@ -2845,16 +3736,16 @@ export default function AdminPage() {
       {/* MODAL: ADD / EDIT BANNER */}
       {/* ------------------------------------------------------------- */}
       {showAddBannerModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-6 sm:p-8 rounded-xs max-w-xl w-full max-h-[90vh] overflow-y-auto space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-4 sm:p-8 rounded-xs max-w-xl w-full max-h-[92vh] overflow-y-auto space-y-4 shadow-2xl my-auto">
             <div className="flex items-center justify-between pb-3 border-b border-[#F0ECE4]">
-              <h3 className="text-xl font-semibold text-[#1A1A1A]">
+              <h3 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">
                 {editingBanner ? "Edit Carousel Banner" : "Add New Carousel Banner"}
               </h3>
               <button
                 type="button"
                 onClick={() => setShowAddBannerModal(false)}
-                className="text-[#736E67] hover:text-[#1A1A1A] text-lg font-bold"
+                className="text-[#736E67] hover:text-[#1A1A1A] text-lg font-bold p-1 cursor-pointer"
               >
                 ✕
               </button>
@@ -2888,7 +3779,7 @@ export default function AdminPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
                     Button Label
@@ -2923,8 +3814,8 @@ export default function AdminPage() {
                 onUploadSuccess={(url) => setBannerFormData({ ...bannerFormData, desktop_image: url })}
               />
 
-              <div className="pt-2 border-t border-[#F0ECE4] flex items-center justify-between">
-                <label className="inline-flex items-center gap-2 text-[14px] text-[#1A1A1A] cursor-pointer">
+              <div className="pt-2 border-t border-[#F0ECE4] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <label className="inline-flex items-center gap-2 text-[13px] sm:text-[14px] text-[#1A1A1A] cursor-pointer">
                   <input
                     type="checkbox"
                     checked={bannerFormData.is_active}
@@ -2934,17 +3825,17 @@ export default function AdminPage() {
                   <span>Show as Active on Homepage Slider</span>
                 </label>
 
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={() => setShowAddBannerModal(false)}
-                    className="px-4 py-2 text-[14px] font-semibold text-[#736E67]"
+                    className="flex-1 sm:flex-none px-4 py-2 text-[13px] sm:text-[14px] font-semibold text-[#736E67] hover:text-[#1A1A1A] text-center cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-5 py-2.5 rounded-2xs text-[14px] font-semibold cursor-pointer"
+                    className="flex-1 sm:flex-none bg-[#1A1A1A] hover:bg-[#333333] text-white px-5 py-2.5 rounded-2xs text-[13px] sm:text-[14px] font-semibold cursor-pointer text-center"
                   >
                     {editingBanner ? "Update Banner" : "Save Banner"}
                   </button>
@@ -2959,23 +3850,23 @@ export default function AdminPage() {
       {/* MODAL: ADD / EDIT JOURNAL ARTICLE */}
       {/* ------------------------------------------------------------- */}
       {showAddArticleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-6 sm:p-8 rounded-xs max-w-2xl w-full max-h-[90vh] overflow-y-auto space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-4 sm:p-8 rounded-xs max-w-2xl w-full max-h-[92vh] overflow-y-auto space-y-4 shadow-2xl my-auto">
             <div className="flex items-center justify-between pb-3 border-b border-[#F0ECE4]">
-              <h3 className="text-xl font-semibold text-[#1A1A1A]">
+              <h3 className="text-lg sm:text-xl font-semibold text-[#1A1A1A] truncate">
                 {editingArticle ? `Edit Story: ${editingArticle.title}` : "Create New Journal Story"}
               </h3>
               <button
                 type="button"
                 onClick={() => setShowAddArticleModal(false)}
-                className="text-[#736E67] hover:text-[#1A1A1A] text-lg font-bold"
+                className="text-[#736E67] hover:text-[#1A1A1A] text-lg font-bold p-1 cursor-pointer shrink-0"
               >
                 ✕
               </button>
             </div>
 
             <form onSubmit={handleSaveArticle} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
                     Article Title *
@@ -3003,7 +3894,7 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
                     Category
@@ -3080,17 +3971,17 @@ export default function AdminPage() {
                 />
               </div>
 
-              <div className="pt-4 border-t border-[#F0ECE4] flex items-center justify-end gap-3">
+              <div className="pt-3 border-t border-[#F0ECE4] flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowAddArticleModal(false)}
-                  className="px-4 py-2 text-[14px] font-semibold text-[#736E67]"
+                  className="px-4 py-2 text-[13px] sm:text-[14px] font-semibold text-[#736E67] hover:text-[#1A1A1A] cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-6 py-2.5 rounded-2xs text-[14px] font-semibold cursor-pointer"
+                  className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-5 sm:px-6 py-2.5 rounded-2xs text-[13px] sm:text-[14px] font-semibold cursor-pointer"
                 >
                   {editingArticle ? "Update Story" : "Publish Story"}
                 </button>
@@ -3103,21 +3994,21 @@ export default function AdminPage() {
       {/* MODAL: ADD / EDIT COUPON VOUCHER */}
       {/* ------------------------------------------------------------- */}
       {showAddCouponModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 overflow-y-auto">
-          <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-6 sm:p-8 rounded-xs max-w-lg w-full max-h-[90vh] overflow-y-auto space-y-6 shadow-2xl my-auto">
-            <div className="flex items-center justify-between pb-4 border-b border-[#F0ECE4]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-4 sm:p-8 rounded-xs max-w-lg w-full max-h-[92vh] overflow-y-auto space-y-5 sm:space-y-6 shadow-2xl my-auto">
+            <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-[#F0ECE4]">
               <div>
-                <span className="text-[12px] uppercase tracking-wider font-semibold text-[#4E5942] block">
+                <span className="text-[11px] sm:text-[12px] uppercase tracking-wider font-semibold text-[#4E5942] block">
                   Promotions Engine
                 </span>
-                <h3 className="text-xl font-semibold text-[#1A1A1A] mt-0.5">
+                <h3 className="text-lg sm:text-xl font-semibold text-[#1A1A1A] mt-0.5">
                   {editingCoupon ? `Edit Coupon: ${editingCoupon.code}` : "Create New Coupon Voucher"}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowAddCouponModal(false)}
-                className="text-[#736E67] hover:text-[#1A1A1A] p-2 text-xl font-bold rounded-2xs cursor-pointer"
+                className="text-[#736E67] hover:text-[#1A1A1A] p-1 text-xl font-bold rounded-2xs cursor-pointer"
               >
                 ✕
               </button>
@@ -3139,7 +4030,7 @@ export default function AdminPage() {
                 <p className="text-[11px] text-[#736E67] mt-1">Codes will automatically be uppercase.</p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
                     Discount Type *
@@ -3169,7 +4060,7 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
                     Min. Order Subtotal (₹)
@@ -3200,7 +4091,7 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
                     Total Global Usage Limit
@@ -3265,20 +4156,175 @@ export default function AdminPage() {
                 </label>
               </div>
 
-              <div className="pt-4 border-t border-[#F0ECE4] flex items-center justify-end gap-3">
+              <div className="pt-3 border-t border-[#F0ECE4] flex flex-col-reverse sm:flex-row sm:items-center justify-end gap-2 sm:gap-3">
                 <button
                   type="button"
                   onClick={() => setShowAddCouponModal(false)}
-                  className="px-4 py-2 text-[14px] font-semibold text-[#736E67] hover:text-[#1A1A1A] cursor-pointer"
+                  className="px-4 py-2 text-[13px] sm:text-[14px] font-semibold text-[#736E67] hover:text-[#1A1A1A] cursor-pointer text-center"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSavingCoupon}
-                  className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-6 py-2.5 rounded-2xs text-[14px] font-semibold cursor-pointer disabled:opacity-60"
+                  className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-6 py-2.5 rounded-2xs text-[13px] sm:text-[14px] font-semibold cursor-pointer disabled:opacity-60 text-center"
                 >
                   {isSavingCoupon ? "Saving..." : editingCoupon ? "Update Voucher" : "Create Voucher"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* MODAL: ADD / EDIT STORE CATEGORY */}
+      {/* ------------------------------------------------------------- */}
+      {showAddCategoryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-6 overflow-y-auto">
+          <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-4 sm:p-8 rounded-xs max-w-xl w-full max-h-[92vh] overflow-y-auto space-y-5 sm:space-y-6 shadow-2xl my-auto">
+            <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-[#F0ECE4]">
+              <div>
+                <span className="text-[11px] sm:text-[12px] uppercase tracking-wider font-semibold text-[#4E5942] block">
+                  Store Taxonomy
+                </span>
+                <h3 className="text-lg sm:text-xl font-semibold text-[#1A1A1A] mt-0.5">
+                  {editingCategory ? `Edit Category: ${editingCategory.name}` : "Create New Category Collection"}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddCategoryModal(false)}
+                className="text-[#736E67] hover:text-[#1A1A1A] p-1 text-xl font-bold rounded-2xs cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCategory} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                  <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
+                    Category Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={categoryFormData.name}
+                    onChange={(e) => setCategoryFormData({ ...categoryFormData, name: e.target.value })}
+                    placeholder="e.g. Perfumes, Air Fresheners, Serums"
+                    className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs focus:outline-hidden focus:border-[#1A1A1A]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
+                    URL Slug
+                  </label>
+                  <input
+                    type="text"
+                    value={categoryFormData.slug}
+                    onChange={(e) => setCategoryFormData({ ...categoryFormData, slug: e.target.value })}
+                    placeholder="e.g. perfumes, air-fresheners"
+                    className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs focus:outline-hidden focus:border-[#1A1A1A]"
+                  />
+                  <p className="text-[11px] text-[#736E67] mt-0.5">Auto-generated from name if empty.</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
+                  Collection Description / Subtitle
+                </label>
+                <textarea
+                  rows={3}
+                  value={categoryFormData.description}
+                  onChange={(e) => setCategoryFormData({ ...categoryFormData, description: e.target.value })}
+                  placeholder="e.g. Luxurious home and ambient air mists infused with Damask rose and essential botanical extracts."
+                  className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs focus:outline-hidden focus:border-[#1A1A1A]"
+                />
+              </div>
+
+              {/* Cloudinary Direct Uploader */}
+              <CloudinaryUploader
+                label="Category Banner / Icon Image (Cloudinary)"
+                folder="maysha/categories"
+                currentImage={categoryFormData.image}
+                onUploadSuccess={(url) => setCategoryFormData({ ...categoryFormData, image: url })}
+              />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                  <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
+                    Display Sort Order
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={categoryFormData.sort_order}
+                    onChange={(e) => setCategoryFormData({ ...categoryFormData, sort_order: Number(e.target.value) })}
+                    className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs focus:outline-hidden"
+                  />
+                </div>
+                <div className="flex items-end pb-2">
+                  <label className="flex items-center gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={categoryFormData.is_active}
+                      onChange={(e) => setCategoryFormData({ ...categoryFormData, is_active: e.target.checked })}
+                      className="w-4 h-4 rounded text-[#4E5942] accent-[#4E5942]"
+                    />
+                    <span className="text-[13px] font-semibold text-[#1A1A1A]">
+                      Active in Navigation & Filters
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Category SEO fields */}
+              <div className="p-3.5 sm:p-4 bg-[#FBF9F5] border border-[#E8E3DA] rounded-xs space-y-3">
+                <span className="text-[13px] font-semibold text-[#1A1A1A] block border-b border-[#E8E3DA] pb-1">
+                  Collection SEO Meta Tags
+                </span>
+                <div>
+                  <label className="text-[12px] font-semibold text-[#4A4640] block mb-1">
+                    SEO Title
+                  </label>
+                  <input
+                    type="text"
+                    value={categoryFormData.seo_title}
+                    onChange={(e) => setCategoryFormData({ ...categoryFormData, seo_title: e.target.value })}
+                    placeholder={categoryFormData.name ? `${categoryFormData.name} Collection | Maysha` : "e.g. Cleansers | Maysha"}
+                    className="w-full bg-white border border-[#E8E3DA] text-[13px] p-2 rounded-2xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-[12px] font-semibold text-[#4A4640] block mb-1">
+                    SEO Meta Description
+                  </label>
+                  <input
+                    type="text"
+                    value={categoryFormData.seo_description}
+                    onChange={(e) => setCategoryFormData({ ...categoryFormData, seo_description: e.target.value })}
+                    placeholder="Discover botanical formulas tailored to purify, tone, and restore..."
+                    className="w-full bg-white border border-[#E8E3DA] text-[13px] p-2 rounded-2xs"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-[#F0ECE4] flex flex-col-reverse sm:flex-row sm:items-center justify-end gap-2 sm:gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAddCategoryModal(false)}
+                  className="px-4 py-2 text-[13px] sm:text-[14px] font-semibold text-[#736E67] hover:text-[#1A1A1A] cursor-pointer text-center"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingCategory}
+                  className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-6 py-2.5 rounded-2xs text-[13px] sm:text-[14px] font-semibold cursor-pointer disabled:opacity-60 text-center"
+                >
+                  {isSavingCategory ? "Saving..." : editingCategory ? "Update Category" : "Create Category"}
                 </button>
               </div>
             </form>

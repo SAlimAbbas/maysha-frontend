@@ -3,7 +3,16 @@
 import React, { useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { X, ChevronRight, Search, User, ShoppingBag, ArrowRight, Heart } from "lucide-react";
+import {
+  X,
+  ChevronRight,
+  Search,
+  User,
+  ShoppingBag,
+  ArrowRight,
+  Heart,
+  ShieldAlert,
+} from "lucide-react";
 import { useUIStore } from "@/stores/uiStore";
 import { useCartStore } from "@/stores/cartStore";
 import { useCart } from "@/hooks/useCart";
@@ -60,7 +69,12 @@ export default function MobileNavDrawer() {
       >
         {/* Top Header */}
         <div className="flex items-center justify-between p-5 border-b border-[#E8E3DA] bg-[#FBF9F5]">
-          <Link href="/" onClick={closeMobileMenu} className="focus:outline-hidden" aria-label="Maysha Homepage">
+          <Link
+            href="/"
+            onClick={closeMobileMenu}
+            className="focus:outline-hidden"
+            aria-label="Maysha Homepage"
+          >
             <Image
               src="/logo.png"
               alt="Maysha"
@@ -70,7 +84,19 @@ export default function MobileNavDrawer() {
             />
           </Link>
           <div className="flex items-center gap-2">
-            <LanguageSwitcher />
+            {/* <LanguageSwitcher /> */}
+            {/* Admin Panel Quick Access Button */}
+            {mounted && user?.role === "admin" && (
+              <Link
+                href="/admin"
+                className="inline-flex items-center gap-1.5 bg-[#1A1A1A] hover:bg-[#333333] text-white px-3 py-1.5 rounded-full text-[12px] font-bold tracking-wider uppercase transition-all shadow-xs border border-black hover:scale-105"
+                title="Go to Admin Panel"
+              >
+                <ShieldAlert className="w-3.5 h-3.5 text-[#E6C687]" />
+                <span>Admin</span>
+              </Link>
+            )}
+
             <button
               onClick={closeMobileMenu}
               className="p-1.5 text-[#5A5650] hover:text-[#1A1A1A] transition-colors rounded-full"
@@ -91,6 +117,19 @@ export default function MobileNavDrawer() {
             >
               <span>Shop All Products</span>
               <ChevronRight className="w-5 h-5 text-[#8C867D]" />
+            </Link>
+
+            <Link
+              href="/shop?sort=popularity"
+              onClick={closeMobileMenu}
+              className="flex items-center justify-between py-3.5 text-[17px] font-bold text-[#A94438] hover:text-[#1A1A1A] transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <span>🔥 Best Sellers</span>
+              </span>
+              <span className="text-[12px] bg-[#FDF2F2] px-2 py-0.5 rounded-full font-bold">
+                Trending
+              </span>
             </Link>
 
             <Link
@@ -139,6 +178,15 @@ export default function MobileNavDrawer() {
             </Link>
 
             <Link
+              href="/orders/track"
+              onClick={closeMobileMenu}
+              className="flex items-center justify-between py-3.5 text-[16px] font-medium text-[#1A1A1A] hover:text-[#4E5942] transition-colors"
+            >
+              <span>Track Order</span>
+              <ChevronRight className="w-5 h-5 text-[#8C867D]" />
+            </Link>
+
+            <Link
               href="/about"
               onClick={closeMobileMenu}
               className="flex items-center justify-between py-3.5 text-[17px] font-semibold text-[#1A1A1A] hover:text-[#4E5942] transition-colors"
@@ -177,7 +225,9 @@ export default function MobileNavDrawer() {
             >
               <span className="flex items-center gap-3">
                 <User className="w-5 h-5 text-[#8C867D]" />
-                {user ? `Account (${user.name.split(" ")[0]})` : "Sign In / Register"}
+                {user
+                  ? `Account (${user.name.split(" ")[0]})`
+                  : "Sign In / Register"}
               </span>
               <ChevronRight className="w-5 h-5 text-[#8C867D]" />
             </Link>
@@ -217,7 +267,8 @@ export default function MobileNavDrawer() {
               Clean Beauty for Real Skin
             </h4>
             <p className="text-[14px] text-[#4A4640] mb-3 leading-relaxed font-normal">
-              Rooted in nature. Crafted with care. Experience formulas that nurture your skin barrier.
+              Rooted in nature. Crafted with care. Experience formulas that
+              nurture your skin barrier.
             </p>
             <Link
               href="/shop"

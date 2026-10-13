@@ -144,8 +144,65 @@ export default function CloudinaryGalleryUploader({
                 </span>
               )}
 
-              {/* Hover Actions */}
-              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1.5 p-2 z-10">
+              {/* Mobile Always-Visible Controls (Touchscreen friendly) */}
+              <div className="sm:hidden absolute bottom-0 inset-x-0 bg-black/80 px-1.5 py-1 flex items-center justify-between z-10">
+                {idx !== 0 ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMakePrimary(idx);
+                    }}
+                    className="text-[10px] text-white font-medium px-1.5 py-0.5 rounded bg-white/20 hover:bg-white/30"
+                  >
+                    ★ Main
+                  </button>
+                ) : (
+                  <span className="text-[10px] text-[#4E5942] bg-white font-bold px-1.5 py-0.5 rounded">Main</span>
+                )}
+                <div className="flex items-center gap-1">
+                  {idx > 0 && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMove(idx, "left");
+                      }}
+                      title="Move left"
+                      className="text-white p-1 rounded hover:bg-white/20"
+                    >
+                      <ArrowLeft className="w-3 h-3" />
+                    </button>
+                  )}
+                  {idx < images.length - 1 && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMove(idx, "right");
+                      }}
+                      title="Move right"
+                      className="text-white p-1 rounded hover:bg-white/20"
+                    >
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemove(idx);
+                    }}
+                    title="Remove"
+                    className="text-white bg-[#A94438] p-1 rounded hover:bg-[#8B342B]"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Desktop Hover Actions */}
+              <div className="hidden sm:flex absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex-col items-center justify-center gap-1.5 p-2 z-10">
                 {idx !== 0 && (
                   <button
                     type="button"

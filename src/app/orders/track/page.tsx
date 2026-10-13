@@ -36,12 +36,13 @@ export default function TrackOrderPage() {
       const cleanRef = reference.trim();
       const cleanEmail = email.trim();
       const res = await apiBffFetch<Order>(
-        `orders/${cleanRef}?email=${encodeURIComponent(cleanEmail)}`
+        `orders/${cleanRef}?email=${encodeURIComponent(cleanEmail)}`,
       );
       setOrder(res.data);
     } catch (err: any) {
       setErrorMsg(
-        err.message || "No order was found matching that reference number and email address."
+        err.message ||
+          "No order was found matching that reference number and email address.",
       );
     } finally {
       setIsLoading(false);
@@ -74,10 +75,11 @@ export default function TrackOrderPage() {
             Order Tracking
           </span>
           <h1 className="text-3xl sm:text-4xl font-semibold text-[#1A1A1A] mb-3">
-            Track Your Botanical Delivery
+            Track Your Delivery
           </h1>
           <p className="text-[15px] text-[#736E67] max-w-lg mx-auto">
-            Enter your order reference code (found in your confirmation email) and the email address used during purchase.
+            Enter your order reference code (found in your confirmation email)
+            and the email address used during purchase.
           </p>
         </div>
 
@@ -150,9 +152,16 @@ export default function TrackOrderPage() {
                 <span className="text-[13px] uppercase tracking-wider text-[#736E67] font-medium">
                   Order Reference
                 </span>
-                <h2 className="text-xl font-bold font-mono text-[#1A1A1A]">{order.reference}</h2>
+                <h2 className="text-xl font-bold font-mono text-[#1A1A1A]">
+                  {order.reference}
+                </h2>
                 <p className="text-[14px] text-[#736E67] mt-0.5">
-                  Ordered on {new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
+                  Ordered on{" "}
+                  {new Date(order.createdAt).toLocaleDateString("en-IN", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
                 </p>
               </div>
 
@@ -168,7 +177,9 @@ export default function TrackOrderPage() {
 
             {/* Step-by-Step Progress Bar */}
             <div>
-              <h3 className="text-[15px] font-semibold text-[#1A1A1A] mb-4">Fulfillment Timeline</h3>
+              <h3 className="text-[15px] font-semibold text-[#1A1A1A] mb-4">
+                Fulfillment Timeline
+              </h3>
               <div className="grid grid-cols-4 relative text-center">
                 {/* Horizontal line */}
                 <div className="absolute top-4 left-6 right-6 h-0.5 bg-[#E8E3DA] -z-0" />
@@ -189,7 +200,10 @@ export default function TrackOrderPage() {
                   const isCurrent = currentStep === idx;
 
                   return (
-                    <div key={idx} className="flex flex-col items-center relative z-10">
+                    <div
+                      key={idx}
+                      className="flex flex-col items-center relative z-10"
+                    >
                       <div
                         className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
                           isDone
@@ -201,7 +215,9 @@ export default function TrackOrderPage() {
                       </div>
                       <span
                         className={`text-[12px] sm:text-[13px] mt-2 font-medium ${
-                          isCurrent ? "text-[#1A1A1A] font-semibold" : "text-[#736E67]"
+                          isCurrent
+                            ? "text-[#1A1A1A] font-semibold"
+                            : "text-[#736E67]"
                         }`}
                       >
                         {step.label}
@@ -216,25 +232,37 @@ export default function TrackOrderPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6 border-t border-[#E8E3DA]">
               <div>
                 <h4 className="text-[14px] font-semibold text-[#1A1A1A] mb-2 flex items-center gap-1.5">
-                  <MapPin className="w-4 h-4 text-[#4E5942]" /> Shipping Destination
+                  <MapPin className="w-4 h-4 text-[#4E5942]" /> Shipping
+                  Destination
                 </h4>
                 <div className="text-[14px] text-[#5A5650] leading-relaxed">
-                  <p className="font-semibold text-[#1A1A1A]">{order.shippingAddress.name}</p>
+                  <p className="font-semibold text-[#1A1A1A]">
+                    {order.shippingAddress.name}
+                  </p>
                   <p>{order.shippingAddress.line1}</p>
                   <p>
-                    {order.shippingAddress.city}, {order.shippingAddress.state} - {order.shippingAddress.pincode}
+                    {order.shippingAddress.city}, {order.shippingAddress.state}{" "}
+                    - {order.shippingAddress.pincode}
                   </p>
                 </div>
               </div>
 
               <div>
                 <h4 className="text-[14px] font-semibold text-[#1A1A1A] mb-2 flex items-center gap-1.5">
-                  <ShoppingBag className="w-4 h-4 text-[#4E5942]" /> Order Summary
+                  <ShoppingBag className="w-4 h-4 text-[#4E5942]" /> Order
+                  Summary
                 </h4>
                 <div className="text-[14px] text-[#5A5650] space-y-1">
                   <p>Items: {order.items.length} item(s)</p>
-                  <p>Payment: {order.paymentMethod === "razorpay" ? "Online (Razorpay)" : "Cash on Delivery"}</p>
-                  <p className="font-semibold text-[#1A1A1A] pt-1">Total: {formatINR(order.total)}</p>
+                  <p>
+                    Payment:{" "}
+                    {order.paymentMethod === "razorpay"
+                      ? "Online (Razorpay)"
+                      : "Cash on Delivery"}
+                  </p>
+                  <p className="font-semibold text-[#1A1A1A] pt-1">
+                    Total: {formatINR(order.total)}
+                  </p>
                 </div>
               </div>
             </div>
@@ -243,17 +271,32 @@ export default function TrackOrderPage() {
             <div className="pt-4 border-t border-[#F0ECE4]">
               <div className="divide-y divide-[#F0ECE4]">
                 {order.items.map((item) => (
-                  <div key={item.id} className="py-3 flex items-center justify-between text-[14px]">
+                  <div
+                    key={item.id}
+                    className="py-3 flex items-center justify-between text-[14px]"
+                  >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 relative bg-[#EFECE4] rounded-2xs overflow-hidden shrink-0">
-                        <Image src={item.image} alt={item.productName} fill className="object-cover" sizes="40px" />
+                        <Image
+                          src={item.image}
+                          alt={item.productName}
+                          fill
+                          className="object-cover"
+                          sizes="40px"
+                        />
                       </div>
                       <div>
-                        <span className="font-medium text-[#1A1A1A]">{item.productName}</span>
-                        <span className="text-[#736E67] text-[13px] block">Size: {item.size} • Qty: {item.quantity}</span>
+                        <span className="font-medium text-[#1A1A1A]">
+                          {item.productName}
+                        </span>
+                        <span className="text-[#736E67] text-[13px] block">
+                          Size: {item.size} • Qty: {item.quantity}
+                        </span>
                       </div>
                     </div>
-                    <span className="font-semibold text-[#1A1A1A]">{formatINR(item.total)}</span>
+                    <span className="font-semibold text-[#1A1A1A]">
+                      {formatINR(item.total)}
+                    </span>
                   </div>
                 ))}
               </div>
