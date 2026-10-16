@@ -243,6 +243,11 @@ export default function Footer() {
               <p>Email: <span className="text-[#8EA07E] font-medium">{SITE_CONFIG.supportEmail}</span></p>
               <p>WhatsApp: <span className="text-[#8EA07E] font-medium">{SITE_CONFIG.supportPhone}</span></p>
               <p className="text-[14px] text-[#736E67]">{SITE_CONFIG.hours}</p>
+              <div className="pt-2">
+                <Link href="/contact" className="inline-flex items-center text-xs font-semibold text-[#8EA07E] hover:underline uppercase tracking-wider">
+                  Contact Concierge Desk →
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -250,15 +255,21 @@ export default function Footer() {
         {/* Bottom Copyright Strip */}
         <div className="border-t border-[#2C2C2C] mt-12 pt-8 flex flex-col sm:flex-row items-center justify-between text-[14px] text-[#736E67] gap-4 font-normal">
           <p>© {new Date().getFullYear()} {SITE_CONFIG.name} Skincare Technologies Pvt. Ltd. All rights reserved.</p>
-          <div className="flex gap-6">
-            <Link href="/about#privacy" className="hover:text-[#A69F93] transition-colors">
+          <div className="flex flex-wrap gap-4 sm:gap-6">
+            <Link href="/privacy" className="hover:text-[#A69F93] transition-colors">
               Privacy Policy
             </Link>
-            <Link href="/about#terms" className="hover:text-[#A69F93] transition-colors">
+            <Link href="/terms" className="hover:text-[#A69F93] transition-colors">
               Terms of Service
             </Link>
-            <Link href="/about#shipping" className="hover:text-[#A69F93] transition-colors">
-              Shipping & Returns
+            <Link href="/shipping-policy" className="hover:text-[#A69F93] transition-colors">
+              Shipping Policy
+            </Link>
+            <Link href="/refund-policy" className="hover:text-[#A69F93] transition-colors">
+              Refund Policy
+            </Link>
+            <Link href="/contact" className="hover:text-[#A69F93] transition-colors">
+              Contact
             </Link>
           </div>
         </div>

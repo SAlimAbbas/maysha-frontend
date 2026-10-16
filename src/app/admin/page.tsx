@@ -52,6 +52,7 @@ import {
   ChevronDown,
   Globe2,
   Sliders,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { apiBffFetch, formatINR } from "@/lib/api";
@@ -73,14 +74,23 @@ type AdminTab =
 
 export default function AdminPage() {
   const router = useRouter();
-  const { user, isAuthenticated, isLoading: authLoading, logout, refetchUser } = useAuth();
+  const {
+    user,
+    isAuthenticated,
+    isLoading: authLoading,
+    logout,
+    refetchUser,
+  } = useAuth();
   const { addToast } = useUIStore();
 
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
   const tabNavRef = React.useRef<HTMLDivElement>(null);
   const scrollTabs = (dir: "left" | "right") => {
     if (tabNavRef.current) {
-      tabNavRef.current.scrollBy({ left: dir === "left" ? -280 : 280, behavior: "smooth" });
+      tabNavRef.current.scrollBy({
+        left: dir === "left" ? -280 : 280,
+        behavior: "smooth",
+      });
     }
   };
 
@@ -88,6 +98,7 @@ export default function AdminPage() {
   const [loginEmail, setLoginEmail] = useState("admin@maysha.com");
   const [loginPassword, setLoginPassword] = useState("Admin123456!");
   const [login2FaPin, setLogin2FaPin] = useState("");
+  const [is2FaActive, setIs2FaActive] = useState<boolean | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
@@ -148,18 +159,24 @@ export default function AdminPage() {
     social_instagram: "https://instagram.com/mayshaskincare",
     social_facebook: "https://facebook.com/mayshaskincare",
     about_hero_title: "Clean Botanical Science for Resilient, Real Skin",
-    about_hero_image: "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=1200&q=85",
-    about_philosophy_image: "https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&w=1200&q=85",
+    about_hero_image:
+      "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=1200&q=85",
+    about_philosophy_image:
+      "https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&w=1200&q=85",
     admin_2fa_enabled: false,
     admin_2fa_pin: "9281",
     seo_home_title: "Maysha | Clean Botanical Science for Real Skin",
-    seo_home_description: "Discover clean, bio-compatible skincare rituals formulated with pure botanical extracts and clinical actives for resilient, radiant skin.",
+    seo_home_description:
+      "Discover clean, bio-compatible skincare rituals formulated with pure botanical extracts and clinical actives for resilient, radiant skin.",
     seo_about_title: "About Our Botanical Philosophy | Maysha Skincare",
-    seo_about_description: "Learn about Maysha's formulation ethos, ethical sourcing of Damask rose, and biocompatible skincare science.",
+    seo_about_description:
+      "Learn about Maysha's formulation ethos, ethical sourcing of Damask rose, and biocompatible skincare science.",
     seo_journal_title: "The Skincare Journal | Maysha Skincare Science",
-    seo_journal_description: "Expert skincare guides, ingredient deep-dives, barrier repair science, and holistic rituals.",
+    seo_journal_description:
+      "Expert skincare guides, ingredient deep-dives, barrier repair science, and holistic rituals.",
     seo_shop_title: "Shop All Botanical Formulations | Maysha",
-    seo_shop_description: "Explore all cleansers, serums, toners, moisturizers, and room mists thoughtfully engineered for real skin.",
+    seo_shop_description:
+      "Explore all cleansers, serums, toners, moisturizers, and room mists thoughtfully engineered for real skin.",
   });
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
@@ -197,7 +214,9 @@ export default function AdminPage() {
 
   const [showAddProductModal, setShowAddProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
-  const [descViewMode, setDescViewMode] = useState<"write" | "preview">("write");
+  const [descViewMode, setDescViewMode] = useState<"write" | "preview">(
+    "write",
+  );
   const [productFormData, setProductFormData] = useState({
     name: "",
     slug: "",
@@ -271,7 +290,9 @@ export default function AdminPage() {
         apiBffFetch<any>("admin/dashboard/stats").catch(() => null),
         apiBffFetch<any>("admin/products").catch(() => null),
         apiBffFetch<any>("admin/orders").catch(() => null),
-        apiBffFetch<any>("admin/categories").catch(() => apiBffFetch<any>("categories")).catch(() => null),
+        apiBffFetch<any>("admin/categories")
+          .catch(() => apiBffFetch<any>("categories"))
+          .catch(() => null),
         apiBffFetch<any>("banners").catch(() => null),
         apiBffFetch<any>("admin/articles").catch(() => null),
         apiBffFetch<any>("admin/reviews").catch(() => null),
@@ -287,7 +308,8 @@ export default function AdminPage() {
       if (bansRes?.data) setBanners(bansRes.data);
       if (artsRes?.data) setArticles(artsRes.data);
       if (revsRes?.data) setReviews(revsRes.data);
-      if (settingsRes?.data) setSiteSettings((prev: any) => ({ ...prev, ...settingsRes.data }));
+      if (settingsRes?.data)
+        setSiteSettings((prev: any) => ({ ...prev, ...settingsRes.data }));
       if (subsRes?.data) setSubscribersData(subsRes.data);
       if (couponsRes?.data) setCoupons(couponsRes.data);
     } catch (err) {
@@ -298,22 +320,44 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
+    // Check if 2FA is active on the backend
+    apiBffFetch<any>("store-info")
+      .then((res: any) => {
+        if (res?.data?.admin2faEnabled !== undefined) {
+          setIs2FaActive(Boolean(res.data.admin2faEnabled));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (isAdmin) {
       loadAdminData();
     }
   }, [isAdmin]);
 
-  // Admin login handler with 2FA protection check
+  // Admin login handler with strict 2FA protection check
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoggingIn(true);
     setLoginError(null);
 
+    // If 2FA is active, prevent submission without entering the PIN
+    if (is2FaActive && !login2FaPin.trim()) {
+      setIsLoggingIn(false);
+      setLoginError("2FA Protection is enabled. Please enter your 4-6 digit security PIN.");
+      return;
+    }
+
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+        body: JSON.stringify({
+          email: loginEmail.trim(),
+          password: loginPassword,
+          two_factor_pin: login2FaPin.trim(),
+        }),
       });
 
       const json = await res.json();
@@ -326,7 +370,11 @@ export default function AdminPage() {
       }
 
       await refetchUser();
-      addToast("Administrator Access", "Welcome to Maysha Management Console.", "success");
+      addToast(
+        "Administrator Access",
+        "Welcome to Maysha Management Console.",
+        "success",
+      );
     } catch (err: any) {
       setLoginError(err.message || "Login failed.");
     } finally {
@@ -335,7 +383,10 @@ export default function AdminPage() {
   };
 
   // Status changer for orders
-  const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
+  const handleUpdateOrderStatus = async (
+    orderId: string,
+    newStatus: string,
+  ) => {
     try {
       await apiBffFetch(`admin/orders/${orderId}/status`, {
         method: "PUT",
@@ -344,7 +395,11 @@ export default function AdminPage() {
       addToast("Order Updated", `Order marked as ${newStatus}`, "success");
       loadAdminData();
     } catch (err: any) {
-      addToast("Error", err.message || "Failed to update order status", "error");
+      addToast(
+        "Error",
+        err.message || "Failed to update order status",
+        "error",
+      );
     }
   };
 
@@ -354,7 +409,11 @@ export default function AdminPage() {
       await apiBffFetch(`admin/reviews/${reviewId}/approve`, {
         method: "PUT",
       });
-      addToast("Review Approved", "Review is now published on the storefront.", "success");
+      addToast(
+        "Review Approved",
+        "Review is now published on the storefront.",
+        "success",
+      );
       loadAdminData();
     } catch (err: any) {
       addToast("Error", err.message || "Failed to approve review", "error");
@@ -363,7 +422,8 @@ export default function AdminPage() {
 
   // Review rejecter
   const handleDeleteReview = async (reviewId: string) => {
-    if (!confirm("Are you sure you want to reject and delete this review?")) return;
+    if (!confirm("Are you sure you want to reject and delete this review?"))
+      return;
     try {
       await apiBffFetch(`admin/reviews/${reviewId}`, {
         method: "DELETE",
@@ -414,7 +474,12 @@ export default function AdminPage() {
     const last = productFormData.variants[productFormData.variants.length - 1];
     const newVariant: ProductVariantRow = {
       id: "",
-      size: last?.size === "50ml" ? "100ml" : last?.size === "100ml" ? "200ml Refill" : "30ml",
+      size:
+        last?.size === "50ml"
+          ? "100ml"
+          : last?.size === "100ml"
+            ? "200ml Refill"
+            : "30ml",
       price: last?.price ? Math.round(last.price * 1.5) : 899,
       mrp: last?.mrp ? Math.round(last.mrp * 1.5) : 1199,
       stock: 40,
@@ -428,7 +493,11 @@ export default function AdminPage() {
 
   const handleRemoveVariantRow = (index: number) => {
     if (productFormData.variants.length <= 1) {
-      addToast("At least 1 variant required", "A product must have at least one size variant and price.", "info");
+      addToast(
+        "At least 1 variant required",
+        "A product must have at least one size variant and price.",
+        "info",
+      );
       return;
     }
     const updated = productFormData.variants.filter((_, i) => i !== index);
@@ -438,7 +507,11 @@ export default function AdminPage() {
     });
   };
 
-  const handleUpdateVariantRow = (index: number, field: keyof ProductVariantRow, value: any) => {
+  const handleUpdateVariantRow = (
+    index: number,
+    field: keyof ProductVariantRow,
+    value: any,
+  ) => {
     const updated = [...productFormData.variants];
     updated[index] = { ...updated[index], [field]: value };
     setProductFormData({
@@ -447,8 +520,20 @@ export default function AdminPage() {
     });
   };
 
-  const handleInsertFormatting = (type: "bold" | "italic" | "h2" | "h3" | "bullet" | "number" | "quote" | "hr") => {
-    const textarea = document.getElementById("detailed-desc-textarea") as HTMLTextAreaElement | null;
+  const handleInsertFormatting = (
+    type:
+      | "bold"
+      | "italic"
+      | "h2"
+      | "h3"
+      | "bullet"
+      | "number"
+      | "quote"
+      | "hr",
+  ) => {
+    const textarea = document.getElementById(
+      "detailed-desc-textarea",
+    ) as HTMLTextAreaElement | null;
     if (!textarea) return;
 
     const start = textarea.selectionStart;
@@ -472,12 +557,18 @@ export default function AdminPage() {
         break;
       case "bullet":
         snippet = selected
-          ? selected.split("\n").map((l) => `• ${l.replace(/^[•\-\*]\s*/, "")}`).join("\n")
+          ? selected
+              .split("\n")
+              .map((l) => `• ${l.replace(/^[•\-\*]\s*/, "")}`)
+              .join("\n")
           : "\n• 72-hour cellular moisture lock\n• Reinforces intercellular lipid matrix\n• Clinically vetted biocompatibility\n";
         break;
       case "number":
         snippet = selected
-          ? selected.split("\n").map((l, i) => `${i + 1}. ${l.replace(/^\d+[\.\)]\s*/, "")}`).join("\n")
+          ? selected
+              .split("\n")
+              .map((l, i) => `${i + 1}. ${l.replace(/^\d+[\.\)]\s*/, "")}`)
+              .join("\n")
           : "\n1. Cleanse thoroughly with warm water\n2. Warm 2-3 drops between clean palms\n3. Press into face and neck morning and night\n";
         break;
       case "quote":
@@ -493,7 +584,10 @@ export default function AdminPage() {
 
     setTimeout(() => {
       textarea.focus();
-      textarea.setSelectionRange(start + snippet.length, start + snippet.length);
+      textarea.setSelectionRange(
+        start + snippet.length,
+        start + snippet.length,
+      );
     }, 50);
   };
 
@@ -561,23 +655,36 @@ export default function AdminPage() {
     setProductFormData({
       name: prod.name || "",
       slug: prod.slug || "",
-      category_id: prod.categoryId || prod.category_id || categories[0]?.id || "1",
+      category_id:
+        prod.categoryId || prod.category_id || categories[0]?.id || "1",
       subtitle: prod.subtitle || "",
       short_description: prod.shortDescription || prod.subtitle || "",
       description: prod.description || "",
       selectedBadges: badgesArray,
       customBadgeInput: "",
       ingredients: prod.ingredients || "",
-      usage_instructions: prod.usageInstructions || prod.usage_instructions || "",
+      usage_instructions:
+        prod.usageInstructions || prod.usage_instructions || "",
       key_benefits: Array.isArray(prod.keyBenefits)
         ? prod.keyBenefits.join(", ")
-        : (prod.key_benefits ? (Array.isArray(prod.key_benefits) ? prod.key_benefits.join(", ") : String(prod.key_benefits)) : ""),
+        : prod.key_benefits
+          ? Array.isArray(prod.key_benefits)
+            ? prod.key_benefits.join(", ")
+            : String(prod.key_benefits)
+          : "",
       skin_types: Array.isArray(prod.skinTypes)
         ? prod.skinTypes.join(", ")
-        : (prod.skin_types ? (Array.isArray(prod.skin_types) ? prod.skin_types.join(", ") : String(prod.skin_types)) : "All Skin Types"),
+        : prod.skin_types
+          ? Array.isArray(prod.skin_types)
+            ? prod.skin_types.join(", ")
+            : String(prod.skin_types)
+          : "All Skin Types",
       seo_title: prod.seoTitle || prod.seo_title || "",
       seo_description: prod.seoDescription || prod.seo_description || "",
-      images: prod.images && prod.images.length > 0 ? prod.images : [prod.image].filter(Boolean),
+      images:
+        prod.images && prod.images.length > 0
+          ? prod.images
+          : [prod.image].filter(Boolean),
       variants: variantsList,
     });
     setDescViewMode("write");
@@ -588,7 +695,11 @@ export default function AdminPage() {
     e.preventDefault();
 
     if (productFormData.variants.length === 0) {
-      addToast("Variant Required", "Please configure at least one product variant (size, price & stock).", "error");
+      addToast(
+        "Variant Required",
+        "Please configure at least one product variant (size, price & stock).",
+        "error",
+      );
       return;
     }
 
@@ -596,7 +707,9 @@ export default function AdminPage() {
 
     const payload = {
       name: productFormData.name,
-      slug: productFormData.slug || productFormData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      slug:
+        productFormData.slug ||
+        productFormData.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
       category_id: productFormData.category_id || categories[0]?.id || 1,
       subtitle: productFormData.subtitle,
       short_description: productFormData.short_description,
@@ -605,10 +718,16 @@ export default function AdminPage() {
       ingredients: productFormData.ingredients,
       usage_instructions: productFormData.usage_instructions,
       key_benefits: productFormData.key_benefits
-        ? productFormData.key_benefits.split(",").map((s) => s.trim()).filter(Boolean)
+        ? productFormData.key_benefits
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
         : [],
       skin_types: productFormData.skin_types
-        ? productFormData.skin_types.split(",").map((s) => s.trim()).filter(Boolean)
+        ? productFormData.skin_types
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
         : [],
       seo_title: productFormData.seo_title.trim() || null,
       seo_description: productFormData.seo_description.trim() || null,
@@ -635,13 +754,21 @@ export default function AdminPage() {
           method: "PUT",
           body: JSON.stringify(payload),
         });
-        addToast("Product Updated", `${payload.name} was successfully updated with ${payload.variants.length} variant(s).`, "success");
+        addToast(
+          "Product Updated",
+          `${payload.name} was successfully updated with ${payload.variants.length} variant(s).`,
+          "success",
+        );
       } else {
         await apiBffFetch("admin/products", {
           method: "POST",
           body: JSON.stringify(payload),
         });
-        addToast("Product Created", "New formulation added to catalog with variants.", "success");
+        addToast(
+          "Product Created",
+          "New formulation added to catalog with variants.",
+          "success",
+        );
       }
       setShowAddProductModal(false);
       loadAdminData();
@@ -651,10 +778,19 @@ export default function AdminPage() {
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    if (!confirm("Are you sure you want to delete this product from the database?")) return;
+    if (
+      !confirm(
+        "Are you sure you want to delete this product from the database?",
+      )
+    )
+      return;
     try {
       await apiBffFetch(`admin/products/${productId}`, { method: "DELETE" });
-      addToast("Product Removed", "Product removed from store catalog.", "info");
+      addToast(
+        "Product Removed",
+        "Product removed from store catalog.",
+        "info",
+      );
       loadAdminData();
     } catch (err: any) {
       addToast("Error", err.message || "Failed to delete product.", "error");
@@ -699,7 +835,11 @@ export default function AdminPage() {
   const handleSaveBanner = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!bannerFormData.desktop_image) {
-      addToast("Image Required", "Please upload a desktop banner image to Cloudinary.", "error");
+      addToast(
+        "Image Required",
+        "Please upload a desktop banner image to Cloudinary.",
+        "error",
+      );
       return;
     }
 
@@ -721,7 +861,11 @@ export default function AdminPage() {
           method: "PUT",
           body: JSON.stringify(payload),
         });
-        addToast("Banner Updated", "Carousel banner successfully updated.", "success");
+        addToast(
+          "Banner Updated",
+          "Carousel banner successfully updated.",
+          "success",
+        );
       } else {
         await apiBffFetch("admin/banners", {
           method: "POST",
@@ -737,7 +881,8 @@ export default function AdminPage() {
   };
 
   const handleDeleteBanner = async (bannerId: string) => {
-    if (!confirm("Are you sure you want to delete this carousel banner?")) return;
+    if (!confirm("Are you sure you want to delete this carousel banner?"))
+      return;
     try {
       await apiBffFetch(`admin/banners/${bannerId}`, { method: "DELETE" });
       addToast("Banner Removed", "Banner removed.", "info");
@@ -764,7 +909,11 @@ export default function AdminPage() {
         method: "POST",
         body: JSON.stringify({ banner_ids: bannerIds }),
       });
-      addToast("Order Updated", "Banner sequence saved to storefront.", "success");
+      addToast(
+        "Order Updated",
+        "Banner sequence saved to storefront.",
+        "success",
+      );
     } catch (err: any) {
       addToast("Error", err.message || "Failed to reorder banners", "error");
       loadAdminData();
@@ -811,13 +960,19 @@ export default function AdminPage() {
   const handleSaveArticle = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!articleFormData.hero_image) {
-      addToast("Image Required", "Please upload a hero image for the journal story.", "error");
+      addToast(
+        "Image Required",
+        "Please upload a hero image for the journal story.",
+        "error",
+      );
       return;
     }
 
     const payload = {
       title: articleFormData.title,
-      slug: articleFormData.slug || articleFormData.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      slug:
+        articleFormData.slug ||
+        articleFormData.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
       subtitle: articleFormData.subtitle,
       category: articleFormData.category,
       author: articleFormData.author,
@@ -845,7 +1000,11 @@ export default function AdminPage() {
       setShowAddArticleModal(false);
       loadAdminData();
     } catch (err: any) {
-      addToast("Error", err.message || "Failed to save journal article.", "error");
+      addToast(
+        "Error",
+        err.message || "Failed to save journal article.",
+        "error",
+      );
     }
   };
 
@@ -887,7 +1046,10 @@ export default function AdminPage() {
       value: Number(coupon.value ?? 10),
       min_subtotal: Number(coupon.minSubtotalRupees ?? 0),
       max_discount: Number(coupon.maxDiscountRupees ?? 0),
-      usage_limit: coupon.usageLimit !== null && coupon.usageLimit !== undefined ? String(coupon.usageLimit) : "",
+      usage_limit:
+        coupon.usageLimit !== null && coupon.usageLimit !== undefined
+          ? String(coupon.usageLimit)
+          : "",
       per_user_limit: Number(coupon.perUserLimit ?? 1),
       first_order_only: Boolean(coupon.firstOrderOnly),
       is_active: Boolean(coupon.isActive),
@@ -898,7 +1060,11 @@ export default function AdminPage() {
   const handleSaveCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!couponFormData.code) {
-      addToast("Code Required", "Please enter a valid coupon voucher code.", "error");
+      addToast(
+        "Code Required",
+        "Please enter a valid coupon voucher code.",
+        "error",
+      );
       return;
     }
 
@@ -909,8 +1075,12 @@ export default function AdminPage() {
         type: couponFormData.type,
         value: Number(couponFormData.value),
         min_subtotal: Number(couponFormData.min_subtotal || 0),
-        max_discount: couponFormData.max_discount ? Number(couponFormData.max_discount) : null,
-        usage_limit: couponFormData.usage_limit ? parseInt(couponFormData.usage_limit) : null,
+        max_discount: couponFormData.max_discount
+          ? Number(couponFormData.max_discount)
+          : null,
+        usage_limit: couponFormData.usage_limit
+          ? parseInt(couponFormData.usage_limit)
+          : null,
         per_user_limit: Number(couponFormData.per_user_limit || 1),
         first_order_only: Boolean(couponFormData.first_order_only),
         is_active: Boolean(couponFormData.is_active),
@@ -921,13 +1091,21 @@ export default function AdminPage() {
           method: "PUT",
           body: JSON.stringify(payload),
         });
-        addToast("Coupon Updated", `Voucher ${payload.code} updated successfully.`, "success");
+        addToast(
+          "Coupon Updated",
+          `Voucher ${payload.code} updated successfully.`,
+          "success",
+        );
       } else {
         await apiBffFetch("admin/coupons", {
           method: "POST",
           body: JSON.stringify(payload),
         });
-        addToast("Coupon Created", `Voucher ${payload.code} active for shoppers.`, "success");
+        addToast(
+          "Coupon Created",
+          `Voucher ${payload.code} active for shoppers.`,
+          "success",
+        );
       }
 
       setShowAddCouponModal(false);
@@ -956,7 +1134,11 @@ export default function AdminPage() {
         method: "PUT",
         body: JSON.stringify({ is_active: !coupon.isActive }),
       });
-      addToast("Status Updated", `Coupon ${coupon.code} is now ${!coupon.isActive ? "active" : "inactive"}.`, "success");
+      addToast(
+        "Status Updated",
+        `Coupon ${coupon.code} is now ${!coupon.isActive ? "active" : "inactive"}.`,
+        "success",
+      );
       loadAdminData();
     } catch (err: any) {
       addToast("Error", err.message || "Failed to toggle status.", "error");
@@ -989,7 +1171,12 @@ export default function AdminPage() {
       description: cat.subtitle || cat.description || "",
       image: cat.image || "",
       sort_order: cat.sortOrder ?? cat.sort_order ?? 0,
-      is_active: cat.isActive !== undefined ? Boolean(cat.isActive) : (cat.is_active !== undefined ? Boolean(cat.is_active) : true),
+      is_active:
+        cat.isActive !== undefined
+          ? Boolean(cat.isActive)
+          : cat.is_active !== undefined
+            ? Boolean(cat.is_active)
+            : true,
       seo_title: cat.seoTitle || cat.seo_title || "",
       seo_description: cat.seoDescription || cat.seo_description || "",
     });
@@ -1007,7 +1194,15 @@ export default function AdminPage() {
     try {
       const payload: any = {
         name: categoryFormData.name.trim(),
-        slug: categoryFormData.slug ? categoryFormData.slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") : categoryFormData.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        slug: categoryFormData.slug
+          ? categoryFormData.slug
+              .trim()
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+          : categoryFormData.name
+              .trim()
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-"),
         subtitle: categoryFormData.description.trim(),
         description: categoryFormData.description.trim(),
         image: categoryFormData.image || null,
@@ -1022,13 +1217,21 @@ export default function AdminPage() {
           method: "PUT",
           body: JSON.stringify(payload),
         });
-        addToast("Category Updated", `Category "${payload.name}" updated successfully.`, "success");
+        addToast(
+          "Category Updated",
+          `Category "${payload.name}" updated successfully.`,
+          "success",
+        );
       } else {
         await apiBffFetch("admin/categories", {
           method: "POST",
           body: JSON.stringify(payload),
         });
-        addToast("Category Created", `Category "${payload.name}" added to catalog.`, "success");
+        addToast(
+          "Category Created",
+          `Category "${payload.name}" added to catalog.`,
+          "success",
+        );
       }
 
       setShowAddCategoryModal(false);
@@ -1047,22 +1250,39 @@ export default function AdminPage() {
       addToast("Category Deleted", `Category "${name}" removed.`, "info");
       loadAdminData();
     } catch (err: any) {
-      addToast("Cannot Delete", err.message || "Failed to delete category.", "error");
+      addToast(
+        "Cannot Delete",
+        err.message || "Failed to delete category.",
+        "error",
+      );
     }
   };
 
   const handleToggleCategoryStatus = async (cat: any) => {
     try {
-      const currentActive = cat.isActive !== undefined ? Boolean(cat.isActive) : (cat.is_active !== undefined ? Boolean(cat.is_active) : true);
+      const currentActive =
+        cat.isActive !== undefined
+          ? Boolean(cat.isActive)
+          : cat.is_active !== undefined
+            ? Boolean(cat.is_active)
+            : true;
       const newStatus = !currentActive;
       await apiBffFetch(`admin/categories/${cat.id}`, {
         method: "PUT",
         body: JSON.stringify({ is_active: newStatus }),
       });
-      addToast("Status Updated", `Category "${cat.name}" is now ${newStatus ? "active" : "inactive"}.`, "success");
+      addToast(
+        "Status Updated",
+        `Category "${cat.name}" is now ${newStatus ? "active" : "inactive"}.`,
+        "success",
+      );
       loadAdminData();
     } catch (err: any) {
-      addToast("Error", err.message || "Failed to update category status.", "error");
+      addToast(
+        "Error",
+        err.message || "Failed to update category status.",
+        "error",
+      );
     }
   };
 
@@ -1077,9 +1297,18 @@ export default function AdminPage() {
         method: "POST",
         body: JSON.stringify({ settings: siteSettings }),
       });
-      addToast("Settings Saved", "Website configurations, contact info, and 2FA updated.", "success");
+      setIs2FaActive(Boolean(siteSettings.admin_2fa_enabled));
+      addToast(
+        "Settings Saved",
+        "Website configurations, contact info, and 2FA updated.",
+        "success",
+      );
     } catch (err: any) {
-      addToast("Error", err.message || "Failed to save website settings.", "error");
+      addToast(
+        "Error",
+        err.message || "Failed to save website settings.",
+        "error",
+      );
     } finally {
       setIsSavingSettings(false);
     }
@@ -1091,7 +1320,11 @@ export default function AdminPage() {
   const handleBroadcastCampaign = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!campaignSubject || !campaignMessage) {
-      addToast("Input Required", "Please fill in subject and campaign body.", "error");
+      addToast(
+        "Input Required",
+        "Please fill in subject and campaign body.",
+        "error",
+      );
       return;
     }
 
@@ -1106,7 +1339,11 @@ export default function AdminPage() {
         }),
       });
 
-      addToast("Campaign Dispatched", res.message || "Emails queued for distribution.", "success");
+      addToast(
+        "Campaign Dispatched",
+        res.message || "Emails queued for distribution.",
+        "success",
+      );
       setCampaignSubject("");
       setCampaignMessage("");
     } catch (err: any) {
@@ -1138,9 +1375,12 @@ export default function AdminPage() {
             <span className="text-[12px] uppercase tracking-wider font-semibold text-[#4E5942] block mb-1">
               Restricted Area
             </span>
-            <h1 className="text-2xl font-semibold text-[#1A1A1A]">Maysha Admin Console</h1>
+            <h1 className="text-2xl font-semibold text-[#1A1A1A]">
+              Maysha Admin Console
+            </h1>
             <p className="text-[14px] text-[#736E67] mt-1">
-              Sign in with your administrator account with optional 2-Step verification.
+              Sign in with your administrator account with optional 2-Step
+              verification.
             </p>
           </div>
 
@@ -1186,17 +1426,36 @@ export default function AdminPage() {
             {/* 2-Step PIN code field */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-[14px] font-semibold text-[#1A1A1A] block">
-                  2FA Security PIN (If enabled)
+                <label className="text-[14px] font-semibold text-[#1A1A1A] flex items-center gap-1.5">
+                  <span>2FA Security PIN</span>
+                  {is2FaActive ? (
+                    <span className="text-[#9B1C1C] text-[12px] font-bold">
+                      (Required)
+                    </span>
+                  ) : (
+                    <span className="text-[#736E67] text-[12px] font-normal">
+                      (If enabled)
+                    </span>
+                  )}
                 </label>
-                <span className="text-[11px] text-[#736E67]">Default: 9281</span>
+                {is2FaActive && (
+                  <span className="text-[11px] font-medium bg-[#DEF7EC] text-[#03543F] px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3 text-[#0E9F6E]" />
+                    2FA Active
+                  </span>
+                )}
               </div>
               <input
-                type="text"
+                type="password"
+                inputMode="numeric"
                 maxLength={6}
                 value={login2FaPin}
                 onChange={(e) => setLogin2FaPin(e.target.value)}
-                placeholder="Enter 4-6 digit security PIN"
+                placeholder={
+                  is2FaActive
+                    ? "Enter required 4-6 digit security PIN"
+                    : "Enter 4-6 digit security PIN"
+                }
                 className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] px-3.5 py-2.5 rounded-2xs focus:outline-hidden focus:border-[#1A1A1A] font-mono tracking-wider"
               />
             </div>
@@ -1245,8 +1504,12 @@ export default function AdminPage() {
             MA
           </div>
           <div className="min-w-0">
-            <h1 className="text-sm sm:text-base font-semibold leading-tight truncate">Maysha Control Panel</h1>
-            <span className="text-[10px] sm:text-[11px] text-[#A6A095] block truncate">Admin: {user.name}</span>
+            <h1 className="text-sm sm:text-base font-semibold leading-tight truncate">
+              Maysha Control Panel
+            </h1>
+            <span className="text-[10px] sm:text-[11px] text-[#A6A095] block truncate">
+              Admin: {user.name}
+            </span>
           </div>
         </div>
 
@@ -1267,7 +1530,9 @@ export default function AdminPage() {
             className="inline-flex items-center gap-1 bg-[#2B2B2B] hover:bg-[#383838] px-2.5 sm:px-3 py-1.5 rounded-2xs text-[12px] sm:text-[13px] text-white transition-colors disabled:opacity-50 cursor-pointer"
             title="Sync Database"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoadingData ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`w-3.5 h-3.5 ${isLoadingData ? "animate-spin" : ""}`}
+            />
             <span className="hidden sm:inline">Sync</span>
           </button>
 
@@ -1295,14 +1560,28 @@ export default function AdminPage() {
               className="w-full bg-white border border-[#E8E3DA] text-[14px] font-semibold text-[#1A1A1A] py-2.5 px-3 rounded-2xs appearance-none focus:outline-none focus:border-[#1A1A1A] shadow-2xs"
             >
               <option value="overview">📊 Overview Dashboard</option>
-              <option value="products">📦 Products Catalog ({products.length})</option>
-              <option value="orders">🛍️ Orders Fulfillment ({orders.length})</option>
-              <option value="categories">🗂️ Categories ({categories.length})</option>
+              <option value="products">
+                📦 Products Catalog ({products.length})
+              </option>
+              <option value="orders">
+                🛍️ Orders Fulfillment ({orders.length})
+              </option>
+              <option value="categories">
+                🗂️ Categories ({categories.length})
+              </option>
               <option value="banners">🖼️ Banners ({banners.length}/7)</option>
-              <option value="articles">📖 Journal Articles ({articles.length})</option>
-              <option value="reviews">💬 Reviews Moderation ({reviews.length})</option>
-              <option value="coupons">🏷️ Coupons & Vouchers ({coupons.length})</option>
-              <option value="subscribers">👥 Subscribers ({subscribersData.totalSubscribers})</option>
+              <option value="articles">
+                📖 Journal Articles ({articles.length})
+              </option>
+              <option value="reviews">
+                💬 Reviews Moderation ({reviews.length})
+              </option>
+              <option value="coupons">
+                🏷️ Coupons & Vouchers ({coupons.length})
+              </option>
+              <option value="subscribers">
+                👥 Subscribers ({subscribersData.totalSubscribers})
+              </option>
               <option value="settings">⚙️ Site Settings & SEO</option>
             </select>
             <ChevronDown className="w-4 h-4 text-[#736E67] absolute right-3 top-3.5 pointer-events-none" />
@@ -1327,15 +1606,51 @@ export default function AdminPage() {
             >
               {[
                 { id: "overview", label: "Overview", icon: LayoutDashboard },
-                { id: "products", label: `Products (${products.length})`, icon: Package },
-                { id: "orders", label: `Orders (${orders.length})`, icon: ShoppingBag },
-                { id: "categories", label: `Categories (${categories.length})`, icon: Layers },
-                { id: "banners", label: `Banners (${banners.length}/7)`, icon: ImageIcon },
-                { id: "articles", label: `Journal Articles (${articles.length})`, icon: BookOpen },
-                { id: "reviews", label: `Reviews (${reviews.length})`, icon: MessageSquare },
-                { id: "coupons", label: `Coupons (${coupons.length})`, icon: Tag },
-                { id: "subscribers", label: `Subscribers (${subscribersData.totalSubscribers})`, icon: Users },
-                { id: "settings", label: "Site Settings & SEO", icon: Settings },
+                {
+                  id: "products",
+                  label: `Products (${products.length})`,
+                  icon: Package,
+                },
+                {
+                  id: "orders",
+                  label: `Orders (${orders.length})`,
+                  icon: ShoppingBag,
+                },
+                {
+                  id: "categories",
+                  label: `Categories (${categories.length})`,
+                  icon: Layers,
+                },
+                {
+                  id: "banners",
+                  label: `Banners (${banners.length}/7)`,
+                  icon: ImageIcon,
+                },
+                {
+                  id: "articles",
+                  label: `Journal Articles (${articles.length})`,
+                  icon: BookOpen,
+                },
+                {
+                  id: "reviews",
+                  label: `Reviews (${reviews.length})`,
+                  icon: MessageSquare,
+                },
+                {
+                  id: "coupons",
+                  label: `Coupons (${coupons.length})`,
+                  icon: Tag,
+                },
+                {
+                  id: "subscribers",
+                  label: `Subscribers (${subscribersData.totalSubscribers})`,
+                  icon: Users,
+                },
+                {
+                  id: "settings",
+                  label: "Site Settings & SEO",
+                  icon: Settings,
+                },
               ].map((tab) => {
                 const Icon = tab.icon;
                 const isCurrent = activeTab === tab.id;
@@ -1382,7 +1697,9 @@ export default function AdminPage() {
                 <p className="text-xl sm:text-3xl font-bold font-mono text-[#1A1A1A] truncate">
                   {formatINR(stats?.totalRevenueRupees ?? 0)}
                 </p>
-                <p className="text-[10px] sm:text-[12px] text-[#4E5942] font-semibold truncate">Real settlements</p>
+                <p className="text-[10px] sm:text-[12px] text-[#4E5942] font-semibold truncate">
+                  Real settlements
+                </p>
               </div>
 
               <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-3.5 sm:p-6 rounded-xs shadow-2xs space-y-1 sm:space-y-2">
@@ -1404,7 +1721,9 @@ export default function AdminPage() {
                 <p className="text-xl sm:text-3xl font-bold font-mono text-[#1A1A1A]">
                   {products.length}
                 </p>
-                <p className="text-[10px] sm:text-[12px] text-[#736E67] truncate">Across {categories.length} categories</p>
+                <p className="text-[10px] sm:text-[12px] text-[#736E67] truncate">
+                  Across {categories.length} categories
+                </p>
               </div>
 
               <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-3.5 sm:p-6 rounded-xs shadow-2xs space-y-1 sm:space-y-2">
@@ -1424,7 +1743,8 @@ export default function AdminPage() {
             <div className="bg-[#FFFFFF] border border-[#E8E3DA] rounded-xs p-4 sm:p-6 shadow-2xs space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-[#F0ECE4]">
                 <h3 className="text-base sm:text-lg font-semibold text-[#1A1A1A] flex items-center gap-2">
-                  <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 text-[#4E5942]" /> Recent Storefront Orders
+                  <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5 text-[#4E5942]" />{" "}
+                  Recent Storefront Orders
                 </h3>
                 <button
                   onClick={() => setActiveTab("orders")}
@@ -1437,20 +1757,25 @@ export default function AdminPage() {
               {/* Mobile Card List (< 768px) */}
               <div className="md:hidden divide-y divide-[#F0ECE4]">
                 {orders.slice(0, 5).map((ord) => (
-                  <div key={ord.id} className="py-3.5 first:pt-0 last:pb-0 space-y-2">
+                  <div
+                    key={ord.id}
+                    className="py-3.5 first:pt-0 last:pb-0 space-y-2"
+                  >
                     <div className="flex items-center justify-between">
                       <span className="font-mono font-bold text-[13px] text-[#1A1A1A]">
                         {ord.reference}
                       </span>
-                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase ${
-                        ord.status === "delivered"
-                          ? "bg-[#EDF3E8] text-[#3E4534]"
-                          : ord.status === "shipped"
-                          ? "bg-[#E8F0FE] text-[#1967D2]"
-                          : ord.status === "cancelled"
-                          ? "bg-[#FDF2F2] text-[#9B1C1C]"
-                          : "bg-[#FFF8EB] text-[#8C6D1F]"
-                      }`}>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase ${
+                          ord.status === "delivered"
+                            ? "bg-[#EDF3E8] text-[#3E4534]"
+                            : ord.status === "shipped"
+                              ? "bg-[#E8F0FE] text-[#1967D2]"
+                              : ord.status === "cancelled"
+                                ? "bg-[#FDF2F2] text-[#9B1C1C]"
+                                : "bg-[#FFF8EB] text-[#8C6D1F]"
+                        }`}
+                      >
                         {ord.status?.replace("_", " ")}
                       </span>
                     </div>
@@ -1465,7 +1790,10 @@ export default function AdminPage() {
                     </div>
 
                     <div className="flex items-center justify-between text-[11px] text-[#736E67]">
-                      <span>{ord.items?.length || 1} item(s) • <span className="uppercase">{ord.paymentMethod}</span></span>
+                      <span>
+                        {ord.items?.length || 1} item(s) •{" "}
+                        <span className="uppercase">{ord.paymentMethod}</span>
+                      </span>
                       <Link
                         href={`/orders/${ord.reference}`}
                         target="_blank"
@@ -1493,7 +1821,10 @@ export default function AdminPage() {
                   </thead>
                   <tbody className="divide-y divide-[#F0ECE4]">
                     {orders.slice(0, 5).map((ord) => (
-                      <tr key={ord.id} className="hover:bg-[#FBF9F5] transition-colors">
+                      <tr
+                        key={ord.id}
+                        className="hover:bg-[#FBF9F5] transition-colors"
+                      >
                         <td className="py-3.5 px-4 font-mono font-bold text-[#1A1A1A]">
                           {ord.reference}
                         </td>
@@ -1530,9 +1861,12 @@ export default function AdminPage() {
           <div className="space-y-4 sm:space-y-6 animate-fadeIn">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">Products Catalog Management</h2>
+                <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">
+                  Products Catalog Management
+                </h2>
                 <p className="text-[12px] sm:text-[14px] text-[#736E67]">
-                  View, add, edit all rich attributes, and upload photos directly to Cloudinary.
+                  View, add, edit all rich attributes, and upload photos
+                  directly to Cloudinary.
                 </p>
               </div>
 
@@ -1565,7 +1899,9 @@ export default function AdminPage() {
                           <span className="text-[11px] font-semibold text-[#4E5942] bg-[#F5F2EB] px-2 py-0.5 rounded-full border border-[#E8E3DA] truncate">
                             {prod.category || "Unassigned"}
                           </span>
-                          <span className={`text-[11px] font-semibold ${prod.inStock ? "text-[#4E5942]" : "text-[#A94438]"}`}>
+                          <span
+                            className={`text-[11px] font-semibold ${prod.inStock ? "text-[#4E5942]" : "text-[#A94438]"}`}
+                          >
                             {prod.inStock ? "● In Stock" : "● Out of Stock"}
                           </span>
                         </div>
@@ -1573,9 +1909,13 @@ export default function AdminPage() {
                           {prod.name}
                         </h3>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="font-bold text-[14px] text-[#1A1A1A]">₹{prod.price}</span>
+                          <span className="font-bold text-[14px] text-[#1A1A1A]">
+                            ₹{prod.price}
+                          </span>
                           {prod.mrp && prod.mrp > prod.price && (
-                            <span className="text-[12px] text-[#736E67] line-through">₹{prod.mrp}</span>
+                            <span className="text-[12px] text-[#736E67] line-through">
+                              ₹{prod.mrp}
+                            </span>
                           )}
                           {prod.badge && (
                             <span className="px-2 py-0.2 rounded-full text-[10px] font-semibold bg-[#EDF3E8] text-[#3E4534]">
@@ -1591,7 +1931,9 @@ export default function AdminPage() {
                       <div className="text-[11px] font-medium text-[#5A5650] bg-[#FBF9F5] p-1.5 rounded-2xs border border-[#F0ECE4] flex items-center justify-between">
                         <span>{prod.variants.length} Sizes:</span>
                         <span className="font-mono text-[#1A1A1A]">
-                          {prod.variants.map((v: any) => v.size || v.size_label).join(", ")}
+                          {prod.variants
+                            .map((v: any) => v.size || v.size_label)
+                            .join(", ")}
                         </span>
                       </div>
                     )}
@@ -1641,12 +1983,17 @@ export default function AdminPage() {
                   </thead>
                   <tbody className="divide-y divide-[#F0ECE4]">
                     {products.map((prod) => (
-                      <tr key={prod.id} className="hover:bg-[#FBF9F5] transition-colors">
+                      <tr
+                        key={prod.id}
+                        className="hover:bg-[#FBF9F5] transition-colors"
+                      >
                         <td className="py-3.5 px-4">
                           <div className="flex items-center gap-3">
                             <div className="w-12 h-12 relative bg-[#EFECE4] rounded-2xs overflow-hidden shrink-0">
                               <Image
-                                src={prod.images?.[0] || prod.image || "/logo.png"}
+                                src={
+                                  prod.images?.[0] || prod.image || "/logo.png"
+                                }
                                 alt={prod.name}
                                 fill
                                 className="object-cover"
@@ -1654,16 +2001,24 @@ export default function AdminPage() {
                               />
                             </div>
                             <div>
-                              <p className="font-semibold text-[#1A1A1A]">{prod.name}</p>
+                              <p className="font-semibold text-[#1A1A1A]">
+                                {prod.name}
+                              </p>
                               {prod.variants && prod.variants.length > 1 ? (
                                 <div className="flex items-center gap-1.5 mt-0.5">
                                   <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#EFECE4] text-[#1A1A1A] border border-[#DCD7CD]">
-                                    {prod.variants.length} Variants ({prod.variants.map((v: any) => v.size || v.size_label).join(", ")})
+                                    {prod.variants.length} Variants (
+                                    {prod.variants
+                                      .map((v: any) => v.size || v.size_label)
+                                      .join(", ")}
+                                    )
                                   </span>
                                 </div>
                               ) : (
                                 <span className="text-[12px] text-[#736E67]">
-                                  {prod.size || prod.variants?.[0]?.size || "50ml"}
+                                  {prod.size ||
+                                    prod.variants?.[0]?.size ||
+                                    "50ml"}
                                 </span>
                               )}
                             </div>
@@ -1675,8 +2030,12 @@ export default function AdminPage() {
                           </span>
                         </td>
                         <td className="py-3.5 px-4">
-                          <span className="font-semibold text-[#1A1A1A]">₹{prod.price}</span>{" "}
-                          <span className="text-[12px] text-[#736E67] line-through">₹{prod.mrp}</span>
+                          <span className="font-semibold text-[#1A1A1A]">
+                            ₹{prod.price}
+                          </span>{" "}
+                          <span className="text-[12px] text-[#736E67] line-through">
+                            ₹{prod.mrp}
+                          </span>
                         </td>
                         <td className="py-3.5 px-4">
                           {prod.badge ? (
@@ -1684,7 +2043,9 @@ export default function AdminPage() {
                               {prod.badge}
                             </span>
                           ) : (
-                            <span className="text-[#A6A095] text-[12px]">—</span>
+                            <span className="text-[#A6A095] text-[12px]">
+                              —
+                            </span>
                           )}
                         </td>
                         <td className="py-3.5 px-4">
@@ -1737,9 +2098,12 @@ export default function AdminPage() {
         {activeTab === "orders" && (
           <div className="space-y-4 sm:space-y-6 animate-fadeIn">
             <div>
-              <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">Customer Orders Fulfillment</h2>
+              <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">
+                Customer Orders Fulfillment
+              </h2>
               <p className="text-[12px] sm:text-[14px] text-[#736E67]">
-                Track incoming purchases, update shipping dispatch status, and manage receipts.
+                Track incoming purchases, update shipping dispatch status, and
+                manage receipts.
               </p>
             </div>
 
@@ -1763,10 +2127,10 @@ export default function AdminPage() {
                           ord.status === "delivered"
                             ? "bg-[#EDF3E8] text-[#3E4534]"
                             : ord.status === "shipped"
-                            ? "bg-[#E8F0FE] text-[#1967D2]"
-                            : ord.status === "cancelled"
-                            ? "bg-[#FDF2F2] text-[#9B1C1C]"
-                            : "bg-[#FFF8EB] text-[#8C6D1F]"
+                              ? "bg-[#E8F0FE] text-[#1967D2]"
+                              : ord.status === "cancelled"
+                                ? "bg-[#FDF2F2] text-[#9B1C1C]"
+                                : "bg-[#FFF8EB] text-[#8C6D1F]"
                         }`}
                       >
                         {ord.status?.replace("_", " ")}
@@ -1776,12 +2140,21 @@ export default function AdminPage() {
                     {/* Customer & City */}
                     <div className="text-[13px] bg-[#FBF9F5] p-2.5 rounded-2xs border border-[#F0ECE4] space-y-1">
                       <div className="flex items-center justify-between">
-                        <span className="font-semibold text-[#1A1A1A]">{ord.shippingAddress?.name || "Customer"}</span>
-                        <span className="text-[#736E67] text-[12px]">{ord.shippingAddress?.city || "India"}</span>
+                        <span className="font-semibold text-[#1A1A1A]">
+                          {ord.shippingAddress?.name || "Customer"}
+                        </span>
+                        <span className="text-[#736E67] text-[12px]">
+                          {ord.shippingAddress?.city || "India"}
+                        </span>
                       </div>
                       <div className="flex items-center justify-between text-[12px] text-[#736E67] pt-1 border-t border-[#E8E3DA]/60">
-                        <span>{ord.items?.length || 1} product(s) • <span className="uppercase">{ord.paymentMethod}</span></span>
-                        <span className="font-bold text-[#1A1A1A] text-[13px]">{formatINR(ord.total)}</span>
+                        <span>
+                          {ord.items?.length || 1} product(s) •{" "}
+                          <span className="uppercase">{ord.paymentMethod}</span>
+                        </span>
+                        <span className="font-bold text-[#1A1A1A] text-[13px]">
+                          {formatINR(ord.total)}
+                        </span>
                       </div>
                     </div>
 
@@ -1792,7 +2165,9 @@ export default function AdminPage() {
                       </span>
                       <select
                         value={ord.status}
-                        onChange={(e) => handleUpdateOrderStatus(ord.id, e.target.value)}
+                        onChange={(e) =>
+                          handleUpdateOrderStatus(ord.id, e.target.value)
+                        }
                         className="flex-1 bg-[#FBF9F5] border border-[#E8E3DA] text-[13px] font-medium py-2 px-3 rounded-2xs focus:outline-none focus:border-[#1A1A1A] cursor-pointer"
                       >
                         <option value="pending_payment">Pending Payment</option>
@@ -1821,7 +2196,10 @@ export default function AdminPage() {
                   </thead>
                   <tbody className="divide-y divide-[#F0ECE4]">
                     {orders.map((ord) => (
-                      <tr key={ord.id} className="hover:bg-[#FBF9F5] transition-colors">
+                      <tr
+                        key={ord.id}
+                        className="hover:bg-[#FBF9F5] transition-colors"
+                      >
                         <td className="py-3.5 px-4">
                           <Link
                             href={`/orders/${ord.reference}`}
@@ -1832,12 +2210,20 @@ export default function AdminPage() {
                           </Link>
                         </td>
                         <td className="py-3.5 px-4">
-                          <p className="font-semibold text-[#1A1A1A]">{ord.shippingAddress?.name}</p>
-                          <p className="text-[12px] text-[#736E67]">{ord.shippingAddress?.city}</p>
+                          <p className="font-semibold text-[#1A1A1A]">
+                            {ord.shippingAddress?.name}
+                          </p>
+                          <p className="text-[12px] text-[#736E67]">
+                            {ord.shippingAddress?.city}
+                          </p>
                         </td>
                         <td className="py-3.5 px-4">
-                          <p className="font-bold text-[#1A1A1A]">{formatINR(ord.total)}</p>
-                          <span className="text-[12px] text-[#736E67]">{ord.items?.length || 1} product(s)</span>
+                          <p className="font-bold text-[#1A1A1A]">
+                            {formatINR(ord.total)}
+                          </p>
+                          <span className="text-[12px] text-[#736E67]">
+                            {ord.items?.length || 1} product(s)
+                          </span>
                         </td>
                         <td className="py-3.5 px-4 uppercase text-[12px] font-semibold text-[#4A4640]">
                           {ord.paymentMethod}
@@ -1848,10 +2234,10 @@ export default function AdminPage() {
                               ord.status === "delivered"
                                 ? "bg-[#EDF3E8] text-[#3E4534]"
                                 : ord.status === "shipped"
-                                ? "bg-[#E8F0FE] text-[#1967D2]"
-                                : ord.status === "cancelled"
-                                ? "bg-[#FDF2F2] text-[#9B1C1C]"
-                                : "bg-[#FFF8EB] text-[#8C6D1F]"
+                                  ? "bg-[#E8F0FE] text-[#1967D2]"
+                                  : ord.status === "cancelled"
+                                    ? "bg-[#FDF2F2] text-[#9B1C1C]"
+                                    : "bg-[#FFF8EB] text-[#8C6D1F]"
                             }`}
                           >
                             {ord.status.replace("_", " ")}
@@ -1860,12 +2246,18 @@ export default function AdminPage() {
                         <td className="py-3.5 px-4 text-right">
                           <select
                             value={ord.status}
-                            onChange={(e) => handleUpdateOrderStatus(ord.id, e.target.value)}
+                            onChange={(e) =>
+                              handleUpdateOrderStatus(ord.id, e.target.value)
+                            }
                             className="bg-[#FBF9F5] border border-[#E8E3DA] text-[13px] px-2.5 py-1.5 rounded-2xs focus:outline-hidden cursor-pointer"
                           >
-                            <option value="pending_payment">Pending Payment</option>
+                            <option value="pending_payment">
+                              Pending Payment
+                            </option>
                             <option value="processing">Processing</option>
-                            <option value="shipped">Dispatched / Shipped</option>
+                            <option value="shipped">
+                              Dispatched / Shipped
+                            </option>
                             <option value="delivered">Delivered</option>
                             <option value="cancelled">Cancelled</option>
                           </select>
@@ -1886,9 +2278,12 @@ export default function AdminPage() {
           <div className="space-y-4 sm:space-y-6 animate-fadeIn">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">Store Categories Architecture</h2>
+                <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">
+                  Store Categories Architecture
+                </h2>
                 <p className="text-[12px] sm:text-[14px] text-[#736E67]">
-                  Manage product collections, descriptions, banner visuals, and catalog indexing.
+                  Manage product collections, descriptions, banner visuals, and
+                  catalog indexing.
                 </p>
               </div>
 
@@ -1904,7 +2299,10 @@ export default function AdminPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {categories.map((cat) => (
-                <div key={cat.id} className="bg-[#FFFFFF] border border-[#E8E3DA] p-4 sm:p-6 rounded-xs space-y-4 shadow-2xs flex flex-col justify-between hover:border-[#1A1A1A] transition-colors">
+                <div
+                  key={cat.id}
+                  className="bg-[#FFFFFF] border border-[#E8E3DA] p-4 sm:p-6 rounded-xs space-y-4 shadow-2xs flex flex-col justify-between hover:border-[#1A1A1A] transition-colors"
+                >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <button
@@ -1917,23 +2315,39 @@ export default function AdminPage() {
                         }`}
                         title="Click to toggle active status"
                       >
-                        {(cat.isActive ?? cat.is_active ?? true) ? "Active Collection" : "Inactive"}
+                        {(cat.isActive ?? cat.is_active ?? true)
+                          ? "Active Collection"
+                          : "Inactive"}
                       </button>
                       <span className="text-[11px] sm:text-[12px] font-semibold text-[#736E67] bg-[#F5F2EB] px-2.5 py-0.5 rounded-full border border-[#E8E3DA]">
-                        {cat.itemCount ?? cat.productsCount ?? cat.products_count ?? 0} Products
+                        {cat.itemCount ??
+                          cat.productsCount ??
+                          cat.products_count ??
+                          0}{" "}
+                        Products
                       </span>
                     </div>
 
                     <div className="flex items-start gap-3">
                       {cat.image && (
                         <div className="w-12 h-12 relative bg-[#EFECE4] rounded-2xs overflow-hidden shrink-0 border border-[#E8E3DA]">
-                          <Image src={cat.image} alt={cat.name} fill className="object-cover" sizes="48px" />
+                          <Image
+                            src={cat.image}
+                            alt={cat.name}
+                            fill
+                            className="object-cover"
+                            sizes="48px"
+                          />
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-lg sm:text-xl font-semibold text-[#1A1A1A] truncate">{cat.name}</h3>
+                        <h3 className="text-lg sm:text-xl font-semibold text-[#1A1A1A] truncate">
+                          {cat.name}
+                        </h3>
                         <p className="text-[13px] sm:text-[14px] text-[#5A5650] leading-relaxed mt-1 line-clamp-2">
-                          {cat.subtitle || cat.description || "No description configured."}
+                          {cat.subtitle ||
+                            cat.description ||
+                            "No description configured."}
                         </p>
                       </div>
                     </div>
@@ -1975,9 +2389,12 @@ export default function AdminPage() {
           <div className="space-y-4 sm:space-y-6 animate-fadeIn">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">Homepage Carousel Banners</h2>
+                <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">
+                  Homepage Carousel Banners
+                </h2>
                 <p className="text-[12px] sm:text-[14px] text-[#736E67]">
-                  Manage dynamic slider hero banners (up to 7 maximum). Reorder slides with single clicks.
+                  Manage dynamic slider hero banners (up to 7 maximum). Reorder
+                  slides with single clicks.
                 </p>
               </div>
 
@@ -2012,10 +2429,15 @@ export default function AdminPage() {
 
                   <div className="p-4 sm:p-6 flex-1 flex flex-col justify-between space-y-4">
                     <div>
-                      <h3 className="text-base sm:text-lg font-semibold text-[#1A1A1A]">{ban.title}</h3>
-                      <p className="text-[13px] sm:text-[14px] text-[#5A5650] mt-1">{ban.subtitle}</p>
+                      <h3 className="text-base sm:text-lg font-semibold text-[#1A1A1A]">
+                        {ban.title}
+                      </h3>
+                      <p className="text-[13px] sm:text-[14px] text-[#5A5650] mt-1">
+                        {ban.subtitle}
+                      </p>
                       <p className="text-[11px] sm:text-[12px] text-[#4E5942] font-semibold mt-2 truncate">
-                        CTA: &ldquo;{ban.ctaText || ban.cta_text || "Shop"}&rdquo; → {ban.ctaLink || ban.linkUrl || ban.link_url}
+                        CTA: &ldquo;{ban.ctaText || ban.cta_text || "Shop"}
+                        &rdquo; → {ban.ctaLink || ban.linkUrl || ban.link_url}
                       </p>
                     </div>
 
@@ -2040,7 +2462,9 @@ export default function AdminPage() {
                         >
                           <ArrowDown className="w-4 h-4" />
                         </button>
-                        <span className="text-[11px] font-mono text-[#736E67] ml-1">Pos {idx + 1}</span>
+                        <span className="text-[11px] font-mono text-[#736E67] ml-1">
+                          Pos {idx + 1}
+                        </span>
                       </div>
 
                       <div className="flex items-center gap-1.5">
@@ -2074,9 +2498,12 @@ export default function AdminPage() {
           <div className="space-y-4 sm:space-y-6 animate-fadeIn">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">Journal Stories & Editorial Articles</h2>
+                <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">
+                  Journal Stories & Editorial Articles
+                </h2>
                 <p className="text-[12px] sm:text-[14px] text-[#736E67]">
-                  Publish botanical science blogs, ingredient spotlights, and rituals.
+                  Publish botanical science blogs, ingredient spotlights, and
+                  rituals.
                 </p>
               </div>
 
@@ -2112,7 +2539,8 @@ export default function AdminPage() {
                           {art.title}
                         </h3>
                         <p className="text-[11px] text-[#736E67] mt-0.5">
-                          {art.author} • {art.readingTime || art.reading_time || "4 min"}
+                          {art.author} •{" "}
+                          {art.readingTime || art.reading_time || "4 min"}
                         </p>
                       </div>
                     </div>
@@ -2160,12 +2588,17 @@ export default function AdminPage() {
                   </thead>
                   <tbody className="divide-y divide-[#F0ECE4]">
                     {articles.map((art) => (
-                      <tr key={art.id} className="hover:bg-[#FBF9F5] transition-colors">
+                      <tr
+                        key={art.id}
+                        className="hover:bg-[#FBF9F5] transition-colors"
+                      >
                         <td className="py-3.5 px-4">
                           <div className="flex items-center gap-3">
                             <div className="w-12 h-12 relative bg-[#EFECE4] rounded-2xs overflow-hidden shrink-0">
                               <Image
-                                src={art.heroImage || art.hero_image || "/logo.png"}
+                                src={
+                                  art.heroImage || art.hero_image || "/logo.png"
+                                }
                                 alt={art.title}
                                 fill
                                 className="object-cover"
@@ -2180,15 +2613,21 @@ export default function AdminPage() {
                               >
                                 {art.title}
                               </Link>
-                              <span className="text-[12px] font-mono text-[#736E67]">/journal/{art.slug}</span>
+                              <span className="text-[12px] font-mono text-[#736E67]">
+                                /journal/{art.slug}
+                              </span>
                             </div>
                           </div>
                         </td>
                         <td className="py-3.5 px-4 text-[#4E5942] font-semibold text-[13px]">
                           {art.category}
                         </td>
-                        <td className="py-3.5 px-4 text-[#4A4640]">{art.author}</td>
-                        <td className="py-3.5 px-4 text-[#736E67]">{art.readingTime || art.reading_time}</td>
+                        <td className="py-3.5 px-4 text-[#4A4640]">
+                          {art.author}
+                        </td>
+                        <td className="py-3.5 px-4 text-[#736E67]">
+                          {art.readingTime || art.reading_time}
+                        </td>
                         <td className="py-3.5 px-4 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button
@@ -2228,18 +2667,24 @@ export default function AdminPage() {
         {activeTab === "reviews" && (
           <div className="space-y-4 sm:space-y-6 animate-fadeIn">
             <div>
-              <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">Customer Reviews Moderation Queue</h2>
+              <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">
+                Customer Reviews Moderation Queue
+              </h2>
               <p className="text-[12px] sm:text-[14px] text-[#736E67]">
-                Review customer submissions, verify order delivery status, and inspect Cloudinary-hosted photos.
+                Review customer submissions, verify order delivery status, and
+                inspect Cloudinary-hosted photos.
               </p>
             </div>
 
             {reviews.length === 0 ? (
               <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-8 sm:p-12 text-center rounded-xs space-y-2">
                 <CheckCircle2 className="w-8 h-8 text-[#4E5942] mx-auto" />
-                <h3 className="text-base font-semibold text-[#1A1A1A]">No pending reviews</h3>
+                <h3 className="text-base font-semibold text-[#1A1A1A]">
+                  No pending reviews
+                </h3>
                 <p className="text-[13px] sm:text-[14px] text-[#736E67]">
-                  All submitted customer ratings have been reviewed and approved.
+                  All submitted customer ratings have been reviewed and
+                  approved.
                 </p>
               </div>
             ) : (
@@ -2251,8 +2696,12 @@ export default function AdminPage() {
                   >
                     <div className="space-y-2 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-[#1A1A1A] text-[14px]">{rev.author || rev.userName || rev.user_name}</span>
-                        <span className="text-[#736E67] text-[12px]">• {rev.rating} ★★★★★</span>
+                        <span className="font-semibold text-[#1A1A1A] text-[14px]">
+                          {rev.author || rev.userName || rev.user_name}
+                        </span>
+                        <span className="text-[#736E67] text-[12px]">
+                          • {rev.rating} ★★★★★
+                        </span>
                         {rev.isVerified && (
                           <span className="px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-semibold bg-[#EDF3E8] text-[#3E4534]">
                             ✓ Verified Order
@@ -2269,9 +2718,18 @@ export default function AdminPage() {
                         )}
                       </div>
 
-                      <p className="text-[12px] sm:text-[13px] text-[#736E67]">Product: <span className="font-semibold text-[#1A1A1A]">{rev.productName || "Product"}</span></p>
-                      <p className="text-[14px] sm:text-[15px] font-semibold text-[#1A1A1A]">{rev.title}</p>
-                      <p className="text-[13px] sm:text-[14px] text-[#5A5650] leading-relaxed">{rev.comment}</p>
+                      <p className="text-[12px] sm:text-[13px] text-[#736E67]">
+                        Product:{" "}
+                        <span className="font-semibold text-[#1A1A1A]">
+                          {rev.productName || "Product"}
+                        </span>
+                      </p>
+                      <p className="text-[14px] sm:text-[15px] font-semibold text-[#1A1A1A]">
+                        {rev.title}
+                      </p>
+                      <p className="text-[13px] sm:text-[14px] text-[#5A5650] leading-relaxed">
+                        {rev.comment}
+                      </p>
 
                       {/* Attached customer photos */}
                       {rev.images && rev.images.length > 0 && (
@@ -2328,9 +2786,12 @@ export default function AdminPage() {
           <div className="space-y-6 sm:space-y-8 animate-fadeIn">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">Promotional Coupons & Vouchers</h2>
+                <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">
+                  Promotional Coupons & Vouchers
+                </h2>
                 <p className="text-[12px] sm:text-[14px] text-[#736E67]">
-                  Manage active checkout discount codes, cart minimum order thresholds, and voucher caps.
+                  Manage active checkout discount codes, cart minimum order
+                  thresholds, and voucher caps.
                 </p>
               </div>
               <button
@@ -2349,8 +2810,12 @@ export default function AdminPage() {
                 <span className="text-[11px] sm:text-[12px] uppercase tracking-wider font-semibold text-[#736E67] block">
                   Total Codes
                 </span>
-                <p className="text-xl sm:text-3xl font-bold font-mono text-[#1A1A1A]">{coupons.length}</p>
-                <p className="text-[10px] sm:text-[12px] text-[#736E67] truncate">Configured in system</p>
+                <p className="text-xl sm:text-3xl font-bold font-mono text-[#1A1A1A]">
+                  {coupons.length}
+                </p>
+                <p className="text-[10px] sm:text-[12px] text-[#736E67] truncate">
+                  Configured in system
+                </p>
               </div>
               <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-3.5 sm:p-6 rounded-xs shadow-2xs space-y-1">
                 <span className="text-[11px] sm:text-[12px] uppercase tracking-wider font-semibold text-[#736E67] block">
@@ -2359,16 +2824,23 @@ export default function AdminPage() {
                 <p className="text-xl sm:text-3xl font-bold font-mono text-[#4E5942]">
                   {coupons.filter((c) => c.isActive).length}
                 </p>
-                <p className="text-[10px] sm:text-[12px] text-[#4E5942] font-semibold truncate">Available at checkout</p>
+                <p className="text-[10px] sm:text-[12px] text-[#4E5942] font-semibold truncate">
+                  Available at checkout
+                </p>
               </div>
               <div className="col-span-2 sm:col-span-1 bg-[#FFFFFF] border border-[#E8E3DA] p-3.5 sm:p-6 rounded-xs shadow-2xs space-y-1">
                 <span className="text-[11px] sm:text-[12px] uppercase tracking-wider font-semibold text-[#736E67] block">
                   Redemptions
                 </span>
                 <p className="text-xl sm:text-3xl font-bold font-mono text-[#1A1A1A]">
-                  {coupons.reduce((sum, c) => sum + (c.redemptionsCount || 0), 0)}
+                  {coupons.reduce(
+                    (sum, c) => sum + (c.redemptionsCount || 0),
+                    0,
+                  )}
                 </p>
-                <p className="text-[10px] sm:text-[12px] text-[#736E67] truncate">Redeemed by shoppers</p>
+                <p className="text-[10px] sm:text-[12px] text-[#736E67] truncate">
+                  Redeemed by shoppers
+                </p>
               </div>
             </div>
 
@@ -2378,14 +2850,20 @@ export default function AdminPage() {
                 <h3 className="text-sm sm:text-base font-semibold text-[#1A1A1A] flex items-center gap-2">
                   <Tag className="w-4 h-4 text-[#4E5942]" /> All Coupon Codes
                 </h3>
-                <span className="text-[12px] sm:text-[13px] text-[#736E67] font-medium">{coupons.length} vouchers</span>
+                <span className="text-[12px] sm:text-[13px] text-[#736E67] font-medium">
+                  {coupons.length} vouchers
+                </span>
               </div>
 
               {coupons.length === 0 ? (
                 <div className="p-8 sm:p-12 text-center text-[#736E67]">
                   <Tag className="w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-3 text-[#B3AEA3]" />
-                  <p className="text-base font-semibold text-[#1A1A1A]">No coupon codes yet</p>
-                  <p className="text-[13px] mt-1 mb-4">Create your first coupon voucher code to run promotions.</p>
+                  <p className="text-base font-semibold text-[#1A1A1A]">
+                    No coupon codes yet
+                  </p>
+                  <p className="text-[13px] mt-1 mb-4">
+                    Create your first coupon voucher code to run promotions.
+                  </p>
                   <button
                     onClick={handleOpenAddCouponModal}
                     className="inline-flex items-center gap-2 bg-[#1A1A1A] text-white px-4 py-2 rounded-2xs text-[13px] font-semibold cursor-pointer"
@@ -2413,8 +2891,12 @@ export default function AdminPage() {
                                 : "bg-[#F5F5F5] text-[#888888]"
                             }`}
                           >
-                            <span className={`w-1.5 h-1.5 rounded-full ${coupon.isActive ? "bg-[#4E5942]" : "bg-[#888888]"}`} />
-                            <span>{coupon.isActive ? "Active" : "Inactive"}</span>
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${coupon.isActive ? "bg-[#4E5942]" : "bg-[#888888]"}`}
+                            />
+                            <span>
+                              {coupon.isActive ? "Active" : "Inactive"}
+                            </span>
                           </button>
                         </div>
 
@@ -2422,19 +2904,25 @@ export default function AdminPage() {
                           <div className="flex items-center justify-between">
                             <span className="text-[#736E67]">Discount:</span>
                             <span className="font-bold text-[#4E5942]">
-                              {coupon.type === "percent" ? `${coupon.value}% OFF` : `${formatINR(coupon.value)} FLAT`}
+                              {coupon.type === "percent"
+                                ? `${coupon.value}% OFF`
+                                : `${formatINR(coupon.value)} FLAT`}
                             </span>
                           </div>
                           <div className="flex items-center justify-between text-[12px]">
                             <span className="text-[#736E67]">Min Order:</span>
                             <span className="text-[#4A4640]">
-                              {coupon.minSubtotalRupees ? formatINR(coupon.minSubtotalRupees) : "None"}
+                              {coupon.minSubtotalRupees
+                                ? formatINR(coupon.minSubtotalRupees)
+                                : "None"}
                             </span>
                           </div>
                           <div className="flex items-center justify-between text-[12px]">
                             <span className="text-[#736E67]">Audience:</span>
                             <span className="text-[#4A4640]">
-                              {coupon.firstOrderOnly ? "First Order Only" : "All Orders"}
+                              {coupon.firstOrderOnly
+                                ? "First Order Only"
+                                : "All Orders"}
                             </span>
                           </div>
                           <div className="flex items-center justify-between text-[12px] pt-1 border-t border-[#E8E3DA]/60">
@@ -2456,7 +2944,9 @@ export default function AdminPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleDeleteCoupon(coupon.id, coupon.code)}
+                            onClick={() =>
+                              handleDeleteCoupon(coupon.id, coupon.code)
+                            }
                             className="bg-[#FDF2F2] hover:bg-[#FDE8E8] border border-[#F8B4B4] text-[#A94438] py-2 px-3 rounded-2xs text-[12px] font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -2485,7 +2975,10 @@ export default function AdminPage() {
                       </thead>
                       <tbody className="divide-y divide-[#F0ECE4]">
                         {coupons.map((coupon) => (
-                          <tr key={coupon.id} className="hover:bg-[#FBF9F5] transition-colors">
+                          <tr
+                            key={coupon.id}
+                            className="hover:bg-[#FBF9F5] transition-colors"
+                          >
                             <td className="py-4 px-4">
                               <div className="flex items-center gap-2">
                                 <span className="font-mono font-bold text-[#1A1A1A] bg-[#F5F2EB] px-2.5 py-1 rounded-2xs border border-[#E8E3DA] tracking-wider text-[13px]">
@@ -2495,23 +2988,34 @@ export default function AdminPage() {
                             </td>
                             <td className="py-4 px-4 font-semibold text-[#1A1A1A]">
                               {coupon.type === "percent" ? (
-                                <span className="text-[#4E5942]">{coupon.value}% OFF</span>
+                                <span className="text-[#4E5942]">
+                                  {coupon.value}% OFF
+                                </span>
                               ) : (
-                                <span className="text-[#4E5942]">{formatINR(coupon.value)} FLAT</span>
+                                <span className="text-[#4E5942]">
+                                  {formatINR(coupon.value)} FLAT
+                                </span>
                               )}
                             </td>
                             <td className="py-4 px-4 text-[#4A4640]">
                               {coupon.minSubtotalRupees ? (
-                                <span>Orders &ge; {formatINR(coupon.minSubtotalRupees)}</span>
+                                <span>
+                                  Orders &ge;{" "}
+                                  {formatINR(coupon.minSubtotalRupees)}
+                                </span>
                               ) : (
                                 <span className="text-[#736E67]">None</span>
                               )}
                             </td>
                             <td className="py-4 px-4 text-[#736E67]">
-                              {coupon.maxDiscountRupees ? formatINR(coupon.maxDiscountRupees) : "No cap"}
+                              {coupon.maxDiscountRupees
+                                ? formatINR(coupon.maxDiscountRupees)
+                                : "No cap"}
                             </td>
                             <td className="py-4 px-4 text-[#736E67]">
-                              {coupon.usageLimit ? `${coupon.usageLimit} total` : "Unlimited"}
+                              {coupon.usageLimit
+                                ? `${coupon.usageLimit} total`
+                                : "Unlimited"}
                             </td>
                             <td className="py-4 px-4 font-mono font-semibold text-[#1A1A1A]">
                               {coupon.redemptionsCount || 0}
@@ -2522,7 +3026,9 @@ export default function AdminPage() {
                                   First Order Only
                                 </span>
                               ) : (
-                                <span className="text-[11px] text-[#736E67]">All Orders</span>
+                                <span className="text-[11px] text-[#736E67]">
+                                  All Orders
+                                </span>
                               )}
                             </td>
                             <td className="py-4 px-4">
@@ -2537,10 +3043,14 @@ export default function AdminPage() {
                               >
                                 <span
                                   className={`w-1.5 h-1.5 rounded-full ${
-                                    coupon.isActive ? "bg-[#4E5942]" : "bg-[#888888]"
+                                    coupon.isActive
+                                      ? "bg-[#4E5942]"
+                                      : "bg-[#888888]"
                                   }`}
                                 />
-                                <span>{coupon.isActive ? "Active" : "Inactive"}</span>
+                                <span>
+                                  {coupon.isActive ? "Active" : "Inactive"}
+                                </span>
                               </button>
                             </td>
                             <td className="py-4 px-4 text-right">
@@ -2555,7 +3065,9 @@ export default function AdminPage() {
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => handleDeleteCoupon(coupon.id, coupon.code)}
+                                  onClick={() =>
+                                    handleDeleteCoupon(coupon.id, coupon.code)
+                                  }
                                   className="p-1.5 text-[#A94438] hover:text-[#8B342B] hover:bg-[#FDF2F2] rounded-2xs transition-colors cursor-pointer"
                                   title="Delete Coupon"
                                 >
@@ -2580,16 +3092,20 @@ export default function AdminPage() {
         {activeTab === "subscribers" && (
           <div className="space-y-6 sm:space-y-8 animate-fadeIn">
             <div>
-              <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">Newsletter & Subscriber Campaigns</h2>
+              <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">
+                Newsletter & Subscriber Campaigns
+              </h2>
               <p className="text-[12px] sm:text-[14px] text-[#736E67]">
-                View newsletter subscribers, registered customers, and craft email campaigns to broadcast.
+                View newsletter subscribers, registered customers, and craft
+                email campaigns to broadcast.
               </p>
             </div>
 
             {/* Campaign Composer */}
             <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-4 sm:p-6 rounded-xs shadow-2xs space-y-4">
               <h3 className="text-base sm:text-lg font-semibold text-[#1A1A1A] flex items-center gap-2">
-                <Send className="w-4 h-4 sm:w-5 sm:h-5 text-[#4E5942]" /> Craft & Broadcast Email Campaign
+                <Send className="w-4 h-4 sm:w-5 sm:h-5 text-[#4E5942]" /> Craft
+                & Broadcast Email Campaign
               </h3>
               <form onSubmit={handleBroadcastCampaign} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -2615,9 +3131,16 @@ export default function AdminPage() {
                       onChange={(e) => setCampaignRecipientType(e.target.value)}
                       className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs focus:outline-hidden cursor-pointer"
                     >
-                      <option value="all">All Subscribers ({subscribersData.totalSubscribers})</option>
-                      <option value="newsletter">Newsletter Signups Only</option>
-                      <option value="customers">Registered Buyers Only ({subscribersData.totalRegisteredCustomers})</option>
+                      <option value="all">
+                        All Subscribers ({subscribersData.totalSubscribers})
+                      </option>
+                      <option value="newsletter">
+                        Newsletter Signups Only
+                      </option>
+                      <option value="customers">
+                        Registered Buyers Only (
+                        {subscribersData.totalRegisteredCustomers})
+                      </option>
                     </select>
                   </div>
                 </div>
@@ -2643,7 +3166,11 @@ export default function AdminPage() {
                     className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-6 py-2.5 rounded-2xs text-[13px] sm:text-[14px] font-semibold inline-flex items-center justify-center gap-2 transition-colors disabled:opacity-60 cursor-pointer w-full sm:w-auto"
                   >
                     <Send className="w-4 h-4" />
-                    <span>{isBroadcasting ? "Sending Broadcast..." : "Send Campaign Broadcast"}</span>
+                    <span>
+                      {isBroadcasting
+                        ? "Sending Broadcast..."
+                        : "Send Campaign Broadcast"}
+                    </span>
                   </button>
                 </div>
               </form>
@@ -2652,7 +3179,9 @@ export default function AdminPage() {
             {/* Subscribers List */}
             <div className="bg-[#FFFFFF] border border-[#E8E3DA] rounded-xs overflow-hidden shadow-2xs space-y-2">
               <div className="p-3.5 sm:p-4 border-b border-[#F0ECE4] flex items-center justify-between">
-                <h3 className="text-sm sm:text-base font-semibold text-[#1A1A1A]">Subscriber List</h3>
+                <h3 className="text-sm sm:text-base font-semibold text-[#1A1A1A]">
+                  Subscriber List
+                </h3>
                 <span className="text-[12px] sm:text-[13px] text-[#736E67]">
                   {subscribersData.subscribers.length} total recorded
                 </span>
@@ -2671,8 +3200,14 @@ export default function AdminPage() {
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-[11px] text-[#736E67]">
-                      <span className="uppercase">Via {sub.source || "Storefront"}</span>
-                      <span>{sub.createdAt ? new Date(sub.createdAt).toLocaleDateString() : "Recent"}</span>
+                      <span className="uppercase">
+                        Via {sub.source || "Storefront"}
+                      </span>
+                      <span>
+                        {sub.createdAt
+                          ? new Date(sub.createdAt).toLocaleDateString()
+                          : "Recent"}
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -2691,7 +3226,10 @@ export default function AdminPage() {
                   </thead>
                   <tbody className="divide-y divide-[#F0ECE4]">
                     {subscribersData.subscribers.map((sub: any) => (
-                      <tr key={sub.id} className="hover:bg-[#FBF9F5] transition-colors">
+                      <tr
+                        key={sub.id}
+                        className="hover:bg-[#FBF9F5] transition-colors"
+                      >
                         <td className="py-3.5 px-4 font-mono font-medium text-[#1A1A1A]">
                           {sub.email}
                         </td>
@@ -2704,7 +3242,9 @@ export default function AdminPage() {
                           </span>
                         </td>
                         <td className="py-3.5 px-4 text-[#736E67] text-[13px]">
-                          {sub.createdAt ? new Date(sub.createdAt).toLocaleDateString() : "Recent"}
+                          {sub.createdAt
+                            ? new Date(sub.createdAt).toLocaleDateString()
+                            : "Recent"}
                         </td>
                       </tr>
                     ))}
@@ -2721,9 +3261,12 @@ export default function AdminPage() {
         {activeTab === "settings" && (
           <div className="space-y-6 animate-fadeIn max-w-4xl">
             <div>
-              <h2 className="text-xl font-semibold text-[#1A1A1A]">Website Settings & Security</h2>
+              <h2 className="text-xl font-semibold text-[#1A1A1A]">
+                Website Settings & Security
+              </h2>
               <p className="text-[14px] text-[#736E67]">
-                Manage contact numbers, address, free shipping threshold, dynamic about images, and 2-step verification.
+                Manage contact numbers, address, free shipping threshold,
+                dynamic about images, and 2-step verification.
               </p>
             </div>
 
@@ -2741,7 +3284,12 @@ export default function AdminPage() {
                     <input
                       type="text"
                       value={siteSettings.store_name}
-                      onChange={(e) => setSiteSettings({ ...siteSettings, store_name: e.target.value })}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          store_name: e.target.value,
+                        })
+                      }
                       className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                     />
                   </div>
@@ -2752,7 +3300,12 @@ export default function AdminPage() {
                     <input
                       type="text"
                       value={siteSettings.tagline}
-                      onChange={(e) => setSiteSettings({ ...siteSettings, tagline: e.target.value })}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          tagline: e.target.value,
+                        })
+                      }
                       className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                     />
                   </div>
@@ -2763,7 +3316,12 @@ export default function AdminPage() {
                     <input
                       type="number"
                       value={siteSettings.free_shipping_threshold}
-                      onChange={(e) => setSiteSettings({ ...siteSettings, free_shipping_threshold: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          free_shipping_threshold: Number(e.target.value),
+                        })
+                      }
                       className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                     />
                   </div>
@@ -2774,7 +3332,12 @@ export default function AdminPage() {
                     <input
                       type="number"
                       value={siteSettings.shipping_fee}
-                      onChange={(e) => setSiteSettings({ ...siteSettings, shipping_fee: Number(e.target.value) })}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          shipping_fee: Number(e.target.value),
+                        })
+                      }
                       className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                     />
                   </div>
@@ -2794,7 +3357,12 @@ export default function AdminPage() {
                     <input
                       type="email"
                       value={siteSettings.support_email}
-                      onChange={(e) => setSiteSettings({ ...siteSettings, support_email: e.target.value })}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          support_email: e.target.value,
+                        })
+                      }
                       className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                     />
                   </div>
@@ -2805,7 +3373,12 @@ export default function AdminPage() {
                     <input
                       type="text"
                       value={siteSettings.support_phone}
-                      onChange={(e) => setSiteSettings({ ...siteSettings, support_phone: e.target.value })}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          support_phone: e.target.value,
+                        })
+                      }
                       className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                     />
                   </div>
@@ -2816,7 +3389,12 @@ export default function AdminPage() {
                     <input
                       type="text"
                       value={siteSettings.support_whatsapp}
-                      onChange={(e) => setSiteSettings({ ...siteSettings, support_whatsapp: e.target.value })}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          support_whatsapp: e.target.value,
+                        })
+                      }
                       className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                     />
                   </div>
@@ -2827,7 +3405,12 @@ export default function AdminPage() {
                     <input
                       type="text"
                       value={siteSettings.support_hours}
-                      onChange={(e) => setSiteSettings({ ...siteSettings, support_hours: e.target.value })}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          support_hours: e.target.value,
+                        })
+                      }
                       className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                     />
                   </div>
@@ -2838,7 +3421,12 @@ export default function AdminPage() {
                     <input
                       type="text"
                       value={siteSettings.store_address}
-                      onChange={(e) => setSiteSettings({ ...siteSettings, store_address: e.target.value })}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          store_address: e.target.value,
+                        })
+                      }
                       className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                     />
                   </div>
@@ -2858,7 +3446,12 @@ export default function AdminPage() {
                     <input
                       type="text"
                       value={siteSettings.about_hero_title}
-                      onChange={(e) => setSiteSettings({ ...siteSettings, about_hero_title: e.target.value })}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          about_hero_title: e.target.value,
+                        })
+                      }
                       className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                     />
                   </div>
@@ -2868,7 +3461,12 @@ export default function AdminPage() {
                         label="About Hero Story Image (Cloudinary)"
                         folder="maysha/brand"
                         currentImage={siteSettings.about_hero_image}
-                        onUploadSuccess={(url) => setSiteSettings({ ...siteSettings, about_hero_image: url })}
+                        onUploadSuccess={(url) =>
+                          setSiteSettings({
+                            ...siteSettings,
+                            about_hero_image: url,
+                          })
+                        }
                       />
                     </div>
                     <div>
@@ -2876,7 +3474,12 @@ export default function AdminPage() {
                         label="Philosophy / Lab Visual (Cloudinary)"
                         folder="maysha/brand"
                         currentImage={siteSettings.about_philosophy_image}
-                        onUploadSuccess={(url) => setSiteSettings({ ...siteSettings, about_philosophy_image: url })}
+                        onUploadSuccess={(url) =>
+                          setSiteSettings({
+                            ...siteSettings,
+                            about_philosophy_image: url,
+                          })
+                        }
                       />
                     </div>
                   </div>
@@ -2887,10 +3490,12 @@ export default function AdminPage() {
               <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-6 rounded-xs space-y-6 shadow-2xs">
                 <div className="pb-3 border-b border-[#F0ECE4]">
                   <h3 className="text-base font-semibold text-[#1A1A1A] flex items-center gap-2">
-                    <Globe2 className="w-5 h-5 text-[#4E5942]" /> Store Pages SEO & OpenGraph Meta Management
+                    <Globe2 className="w-5 h-5 text-[#4E5942]" /> Store Pages
+                    SEO & OpenGraph Meta Management
                   </h3>
                   <p className="text-[13px] text-[#736E67] mt-0.5">
-                    Configure Google search snippet titles and descriptions for key storefront landing pages.
+                    Configure Google search snippet titles and descriptions for
+                    key storefront landing pages.
                   </p>
                 </div>
 
@@ -2900,35 +3505,65 @@ export default function AdminPage() {
                     <span className="text-[14px] font-bold text-[#1A1A1A] flex items-center gap-2">
                       🏠 Homepage (/)
                     </span>
-                    <span className="text-[12px] text-[#736E67]">Primary Brand Portal</span>
+                    <span className="text-[12px] text-[#736E67]">
+                      Primary Brand Portal
+                    </span>
                   </div>
                   <div className="space-y-2">
                     <div>
                       <div className="flex justify-between text-[12px] mb-1">
-                        <span className="font-semibold text-[#4A4640]">Meta Title</span>
-                        <span className={(siteSettings.seo_home_title?.length || 0) > 60 ? "text-[#A94438]" : "text-[#736E67]"}>
+                        <span className="font-semibold text-[#4A4640]">
+                          Meta Title
+                        </span>
+                        <span
+                          className={
+                            (siteSettings.seo_home_title?.length || 0) > 60
+                              ? "text-[#A94438]"
+                              : "text-[#736E67]"
+                          }
+                        >
                           {siteSettings.seo_home_title?.length || 0} / 60 chars
                         </span>
                       </div>
                       <input
                         type="text"
                         value={siteSettings.seo_home_title || ""}
-                        onChange={(e) => setSiteSettings({ ...siteSettings, seo_home_title: e.target.value })}
+                        onChange={(e) =>
+                          setSiteSettings({
+                            ...siteSettings,
+                            seo_home_title: e.target.value,
+                          })
+                        }
                         placeholder="Maysha | Clean Botanical Science for Real Skin"
                         className="w-full bg-white border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                       />
                     </div>
                     <div>
                       <div className="flex justify-between text-[12px] mb-1">
-                        <span className="font-semibold text-[#4A4640]">Meta Description</span>
-                        <span className={(siteSettings.seo_home_description?.length || 0) > 160 ? "text-[#A94438]" : "text-[#736E67]"}>
-                          {siteSettings.seo_home_description?.length || 0} / 160 chars
+                        <span className="font-semibold text-[#4A4640]">
+                          Meta Description
+                        </span>
+                        <span
+                          className={
+                            (siteSettings.seo_home_description?.length || 0) >
+                            160
+                              ? "text-[#A94438]"
+                              : "text-[#736E67]"
+                          }
+                        >
+                          {siteSettings.seo_home_description?.length || 0} / 160
+                          chars
                         </span>
                       </div>
                       <textarea
                         rows={2}
                         value={siteSettings.seo_home_description || ""}
-                        onChange={(e) => setSiteSettings({ ...siteSettings, seo_home_description: e.target.value })}
+                        onChange={(e) =>
+                          setSiteSettings({
+                            ...siteSettings,
+                            seo_home_description: e.target.value,
+                          })
+                        }
                         placeholder="Discover clean, bio-compatible skincare rituals formulated with pure botanical extracts..."
                         className="w-full bg-white border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                       />
@@ -2942,35 +3577,65 @@ export default function AdminPage() {
                     <span className="text-[14px] font-bold text-[#1A1A1A] flex items-center gap-2">
                       🌿 About Us (/about)
                     </span>
-                    <span className="text-[12px] text-[#736E67]">Brand Philosophy & Sourcing</span>
+                    <span className="text-[12px] text-[#736E67]">
+                      Brand Philosophy & Sourcing
+                    </span>
                   </div>
                   <div className="space-y-2">
                     <div>
                       <div className="flex justify-between text-[12px] mb-1">
-                        <span className="font-semibold text-[#4A4640]">Meta Title</span>
-                        <span className={(siteSettings.seo_about_title?.length || 0) > 60 ? "text-[#A94438]" : "text-[#736E67]"}>
+                        <span className="font-semibold text-[#4A4640]">
+                          Meta Title
+                        </span>
+                        <span
+                          className={
+                            (siteSettings.seo_about_title?.length || 0) > 60
+                              ? "text-[#A94438]"
+                              : "text-[#736E67]"
+                          }
+                        >
                           {siteSettings.seo_about_title?.length || 0} / 60 chars
                         </span>
                       </div>
                       <input
                         type="text"
                         value={siteSettings.seo_about_title || ""}
-                        onChange={(e) => setSiteSettings({ ...siteSettings, seo_about_title: e.target.value })}
+                        onChange={(e) =>
+                          setSiteSettings({
+                            ...siteSettings,
+                            seo_about_title: e.target.value,
+                          })
+                        }
                         placeholder="About Our Botanical Philosophy | Maysha Skincare"
                         className="w-full bg-white border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                       />
                     </div>
                     <div>
                       <div className="flex justify-between text-[12px] mb-1">
-                        <span className="font-semibold text-[#4A4640]">Meta Description</span>
-                        <span className={(siteSettings.seo_about_description?.length || 0) > 160 ? "text-[#A94438]" : "text-[#736E67]"}>
-                          {siteSettings.seo_about_description?.length || 0} / 160 chars
+                        <span className="font-semibold text-[#4A4640]">
+                          Meta Description
+                        </span>
+                        <span
+                          className={
+                            (siteSettings.seo_about_description?.length || 0) >
+                            160
+                              ? "text-[#A94438]"
+                              : "text-[#736E67]"
+                          }
+                        >
+                          {siteSettings.seo_about_description?.length || 0} /
+                          160 chars
                         </span>
                       </div>
                       <textarea
                         rows={2}
                         value={siteSettings.seo_about_description || ""}
-                        onChange={(e) => setSiteSettings({ ...siteSettings, seo_about_description: e.target.value })}
+                        onChange={(e) =>
+                          setSiteSettings({
+                            ...siteSettings,
+                            seo_about_description: e.target.value,
+                          })
+                        }
                         placeholder="Learn about Maysha's formulation ethos, ethical sourcing, and bio-compatible science..."
                         className="w-full bg-white border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                       />
@@ -2984,35 +3649,66 @@ export default function AdminPage() {
                     <span className="text-[14px] font-bold text-[#1A1A1A] flex items-center gap-2">
                       📖 Skincare Journal (/journal)
                     </span>
-                    <span className="text-[12px] text-[#736E67]">Editorial & Science Articles</span>
+                    <span className="text-[12px] text-[#736E67]">
+                      Editorial & Science Articles
+                    </span>
                   </div>
                   <div className="space-y-2">
                     <div>
                       <div className="flex justify-between text-[12px] mb-1">
-                        <span className="font-semibold text-[#4A4640]">Meta Title</span>
-                        <span className={(siteSettings.seo_journal_title?.length || 0) > 60 ? "text-[#A94438]" : "text-[#736E67]"}>
-                          {siteSettings.seo_journal_title?.length || 0} / 60 chars
+                        <span className="font-semibold text-[#4A4640]">
+                          Meta Title
+                        </span>
+                        <span
+                          className={
+                            (siteSettings.seo_journal_title?.length || 0) > 60
+                              ? "text-[#A94438]"
+                              : "text-[#736E67]"
+                          }
+                        >
+                          {siteSettings.seo_journal_title?.length || 0} / 60
+                          chars
                         </span>
                       </div>
                       <input
                         type="text"
                         value={siteSettings.seo_journal_title || ""}
-                        onChange={(e) => setSiteSettings({ ...siteSettings, seo_journal_title: e.target.value })}
+                        onChange={(e) =>
+                          setSiteSettings({
+                            ...siteSettings,
+                            seo_journal_title: e.target.value,
+                          })
+                        }
                         placeholder="The Skincare Journal | Maysha Skincare Science"
                         className="w-full bg-white border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                       />
                     </div>
                     <div>
                       <div className="flex justify-between text-[12px] mb-1">
-                        <span className="font-semibold text-[#4A4640]">Meta Description</span>
-                        <span className={(siteSettings.seo_journal_description?.length || 0) > 160 ? "text-[#A94438]" : "text-[#736E67]"}>
-                          {siteSettings.seo_journal_description?.length || 0} / 160 chars
+                        <span className="font-semibold text-[#4A4640]">
+                          Meta Description
+                        </span>
+                        <span
+                          className={
+                            (siteSettings.seo_journal_description?.length ||
+                              0) > 160
+                              ? "text-[#A94438]"
+                              : "text-[#736E67]"
+                          }
+                        >
+                          {siteSettings.seo_journal_description?.length || 0} /
+                          160 chars
                         </span>
                       </div>
                       <textarea
                         rows={2}
                         value={siteSettings.seo_journal_description || ""}
-                        onChange={(e) => setSiteSettings({ ...siteSettings, seo_journal_description: e.target.value })}
+                        onChange={(e) =>
+                          setSiteSettings({
+                            ...siteSettings,
+                            seo_journal_description: e.target.value,
+                          })
+                        }
                         placeholder="Expert skincare guides, ingredient deep-dives, barrier repair science, and holistic rituals..."
                         className="w-full bg-white border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                       />
@@ -3026,35 +3722,65 @@ export default function AdminPage() {
                     <span className="text-[14px] font-bold text-[#1A1A1A] flex items-center gap-2">
                       🛍️ Shop Catalog (/shop)
                     </span>
-                    <span className="text-[12px] text-[#736E67]">Product Directory & Filter Collection</span>
+                    <span className="text-[12px] text-[#736E67]">
+                      Product Directory & Filter Collection
+                    </span>
                   </div>
                   <div className="space-y-2">
                     <div>
                       <div className="flex justify-between text-[12px] mb-1">
-                        <span className="font-semibold text-[#4A4640]">Meta Title</span>
-                        <span className={(siteSettings.seo_shop_title?.length || 0) > 60 ? "text-[#A94438]" : "text-[#736E67]"}>
+                        <span className="font-semibold text-[#4A4640]">
+                          Meta Title
+                        </span>
+                        <span
+                          className={
+                            (siteSettings.seo_shop_title?.length || 0) > 60
+                              ? "text-[#A94438]"
+                              : "text-[#736E67]"
+                          }
+                        >
                           {siteSettings.seo_shop_title?.length || 0} / 60 chars
                         </span>
                       </div>
                       <input
                         type="text"
                         value={siteSettings.seo_shop_title || ""}
-                        onChange={(e) => setSiteSettings({ ...siteSettings, seo_shop_title: e.target.value })}
+                        onChange={(e) =>
+                          setSiteSettings({
+                            ...siteSettings,
+                            seo_shop_title: e.target.value,
+                          })
+                        }
                         placeholder="Shop All Botanical Formulations | Maysha"
                         className="w-full bg-white border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                       />
                     </div>
                     <div>
                       <div className="flex justify-between text-[12px] mb-1">
-                        <span className="font-semibold text-[#4A4640]">Meta Description</span>
-                        <span className={(siteSettings.seo_shop_description?.length || 0) > 160 ? "text-[#A94438]" : "text-[#736E67]"}>
-                          {siteSettings.seo_shop_description?.length || 0} / 160 chars
+                        <span className="font-semibold text-[#4A4640]">
+                          Meta Description
+                        </span>
+                        <span
+                          className={
+                            (siteSettings.seo_shop_description?.length || 0) >
+                            160
+                              ? "text-[#A94438]"
+                              : "text-[#736E67]"
+                          }
+                        >
+                          {siteSettings.seo_shop_description?.length || 0} / 160
+                          chars
                         </span>
                       </div>
                       <textarea
                         rows={2}
                         value={siteSettings.seo_shop_description || ""}
-                        onChange={(e) => setSiteSettings({ ...siteSettings, seo_shop_description: e.target.value })}
+                        onChange={(e) =>
+                          setSiteSettings({
+                            ...siteSettings,
+                            seo_shop_description: e.target.value,
+                          })
+                        }
                         placeholder="Explore all cleansers, serums, toners, moisturizers, and room mists thoughtfully engineered for real skin..."
                         className="w-full bg-white border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                       />
@@ -3066,7 +3792,8 @@ export default function AdminPage() {
               {/* 2-Step Authentication (2FA) */}
               <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-6 rounded-xs space-y-4 shadow-2xs">
                 <h3 className="text-base font-semibold text-[#1A1A1A] pb-2 border-b border-[#F0ECE4] flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-[#4E5942]" /> 2-Step Authentication (2FA) Security
+                  <Lock className="w-4 h-4 text-[#4E5942]" /> 2-Step
+                  Authentication (2FA) Security
                 </h3>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -3075,14 +3802,20 @@ export default function AdminPage() {
                         Require 2-Factor PIN on Admin Sign-In
                       </p>
                       <p className="text-[12px] text-[#736E67]">
-                        Adds a secondary security verification step for administrative access.
+                        Adds a secondary security verification step for
+                        administrative access.
                       </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
                         type="checkbox"
                         checked={Boolean(siteSettings.admin_2fa_enabled)}
-                        onChange={(e) => setSiteSettings({ ...siteSettings, admin_2fa_enabled: e.target.checked })}
+                        onChange={(e) =>
+                          setSiteSettings({
+                            ...siteSettings,
+                            admin_2fa_enabled: e.target.checked,
+                          })
+                        }
                         className="sr-only peer"
                       />
                       <div className="w-11 h-6 bg-[#E8E3DA] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#4E5942]"></div>
@@ -3097,7 +3830,12 @@ export default function AdminPage() {
                       type="text"
                       maxLength={6}
                       value={siteSettings.admin_2fa_pin}
-                      onChange={(e) => setSiteSettings({ ...siteSettings, admin_2fa_pin: e.target.value })}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          admin_2fa_pin: e.target.value,
+                        })
+                      }
                       placeholder="e.g. 9281"
                       className="max-w-xs bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] p-2.5 rounded-2xs font-mono tracking-wider"
                     />
@@ -3112,7 +3850,11 @@ export default function AdminPage() {
                   className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-8 py-3 rounded-2xs text-[14px] uppercase tracking-wider font-semibold inline-flex items-center gap-2 transition-colors disabled:opacity-60 cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
-                  <span>{isSavingSettings ? "Saving Settings..." : "Save All Settings"}</span>
+                  <span>
+                    {isSavingSettings
+                      ? "Saving Settings..."
+                      : "Save All Settings"}
+                  </span>
                 </button>
               </div>
             </form>
@@ -3132,7 +3874,9 @@ export default function AdminPage() {
                   Catalog Inventory Manager
                 </span>
                 <h3 className="text-lg sm:text-2xl font-semibold text-[#1A1A1A] mt-0.5">
-                  {editingProduct ? `Edit Product: ${editingProduct.name}` : "Add New Botanical Product"}
+                  {editingProduct
+                    ? `Edit Product: ${editingProduct.name}`
+                    : "Add New Botanical Product"}
                 </h3>
               </div>
               <button
@@ -3148,7 +3892,8 @@ export default function AdminPage() {
               {/* SECTION 1: Product Basics */}
               <div className="space-y-4">
                 <h4 className="text-[15px] font-semibold text-[#1A1A1A] pb-1 border-b border-[#F0ECE4] flex items-center gap-2">
-                  <Tag className="w-4 h-4 text-[#4E5942]" /> Basic Product Details
+                  <Tag className="w-4 h-4 text-[#4E5942]" /> Basic Product
+                  Details
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -3160,7 +3905,12 @@ export default function AdminPage() {
                       type="text"
                       required
                       value={productFormData.name}
-                      onChange={(e) => setProductFormData({ ...productFormData, name: e.target.value })}
+                      onChange={(e) =>
+                        setProductFormData({
+                          ...productFormData,
+                          name: e.target.value,
+                        })
+                      }
                       placeholder="e.g. Pure Damask Rose Water Hydrosol"
                       className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] py-3 px-4 rounded-2xs focus:outline-none focus:border-[#1A1A1A] focus:bg-white transition-colors"
                     />
@@ -3172,7 +3922,12 @@ export default function AdminPage() {
                     <input
                       type="text"
                       value={productFormData.slug}
-                      onChange={(e) => setProductFormData({ ...productFormData, slug: e.target.value })}
+                      onChange={(e) =>
+                        setProductFormData({
+                          ...productFormData,
+                          slug: e.target.value,
+                        })
+                      }
                       placeholder="e.g. pure-damask-rose-water"
                       className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] py-3 px-4 rounded-2xs focus:outline-none focus:border-[#1A1A1A] focus:bg-white transition-colors"
                     />
@@ -3186,7 +3941,12 @@ export default function AdminPage() {
                     </label>
                     <select
                       value={productFormData.category_id}
-                      onChange={(e) => setProductFormData({ ...productFormData, category_id: e.target.value })}
+                      onChange={(e) =>
+                        setProductFormData({
+                          ...productFormData,
+                          category_id: e.target.value,
+                        })
+                      }
                       className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] py-3 px-4 rounded-2xs focus:outline-none focus:border-[#1A1A1A] focus:bg-white transition-colors cursor-pointer"
                     >
                       {categories.map((cat) => (
@@ -3203,7 +3963,12 @@ export default function AdminPage() {
                     <input
                       type="text"
                       value={productFormData.subtitle}
-                      onChange={(e) => setProductFormData({ ...productFormData, subtitle: e.target.value })}
+                      onChange={(e) =>
+                        setProductFormData({
+                          ...productFormData,
+                          subtitle: e.target.value,
+                        })
+                      }
                       placeholder="e.g. Deep Hydration & Barrier Balance"
                       className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] py-3 px-4 rounded-2xs focus:outline-none focus:border-[#1A1A1A] focus:bg-white transition-colors"
                     />
@@ -3219,7 +3984,8 @@ export default function AdminPage() {
                       Product Badges (Multi-Select Enabled)
                     </label>
                     <p className="text-[12px] text-[#736E67]">
-                      Click pills to toggle multiple promotional badges simultaneously.
+                      Click pills to toggle multiple promotional badges
+                      simultaneously.
                     </p>
                   </div>
                   {productFormData.selectedBadges.length > 0 && (
@@ -3232,7 +3998,8 @@ export default function AdminPage() {
                 {/* Preset Badges Pills */}
                 <div className="flex flex-wrap gap-2 pt-1">
                   {AVAILABLE_BADGES.map((badgeName) => {
-                    const isSelected = productFormData.selectedBadges.includes(badgeName);
+                    const isSelected =
+                      productFormData.selectedBadges.includes(badgeName);
                     return (
                       <button
                         key={badgeName}
@@ -3244,7 +4011,9 @@ export default function AdminPage() {
                             : "bg-[#FFFFFF] text-[#4A4640] border border-[#E8E3DA] hover:border-[#1A1A1A]"
                         }`}
                       >
-                        {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
+                        {isSelected && (
+                          <Check className="w-3.5 h-3.5 text-white" />
+                        )}
                         <span>{badgeName}</span>
                       </button>
                     );
@@ -3256,7 +4025,12 @@ export default function AdminPage() {
                   <input
                     type="text"
                     value={productFormData.customBadgeInput}
-                    onChange={(e) => setProductFormData({ ...productFormData, customBadgeInput: e.target.value })}
+                    onChange={(e) =>
+                      setProductFormData({
+                        ...productFormData,
+                        customBadgeInput: e.target.value,
+                      })
+                    }
                     placeholder="Type custom badge..."
                     className="flex-1 bg-white border border-[#E8E3DA] text-[13px] px-3 py-2 rounded-2xs focus:outline-none focus:border-[#4E5942]"
                   />
@@ -3275,10 +4049,12 @@ export default function AdminPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[#F0ECE4]">
                   <div>
                     <h4 className="text-[15px] font-semibold text-[#1A1A1A] flex items-center gap-2">
-                      <Layers className="w-4 h-4 text-[#4E5942]" /> Product Variations & Dynamic Pricing
+                      <Layers className="w-4 h-4 text-[#4E5942]" /> Product
+                      Variations & Dynamic Pricing
                     </h4>
                     <p className="text-[12px] text-[#736E67]">
-                      Configure size options (e.g. 30ml, 50ml, 100ml) with independent selling rates, MRPs, and inventory.
+                      Configure size options (e.g. 30ml, 50ml, 100ml) with
+                      independent selling rates, MRPs, and inventory.
                     </p>
                   </div>
                   <button
@@ -3294,7 +4070,10 @@ export default function AdminPage() {
                 {/* Variant Rows Table */}
                 <div className="space-y-3">
                   {productFormData.variants.map((v, vIdx) => {
-                    const discountPct = v.mrp > v.price ? Math.round(((v.mrp - v.price) / v.mrp) * 100) : 0;
+                    const discountPct =
+                      v.mrp > v.price
+                        ? Math.round(((v.mrp - v.price) / v.mrp) * 100)
+                        : 0;
                     return (
                       <div
                         key={vIdx}
@@ -3308,7 +4087,13 @@ export default function AdminPage() {
                             type="text"
                             required
                             value={v.size}
-                            onChange={(e) => handleUpdateVariantRow(vIdx, "size", e.target.value)}
+                            onChange={(e) =>
+                              handleUpdateVariantRow(
+                                vIdx,
+                                "size",
+                                e.target.value,
+                              )
+                            }
                             placeholder="e.g. 50ml or 100ml"
                             className="w-full bg-white border border-[#E8E3DA] text-[13px] sm:text-[14px] py-2 px-3 rounded-2xs focus:outline-none focus:border-[#4E5942]"
                           />
@@ -3323,7 +4108,13 @@ export default function AdminPage() {
                             required
                             min={1}
                             value={v.price}
-                            onChange={(e) => handleUpdateVariantRow(vIdx, "price", Number(e.target.value))}
+                            onChange={(e) =>
+                              handleUpdateVariantRow(
+                                vIdx,
+                                "price",
+                                Number(e.target.value),
+                              )
+                            }
                             className="w-full bg-white border border-[#E8E3DA] text-[13px] sm:text-[14px] py-2 px-3 rounded-2xs focus:outline-none focus:border-[#4E5942]"
                           />
                         </div>
@@ -3337,7 +4128,13 @@ export default function AdminPage() {
                             required
                             min={1}
                             value={v.mrp}
-                            onChange={(e) => handleUpdateVariantRow(vIdx, "mrp", Number(e.target.value))}
+                            onChange={(e) =>
+                              handleUpdateVariantRow(
+                                vIdx,
+                                "mrp",
+                                Number(e.target.value),
+                              )
+                            }
                             className="w-full bg-white border border-[#E8E3DA] text-[13px] sm:text-[14px] py-2 px-3 rounded-2xs focus:outline-none focus:border-[#4E5942]"
                           />
                         </div>
@@ -3351,7 +4148,13 @@ export default function AdminPage() {
                             required
                             min={0}
                             value={v.stock}
-                            onChange={(e) => handleUpdateVariantRow(vIdx, "stock", Number(e.target.value))}
+                            onChange={(e) =>
+                              handleUpdateVariantRow(
+                                vIdx,
+                                "stock",
+                                Number(e.target.value),
+                              )
+                            }
                             className="w-full bg-white border border-[#E8E3DA] text-[13px] sm:text-[14px] py-2 px-3 rounded-2xs focus:outline-none focus:border-[#4E5942]"
                           />
                         </div>
@@ -3362,7 +4165,9 @@ export default function AdminPage() {
                               {discountPct}% OFF
                             </span>
                           ) : (
-                            <span className="text-[11px] sm:text-[12px] text-[#736E67]">Standard</span>
+                            <span className="text-[11px] sm:text-[12px] text-[#736E67]">
+                              Standard
+                            </span>
                           )}
 
                           <button
@@ -3385,7 +4190,9 @@ export default function AdminPage() {
               <div className="p-5 bg-[#FBF9F5] border border-[#E8E3DA] rounded-xs space-y-2">
                 <CloudinaryGalleryUploader
                   images={productFormData.images}
-                  onChange={(imgs) => setProductFormData({ ...productFormData, images: imgs })}
+                  onChange={(imgs) =>
+                    setProductFormData({ ...productFormData, images: imgs })
+                  }
                   folder="maysha/products"
                   maxImages={6}
                   label="Product Imagery (Direct Cloudinary CDN Multi-Upload)"
@@ -3401,7 +4208,12 @@ export default function AdminPage() {
                   type="text"
                   required
                   value={productFormData.short_description}
-                  onChange={(e) => setProductFormData({ ...productFormData, short_description: e.target.value })}
+                  onChange={(e) =>
+                    setProductFormData({
+                      ...productFormData,
+                      short_description: e.target.value,
+                    })
+                  }
                   placeholder="e.g. Multi-weight hyaluronic acid with botanical ceramides for 72hr hydration"
                   className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] py-3 px-4 rounded-2xs focus:outline-none focus:border-[#1A1A1A] focus:bg-white transition-colors"
                 />
@@ -3506,7 +4318,12 @@ export default function AdminPage() {
                       required
                       rows={6}
                       value={productFormData.description}
-                      onChange={(e) => setProductFormData({ ...productFormData, description: e.target.value })}
+                      onChange={(e) =>
+                        setProductFormData({
+                          ...productFormData,
+                          description: e.target.value,
+                        })
+                      }
                       placeholder="Write comprehensive product science, biological benefits, ritual tips..."
                       className="w-full bg-[#FFFFFF] p-4 text-[15px] leading-relaxed text-[#1A1A1A] focus:outline-none"
                     />
@@ -3514,32 +4331,42 @@ export default function AdminPage() {
                 ) : (
                   <div className="border border-[#E8E3DA] rounded-xs p-5 bg-[#FBF9F5] min-h-[160px] prose prose-stone max-w-none space-y-3">
                     {productFormData.description ? (
-                      productFormData.description.split("\n\n").map((para, pIdx) => {
-                        if (para.startsWith("## ")) {
+                      productFormData.description
+                        .split("\n\n")
+                        .map((para, pIdx) => {
+                          if (para.startsWith("## ")) {
+                            return (
+                              <h3
+                                key={pIdx}
+                                className="text-lg font-semibold text-[#1A1A1A] mt-2 mb-1"
+                              >
+                                {para.replace(/^##\s*/, "")}
+                              </h3>
+                            );
+                          }
+                          if (para.startsWith("> ")) {
+                            return (
+                              <blockquote
+                                key={pIdx}
+                                className="border-l-4 border-[#4E5942] pl-3 py-1 italic text-[15px] text-[#3E4534] bg-white rounded-2xs"
+                              >
+                                {para.replace(/^>\s*/, "")}
+                              </blockquote>
+                            );
+                          }
                           return (
-                            <h3 key={pIdx} className="text-lg font-semibold text-[#1A1A1A] mt-2 mb-1">
-                              {para.replace(/^##\s*/, "")}
-                            </h3>
-                          );
-                        }
-                        if (para.startsWith("> ")) {
-                          return (
-                            <blockquote
+                            <p
                               key={pIdx}
-                              className="border-l-4 border-[#4E5942] pl-3 py-1 italic text-[15px] text-[#3E4534] bg-white rounded-2xs"
+                              className="text-[15px] text-[#4A4640] leading-relaxed whitespace-pre-line"
                             >
-                              {para.replace(/^>\s*/, "")}
-                            </blockquote>
+                              {para}
+                            </p>
                           );
-                        }
-                        return (
-                          <p key={pIdx} className="text-[15px] text-[#4A4640] leading-relaxed whitespace-pre-line">
-                            {para}
-                          </p>
-                        );
-                      })
+                        })
                     ) : (
-                      <p className="text-[#736E67] text-[14px] italic">No description entered yet.</p>
+                      <p className="text-[#736E67] text-[14px] italic">
+                        No description entered yet.
+                      </p>
                     )}
                   </div>
                 )}
@@ -3554,7 +4381,12 @@ export default function AdminPage() {
                   <textarea
                     rows={3}
                     value={productFormData.ingredients}
-                    onChange={(e) => setProductFormData({ ...productFormData, ingredients: e.target.value })}
+                    onChange={(e) =>
+                      setProductFormData({
+                        ...productFormData,
+                        ingredients: e.target.value,
+                      })
+                    }
                     placeholder="e.g. Rosa Damascena Flower Water, Niacinamide (5%), Centella Asiatica Extract, Sodium Hyaluronate..."
                     className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] py-3 px-4 rounded-2xs focus:outline-none focus:border-[#1A1A1A] focus:bg-white transition-colors"
                   />
@@ -3566,7 +4398,12 @@ export default function AdminPage() {
                   <textarea
                     rows={3}
                     value={productFormData.usage_instructions}
-                    onChange={(e) => setProductFormData({ ...productFormData, usage_instructions: e.target.value })}
+                    onChange={(e) =>
+                      setProductFormData({
+                        ...productFormData,
+                        usage_instructions: e.target.value,
+                      })
+                    }
                     placeholder="e.g. Dispense 2-3 drops onto clean palms and press gently into face and neck morning and night."
                     className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] py-3 px-4 rounded-2xs focus:outline-none focus:border-[#1A1A1A] focus:bg-white transition-colors"
                   />
@@ -3582,7 +4419,12 @@ export default function AdminPage() {
                   <input
                     type="text"
                     value={productFormData.key_benefits}
-                    onChange={(e) => setProductFormData({ ...productFormData, key_benefits: e.target.value })}
+                    onChange={(e) =>
+                      setProductFormData({
+                        ...productFormData,
+                        key_benefits: e.target.value,
+                      })
+                    }
                     placeholder="Barrier support, Deep hydration, Antioxidant rich"
                     className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] py-3 px-4 rounded-2xs focus:outline-none focus:border-[#1A1A1A] focus:bg-white transition-colors"
                   />
@@ -3594,7 +4436,12 @@ export default function AdminPage() {
                   <input
                     type="text"
                     value={productFormData.skin_types}
-                    onChange={(e) => setProductFormData({ ...productFormData, skin_types: e.target.value })}
+                    onChange={(e) =>
+                      setProductFormData({
+                        ...productFormData,
+                        skin_types: e.target.value,
+                      })
+                    }
                     placeholder="All Skin Types, Sensitive, Dry, Combination"
                     className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] py-3 px-4 rounded-2xs focus:outline-none focus:border-[#1A1A1A] focus:bg-white transition-colors"
                   />
@@ -3606,10 +4453,12 @@ export default function AdminPage() {
                 <div className="flex items-center justify-between pb-2 border-b border-[#E8E3DA]">
                   <div>
                     <h4 className="text-[15px] font-semibold text-[#1A1A1A] flex items-center gap-2">
-                      <Globe2 className="w-4 h-4 text-[#4E5942]" /> Product Page SEO (Google & Meta Tags)
+                      <Globe2 className="w-4 h-4 text-[#4E5942]" /> Product Page
+                      SEO (Google & Meta Tags)
                     </h4>
                     <p className="text-[12px] text-[#736E67]">
-                      Follow SEO best practices: 50–60 character title tag, 140–160 character meta description.
+                      Follow SEO best practices: 50–60 character title tag,
+                      140–160 character meta description.
                     </p>
                   </div>
                   <span className="text-[11px] font-semibold text-[#4E5942] bg-[#EDF3E8] px-2.5 py-1 rounded-full border border-[#C5D7BD]">
@@ -3623,21 +4472,32 @@ export default function AdminPage() {
                       <label className="text-[14px] font-semibold text-[#1A1A1A]">
                         SEO Meta Title
                       </label>
-                      <span className={`text-[12px] font-mono ${
-                        productFormData.seo_title.length > 60
-                          ? "text-[#A94438] font-bold"
-                          : productFormData.seo_title.length >= 45
-                          ? "text-[#4E5942] font-semibold"
-                          : "text-[#736E67]"
-                      }`}>
+                      <span
+                        className={`text-[12px] font-mono ${
+                          productFormData.seo_title.length > 60
+                            ? "text-[#A94438] font-bold"
+                            : productFormData.seo_title.length >= 45
+                              ? "text-[#4E5942] font-semibold"
+                              : "text-[#736E67]"
+                        }`}
+                      >
                         {productFormData.seo_title.length} / 60 chars
                       </span>
                     </div>
                     <input
                       type="text"
                       value={productFormData.seo_title}
-                      onChange={(e) => setProductFormData({ ...productFormData, seo_title: e.target.value })}
-                      placeholder={productFormData.name ? `${productFormData.name} | Maysha Skincare` : "e.g. Pure Damask Rose Water | Maysha Skincare"}
+                      onChange={(e) =>
+                        setProductFormData({
+                          ...productFormData,
+                          seo_title: e.target.value,
+                        })
+                      }
+                      placeholder={
+                        productFormData.name
+                          ? `${productFormData.name} | Maysha Skincare`
+                          : "e.g. Pure Damask Rose Water | Maysha Skincare"
+                      }
                       className="w-full bg-[#FFFFFF] border border-[#E8E3DA] text-[14px] py-2.5 px-3 rounded-2xs focus:outline-none focus:border-[#1A1A1A]"
                     />
                     <p className="text-[11px] text-[#736E67] mt-1">
@@ -3650,21 +4510,31 @@ export default function AdminPage() {
                       <label className="text-[14px] font-semibold text-[#1A1A1A]">
                         SEO Meta Description
                       </label>
-                      <span className={`text-[12px] font-mono ${
-                        productFormData.seo_description.length > 160
-                          ? "text-[#A94438] font-bold"
-                          : productFormData.seo_description.length >= 130
-                          ? "text-[#4E5942] font-semibold"
-                          : "text-[#736E67]"
-                      }`}>
+                      <span
+                        className={`text-[12px] font-mono ${
+                          productFormData.seo_description.length > 160
+                            ? "text-[#A94438] font-bold"
+                            : productFormData.seo_description.length >= 130
+                              ? "text-[#4E5942] font-semibold"
+                              : "text-[#736E67]"
+                        }`}
+                      >
                         {productFormData.seo_description.length} / 160 chars
                       </span>
                     </div>
                     <textarea
                       rows={2}
                       value={productFormData.seo_description}
-                      onChange={(e) => setProductFormData({ ...productFormData, seo_description: e.target.value })}
-                      placeholder={productFormData.subtitle || "Shop pure Damask rose water mist to soothe, balance, and rehydrate thirsty skin..."}
+                      onChange={(e) =>
+                        setProductFormData({
+                          ...productFormData,
+                          seo_description: e.target.value,
+                        })
+                      }
+                      placeholder={
+                        productFormData.subtitle ||
+                        "Shop pure Damask rose water mist to soothe, balance, and rehydrate thirsty skin..."
+                      }
                       className="w-full bg-[#FFFFFF] border border-[#E8E3DA] text-[14px] py-2.5 px-3 rounded-2xs focus:outline-none focus:border-[#1A1A1A]"
                     />
                     <p className="text-[11px] text-[#736E67] mt-1">
@@ -3679,27 +4549,43 @@ export default function AdminPage() {
                     <span className="text-[11px] uppercase tracking-wider font-bold text-[#736E67]">
                       Google Search Result Preview (Live Snippet)
                     </span>
-                    <span className="text-[11px] text-[#4E5942] font-medium">Desktop & Mobile SERP</span>
+                    <span className="text-[11px] text-[#4E5942] font-medium">
+                      Desktop & Mobile SERP
+                    </span>
                   </div>
                   <div className="pt-2">
                     <div className="text-[13px] text-[#202124] flex items-center gap-1.5">
-                      <span className="w-4 h-4 rounded-full bg-[#4E5942] text-white flex items-center justify-center text-[9px] font-bold">M</span>
-                      <span className="text-[#4D5156] text-[12px]">mayshaskincare.com</span>
-                      <span className="text-[#5F6368] text-[12px]">› products › {productFormData.slug || "product-url"}</span>
+                      <span className="w-4 h-4 rounded-full bg-[#4E5942] text-white flex items-center justify-center text-[9px] font-bold">
+                        M
+                      </span>
+                      <span className="text-[#4D5156] text-[12px]">
+                        mayshaskincare.com
+                      </span>
+                      <span className="text-[#5F6368] text-[12px]">
+                        › products › {productFormData.slug || "product-url"}
+                      </span>
                     </div>
                     <h5 className="text-[18px] text-[#1a0dab] font-normal hover:underline cursor-pointer leading-snug mt-1">
-                      {productFormData.seo_title || (productFormData.name ? `${productFormData.name} | Maysha Skincare` : "Product Name | Maysha Skincare")}
+                      {productFormData.seo_title ||
+                        (productFormData.name
+                          ? `${productFormData.name} | Maysha Skincare`
+                          : "Product Name | Maysha Skincare")}
                     </h5>
                     <div className="flex items-center gap-2 text-[12px] text-[#5F6368] my-0.5">
                       <span className="text-[#e37400]">★★★★★</span>
                       <span>4.9 (48)</span>
                       <span>•</span>
-                      <span>₹{productFormData.variants[0]?.price || 599}.00</span>
+                      <span>
+                        ₹{productFormData.variants[0]?.price || 599}.00
+                      </span>
                       <span>•</span>
                       <span className="text-[#137333]">In stock</span>
                     </div>
                     <p className="text-[13px] text-[#4d5156] leading-normal line-clamp-2">
-                      {productFormData.seo_description || productFormData.short_description || productFormData.subtitle || "Experience biocompatible, botanical skincare thoughtfully formulated with pure Damask rose and clinical actives for resilient, balanced skin."}
+                      {productFormData.seo_description ||
+                        productFormData.short_description ||
+                        productFormData.subtitle ||
+                        "Experience biocompatible, botanical skincare thoughtfully formulated with pure Damask rose and clinical actives for resilient, balanced skin."}
                     </p>
                   </div>
                 </div>
@@ -3708,7 +4594,8 @@ export default function AdminPage() {
               {/* Action Buttons */}
               <div className="pt-4 sm:pt-5 border-t border-[#F0ECE4] flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3">
                 <span className="text-[12px] sm:text-[13px] text-[#736E67]">
-                  {productFormData.variants.length} variant(s) configured • {productFormData.selectedBadges.length} badge(s)
+                  {productFormData.variants.length} variant(s) configured •{" "}
+                  {productFormData.selectedBadges.length} badge(s)
                 </span>
 
                 <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
@@ -3723,7 +4610,9 @@ export default function AdminPage() {
                     type="submit"
                     className="flex-1 sm:flex-none bg-[#1A1A1A] hover:bg-[#333333] text-white px-5 sm:px-8 py-2.5 sm:py-3 rounded-2xs text-[13px] sm:text-[14px] font-semibold transition-colors cursor-pointer shadow-xs text-center"
                   >
-                    {editingProduct ? "Update Product" : "Save Botanical Product"}
+                    {editingProduct
+                      ? "Update Product"
+                      : "Save Botanical Product"}
                   </button>
                 </div>
               </div>
@@ -3740,7 +4629,9 @@ export default function AdminPage() {
           <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-4 sm:p-8 rounded-xs max-w-xl w-full max-h-[92vh] overflow-y-auto space-y-4 shadow-2xl my-auto">
             <div className="flex items-center justify-between pb-3 border-b border-[#F0ECE4]">
               <h3 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">
-                {editingBanner ? "Edit Carousel Banner" : "Add New Carousel Banner"}
+                {editingBanner
+                  ? "Edit Carousel Banner"
+                  : "Add New Carousel Banner"}
               </h3>
               <button
                 type="button"
@@ -3760,7 +4651,12 @@ export default function AdminPage() {
                   type="text"
                   required
                   value={bannerFormData.title}
-                  onChange={(e) => setBannerFormData({ ...bannerFormData, title: e.target.value })}
+                  onChange={(e) =>
+                    setBannerFormData({
+                      ...bannerFormData,
+                      title: e.target.value,
+                    })
+                  }
                   placeholder="e.g. Pure Care for Naturally Radiant Skin"
                   className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                 />
@@ -3773,7 +4669,12 @@ export default function AdminPage() {
                 <input
                   type="text"
                   value={bannerFormData.subtitle}
-                  onChange={(e) => setBannerFormData({ ...bannerFormData, subtitle: e.target.value })}
+                  onChange={(e) =>
+                    setBannerFormData({
+                      ...bannerFormData,
+                      subtitle: e.target.value,
+                    })
+                  }
                   placeholder="e.g. Thoughtfully crafted skincare with the goodness of nature."
                   className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                 />
@@ -3787,7 +4688,12 @@ export default function AdminPage() {
                   <input
                     type="text"
                     value={bannerFormData.cta_text}
-                    onChange={(e) => setBannerFormData({ ...bannerFormData, cta_text: e.target.value })}
+                    onChange={(e) =>
+                      setBannerFormData({
+                        ...bannerFormData,
+                        cta_text: e.target.value,
+                      })
+                    }
                     placeholder="Shop Now"
                     className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                   />
@@ -3799,7 +4705,12 @@ export default function AdminPage() {
                   <input
                     type="text"
                     value={bannerFormData.cta_link}
-                    onChange={(e) => setBannerFormData({ ...bannerFormData, cta_link: e.target.value })}
+                    onChange={(e) =>
+                      setBannerFormData({
+                        ...bannerFormData,
+                        cta_link: e.target.value,
+                      })
+                    }
                     placeholder="/shop"
                     className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                   />
@@ -3811,7 +4722,9 @@ export default function AdminPage() {
                 label="Desktop Banner Image (1600x900 recommended)"
                 folder="maysha/banners"
                 currentImage={bannerFormData.desktop_image}
-                onUploadSuccess={(url) => setBannerFormData({ ...bannerFormData, desktop_image: url })}
+                onUploadSuccess={(url) =>
+                  setBannerFormData({ ...bannerFormData, desktop_image: url })
+                }
               />
 
               <div className="pt-2 border-t border-[#F0ECE4] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -3819,7 +4732,12 @@ export default function AdminPage() {
                   <input
                     type="checkbox"
                     checked={bannerFormData.is_active}
-                    onChange={(e) => setBannerFormData({ ...bannerFormData, is_active: e.target.checked })}
+                    onChange={(e) =>
+                      setBannerFormData({
+                        ...bannerFormData,
+                        is_active: e.target.checked,
+                      })
+                    }
                     className="rounded-2xs text-[#4E5942]"
                   />
                   <span>Show as Active on Homepage Slider</span>
@@ -3854,7 +4772,9 @@ export default function AdminPage() {
           <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-4 sm:p-8 rounded-xs max-w-2xl w-full max-h-[92vh] overflow-y-auto space-y-4 shadow-2xl my-auto">
             <div className="flex items-center justify-between pb-3 border-b border-[#F0ECE4]">
               <h3 className="text-lg sm:text-xl font-semibold text-[#1A1A1A] truncate">
-                {editingArticle ? `Edit Story: ${editingArticle.title}` : "Create New Journal Story"}
+                {editingArticle
+                  ? `Edit Story: ${editingArticle.title}`
+                  : "Create New Journal Story"}
               </h3>
               <button
                 type="button"
@@ -3875,7 +4795,12 @@ export default function AdminPage() {
                     type="text"
                     required
                     value={articleFormData.title}
-                    onChange={(e) => setArticleFormData({ ...articleFormData, title: e.target.value })}
+                    onChange={(e) =>
+                      setArticleFormData({
+                        ...articleFormData,
+                        title: e.target.value,
+                      })
+                    }
                     placeholder="e.g. The Right Way to Layer Your Skincare"
                     className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                   />
@@ -3887,7 +4812,12 @@ export default function AdminPage() {
                   <input
                     type="text"
                     value={articleFormData.slug}
-                    onChange={(e) => setArticleFormData({ ...articleFormData, slug: e.target.value })}
+                    onChange={(e) =>
+                      setArticleFormData({
+                        ...articleFormData,
+                        slug: e.target.value,
+                      })
+                    }
                     placeholder="the-right-way-to-layer"
                     className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                   />
@@ -3901,7 +4831,12 @@ export default function AdminPage() {
                   </label>
                   <select
                     value={articleFormData.category}
-                    onChange={(e) => setArticleFormData({ ...articleFormData, category: e.target.value })}
+                    onChange={(e) =>
+                      setArticleFormData({
+                        ...articleFormData,
+                        category: e.target.value,
+                      })
+                    }
                     className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs cursor-pointer"
                   >
                     <option value="Skincare Science">Skincare Science</option>
@@ -3917,7 +4852,12 @@ export default function AdminPage() {
                   <input
                     type="text"
                     value={articleFormData.author}
-                    onChange={(e) => setArticleFormData({ ...articleFormData, author: e.target.value })}
+                    onChange={(e) =>
+                      setArticleFormData({
+                        ...articleFormData,
+                        author: e.target.value,
+                      })
+                    }
                     className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                   />
                 </div>
@@ -3928,7 +4868,12 @@ export default function AdminPage() {
                   <input
                     type="text"
                     value={articleFormData.reading_time}
-                    onChange={(e) => setArticleFormData({ ...articleFormData, reading_time: e.target.value })}
+                    onChange={(e) =>
+                      setArticleFormData({
+                        ...articleFormData,
+                        reading_time: e.target.value,
+                      })
+                    }
                     placeholder="5 min read"
                     className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                   />
@@ -3940,7 +4885,9 @@ export default function AdminPage() {
                 label="Article Hero Visual (Cloudinary Hosted)"
                 folder="maysha/journal"
                 currentImage={articleFormData.hero_image}
-                onUploadSuccess={(url) => setArticleFormData({ ...articleFormData, hero_image: url })}
+                onUploadSuccess={(url) =>
+                  setArticleFormData({ ...articleFormData, hero_image: url })
+                }
               />
 
               <div>
@@ -3951,7 +4898,12 @@ export default function AdminPage() {
                   type="text"
                   required
                   value={articleFormData.excerpt}
-                  onChange={(e) => setArticleFormData({ ...articleFormData, excerpt: e.target.value })}
+                  onChange={(e) =>
+                    setArticleFormData({
+                      ...articleFormData,
+                      excerpt: e.target.value,
+                    })
+                  }
                   placeholder="Short introductory summary for cards and search..."
                   className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                 />
@@ -3965,7 +4917,12 @@ export default function AdminPage() {
                   required
                   rows={6}
                   value={articleFormData.content}
-                  onChange={(e) => setArticleFormData({ ...articleFormData, content: e.target.value })}
+                  onChange={(e) =>
+                    setArticleFormData({
+                      ...articleFormData,
+                      content: e.target.value,
+                    })
+                  }
                   placeholder="Markdown or story paragraphs..."
                   className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs font-mono text-[13px]"
                 />
@@ -4002,7 +4959,9 @@ export default function AdminPage() {
                   Promotions Engine
                 </span>
                 <h3 className="text-lg sm:text-xl font-semibold text-[#1A1A1A] mt-0.5">
-                  {editingCoupon ? `Edit Coupon: ${editingCoupon.code}` : "Create New Coupon Voucher"}
+                  {editingCoupon
+                    ? `Edit Coupon: ${editingCoupon.code}`
+                    : "Create New Coupon Voucher"}
                 </h3>
               </div>
               <button
@@ -4023,11 +4982,18 @@ export default function AdminPage() {
                   type="text"
                   required
                   value={couponFormData.code}
-                  onChange={(e) => setCouponFormData({ ...couponFormData, code: e.target.value.toUpperCase() })}
+                  onChange={(e) =>
+                    setCouponFormData({
+                      ...couponFormData,
+                      code: e.target.value.toUpperCase(),
+                    })
+                  }
                   placeholder="e.g. ATC10, FESTIVE25, WELCOME50"
                   className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] p-2.5 rounded-2xs font-mono font-bold tracking-wider uppercase focus:outline-hidden focus:border-[#1A1A1A]"
                 />
-                <p className="text-[11px] text-[#736E67] mt-1">Codes will automatically be uppercase.</p>
+                <p className="text-[11px] text-[#736E67] mt-1">
+                  Codes will automatically be uppercase.
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -4037,7 +5003,12 @@ export default function AdminPage() {
                   </label>
                   <select
                     value={couponFormData.type}
-                    onChange={(e) => setCouponFormData({ ...couponFormData, type: e.target.value as "percent" | "fixed" })}
+                    onChange={(e) =>
+                      setCouponFormData({
+                        ...couponFormData,
+                        type: e.target.value as "percent" | "fixed",
+                      })
+                    }
                     className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs cursor-pointer focus:outline-hidden"
                   >
                     <option value="percent">Percentage Discount (%)</option>
@@ -4053,8 +5024,17 @@ export default function AdminPage() {
                     required
                     min={1}
                     value={couponFormData.value}
-                    onChange={(e) => setCouponFormData({ ...couponFormData, value: Number(e.target.value) })}
-                    placeholder={couponFormData.type === "percent" ? "10 (for 10%)" : "150 (for ₹150)"}
+                    onChange={(e) =>
+                      setCouponFormData({
+                        ...couponFormData,
+                        value: Number(e.target.value),
+                      })
+                    }
+                    placeholder={
+                      couponFormData.type === "percent"
+                        ? "10 (for 10%)"
+                        : "150 (for ₹150)"
+                    }
                     className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs focus:outline-hidden focus:border-[#1A1A1A]"
                   />
                 </div>
@@ -4069,11 +5049,18 @@ export default function AdminPage() {
                     type="number"
                     min={0}
                     value={couponFormData.min_subtotal}
-                    onChange={(e) => setCouponFormData({ ...couponFormData, min_subtotal: Number(e.target.value) })}
+                    onChange={(e) =>
+                      setCouponFormData({
+                        ...couponFormData,
+                        min_subtotal: Number(e.target.value),
+                      })
+                    }
                     placeholder="0 (no minimum)"
                     className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs focus:outline-hidden"
                   />
-                  <p className="text-[11px] text-[#736E67] mt-1">Minimum cart total to unlock.</p>
+                  <p className="text-[11px] text-[#736E67] mt-1">
+                    Minimum cart total to unlock.
+                  </p>
                 </div>
                 <div>
                   <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
@@ -4083,11 +5070,18 @@ export default function AdminPage() {
                     type="number"
                     min={0}
                     value={couponFormData.max_discount}
-                    onChange={(e) => setCouponFormData({ ...couponFormData, max_discount: Number(e.target.value) })}
+                    onChange={(e) =>
+                      setCouponFormData({
+                        ...couponFormData,
+                        max_discount: Number(e.target.value),
+                      })
+                    }
                     placeholder="0 (no cap)"
                     className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs focus:outline-hidden"
                   />
-                  <p className="text-[11px] text-[#736E67] mt-1">Max discount amount allowed.</p>
+                  <p className="text-[11px] text-[#736E67] mt-1">
+                    Max discount amount allowed.
+                  </p>
                 </div>
               </div>
 
@@ -4100,7 +5094,12 @@ export default function AdminPage() {
                     type="number"
                     min={1}
                     value={couponFormData.usage_limit}
-                    onChange={(e) => setCouponFormData({ ...couponFormData, usage_limit: e.target.value })}
+                    onChange={(e) =>
+                      setCouponFormData({
+                        ...couponFormData,
+                        usage_limit: e.target.value,
+                      })
+                    }
                     placeholder="Unlimited"
                     className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs focus:outline-hidden"
                   />
@@ -4113,7 +5112,12 @@ export default function AdminPage() {
                     type="number"
                     min={1}
                     value={couponFormData.per_user_limit}
-                    onChange={(e) => setCouponFormData({ ...couponFormData, per_user_limit: Number(e.target.value) })}
+                    onChange={(e) =>
+                      setCouponFormData({
+                        ...couponFormData,
+                        per_user_limit: Number(e.target.value),
+                      })
+                    }
                     placeholder="1"
                     className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs focus:outline-hidden"
                   />
@@ -4125,7 +5129,12 @@ export default function AdminPage() {
                   <input
                     type="checkbox"
                     checked={couponFormData.first_order_only}
-                    onChange={(e) => setCouponFormData({ ...couponFormData, first_order_only: e.target.checked })}
+                    onChange={(e) =>
+                      setCouponFormData({
+                        ...couponFormData,
+                        first_order_only: e.target.checked,
+                      })
+                    }
                     className="w-4 h-4 rounded text-[#1A1A1A] accent-[#1A1A1A]"
                   />
                   <div>
@@ -4133,7 +5142,8 @@ export default function AdminPage() {
                       First Order Only
                     </span>
                     <span className="text-[11px] text-[#736E67]">
-                      Voucher will only be valid for a customer's very first order.
+                      Voucher will only be valid for a customer's very first
+                      order.
                     </span>
                   </div>
                 </label>
@@ -4142,7 +5152,12 @@ export default function AdminPage() {
                   <input
                     type="checkbox"
                     checked={couponFormData.is_active}
-                    onChange={(e) => setCouponFormData({ ...couponFormData, is_active: e.target.checked })}
+                    onChange={(e) =>
+                      setCouponFormData({
+                        ...couponFormData,
+                        is_active: e.target.checked,
+                      })
+                    }
                     className="w-4 h-4 rounded text-[#1A1A1A] accent-[#1A1A1A]"
                   />
                   <div>
@@ -4150,7 +5165,8 @@ export default function AdminPage() {
                       Active for Checkout & Offers Strip
                     </span>
                     <span className="text-[11px] text-[#736E67]">
-                      When active, shoppers can apply this voucher and see it on product detail offers.
+                      When active, shoppers can apply this voucher and see it on
+                      product detail offers.
                     </span>
                   </div>
                 </label>
@@ -4169,7 +5185,11 @@ export default function AdminPage() {
                   disabled={isSavingCoupon}
                   className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-6 py-2.5 rounded-2xs text-[13px] sm:text-[14px] font-semibold cursor-pointer disabled:opacity-60 text-center"
                 >
-                  {isSavingCoupon ? "Saving..." : editingCoupon ? "Update Voucher" : "Create Voucher"}
+                  {isSavingCoupon
+                    ? "Saving..."
+                    : editingCoupon
+                      ? "Update Voucher"
+                      : "Create Voucher"}
                 </button>
               </div>
             </form>
@@ -4189,7 +5209,9 @@ export default function AdminPage() {
                   Store Taxonomy
                 </span>
                 <h3 className="text-lg sm:text-xl font-semibold text-[#1A1A1A] mt-0.5">
-                  {editingCategory ? `Edit Category: ${editingCategory.name}` : "Create New Category Collection"}
+                  {editingCategory
+                    ? `Edit Category: ${editingCategory.name}`
+                    : "Create New Category Collection"}
                 </h3>
               </div>
               <button
@@ -4211,7 +5233,12 @@ export default function AdminPage() {
                     type="text"
                     required
                     value={categoryFormData.name}
-                    onChange={(e) => setCategoryFormData({ ...categoryFormData, name: e.target.value })}
+                    onChange={(e) =>
+                      setCategoryFormData({
+                        ...categoryFormData,
+                        name: e.target.value,
+                      })
+                    }
                     placeholder="e.g. Perfumes, Air Fresheners, Serums"
                     className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs focus:outline-hidden focus:border-[#1A1A1A]"
                   />
@@ -4223,11 +5250,18 @@ export default function AdminPage() {
                   <input
                     type="text"
                     value={categoryFormData.slug}
-                    onChange={(e) => setCategoryFormData({ ...categoryFormData, slug: e.target.value })}
+                    onChange={(e) =>
+                      setCategoryFormData({
+                        ...categoryFormData,
+                        slug: e.target.value,
+                      })
+                    }
                     placeholder="e.g. perfumes, air-fresheners"
                     className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs focus:outline-hidden focus:border-[#1A1A1A]"
                   />
-                  <p className="text-[11px] text-[#736E67] mt-0.5">Auto-generated from name if empty.</p>
+                  <p className="text-[11px] text-[#736E67] mt-0.5">
+                    Auto-generated from name if empty.
+                  </p>
                 </div>
               </div>
 
@@ -4238,7 +5272,12 @@ export default function AdminPage() {
                 <textarea
                   rows={3}
                   value={categoryFormData.description}
-                  onChange={(e) => setCategoryFormData({ ...categoryFormData, description: e.target.value })}
+                  onChange={(e) =>
+                    setCategoryFormData({
+                      ...categoryFormData,
+                      description: e.target.value,
+                    })
+                  }
                   placeholder="e.g. Luxurious home and ambient air mists infused with Damask rose and essential botanical extracts."
                   className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs focus:outline-hidden focus:border-[#1A1A1A]"
                 />
@@ -4249,7 +5288,9 @@ export default function AdminPage() {
                 label="Category Banner / Icon Image (Cloudinary)"
                 folder="maysha/categories"
                 currentImage={categoryFormData.image}
-                onUploadSuccess={(url) => setCategoryFormData({ ...categoryFormData, image: url })}
+                onUploadSuccess={(url) =>
+                  setCategoryFormData({ ...categoryFormData, image: url })
+                }
               />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -4261,7 +5302,12 @@ export default function AdminPage() {
                     type="number"
                     min={0}
                     value={categoryFormData.sort_order}
-                    onChange={(e) => setCategoryFormData({ ...categoryFormData, sort_order: Number(e.target.value) })}
+                    onChange={(e) =>
+                      setCategoryFormData({
+                        ...categoryFormData,
+                        sort_order: Number(e.target.value),
+                      })
+                    }
                     className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs focus:outline-hidden"
                   />
                 </div>
@@ -4270,7 +5316,12 @@ export default function AdminPage() {
                     <input
                       type="checkbox"
                       checked={categoryFormData.is_active}
-                      onChange={(e) => setCategoryFormData({ ...categoryFormData, is_active: e.target.checked })}
+                      onChange={(e) =>
+                        setCategoryFormData({
+                          ...categoryFormData,
+                          is_active: e.target.checked,
+                        })
+                      }
                       className="w-4 h-4 rounded text-[#4E5942] accent-[#4E5942]"
                     />
                     <span className="text-[13px] font-semibold text-[#1A1A1A]">
@@ -4292,8 +5343,17 @@ export default function AdminPage() {
                   <input
                     type="text"
                     value={categoryFormData.seo_title}
-                    onChange={(e) => setCategoryFormData({ ...categoryFormData, seo_title: e.target.value })}
-                    placeholder={categoryFormData.name ? `${categoryFormData.name} Collection | Maysha` : "e.g. Cleansers | Maysha"}
+                    onChange={(e) =>
+                      setCategoryFormData({
+                        ...categoryFormData,
+                        seo_title: e.target.value,
+                      })
+                    }
+                    placeholder={
+                      categoryFormData.name
+                        ? `${categoryFormData.name} Collection | Maysha`
+                        : "e.g. Cleansers | Maysha"
+                    }
                     className="w-full bg-white border border-[#E8E3DA] text-[13px] p-2 rounded-2xs"
                   />
                 </div>
@@ -4304,7 +5364,12 @@ export default function AdminPage() {
                   <input
                     type="text"
                     value={categoryFormData.seo_description}
-                    onChange={(e) => setCategoryFormData({ ...categoryFormData, seo_description: e.target.value })}
+                    onChange={(e) =>
+                      setCategoryFormData({
+                        ...categoryFormData,
+                        seo_description: e.target.value,
+                      })
+                    }
                     placeholder="Discover botanical formulas tailored to purify, tone, and restore..."
                     className="w-full bg-white border border-[#E8E3DA] text-[13px] p-2 rounded-2xs"
                   />
@@ -4324,7 +5389,11 @@ export default function AdminPage() {
                   disabled={isSavingCategory}
                   className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-6 py-2.5 rounded-2xs text-[13px] sm:text-[14px] font-semibold cursor-pointer disabled:opacity-60 text-center"
                 >
-                  {isSavingCategory ? "Saving..." : editingCategory ? "Update Category" : "Create Category"}
+                  {isSavingCategory
+                    ? "Saving..."
+                    : editingCategory
+                      ? "Update Category"
+                      : "Create Category"}
                 </button>
               </div>
             </form>

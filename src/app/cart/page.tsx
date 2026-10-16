@@ -80,10 +80,22 @@ export default function CartPage() {
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
+  const [pincodeStatus, setPincodeStatus] = useState<{
+    loading: boolean;
+    checked: boolean;
+    serviceable?: boolean;
+    city?: string;
+    state?: string;
+    codAvailable?: boolean;
+    estimatedDays?: number;
+    message?: string;
+  }>({ loading: false, checked: false });
+
   const {
     register,
     handleSubmit,
     setValue,
+    getValues,
     setError,
     watch,
     formState: { errors },
@@ -102,6 +114,74 @@ export default function CartPage() {
   });
 
   const selectedPaymentMethod = watch("paymentMethod");
+  const watchedPincode = watch("pincode");
+
+  // Live Pincode lookup and auto-fill city/state
+  useEffect(() => {
+    if (/^[1-9]\d{5}$/.test(watchedPincode)) {
+      let isMounted = true;
+      setPincodeStatus((prev) => ({ ...prev, loading: true }));
+      apiBffFetch<{
+        serviceable: boolean;
+        city?: string | null;
+        state?: string | null;
+        codAvailable?: boolean;
+        estimatedDays?: number;
+      }>(`shipping/pincode/${watchedPincode}`)
+        .then((res) => {
+          if (!isMounted) return;
+          const data = res.data;
+          setPincodeStatus({
+            loading: false,
+            checked: true,
+            serviceable: data.serviceable,
+            city: data.city || undefined,
+            state: data.state || undefined,
+            codAvailable: data.codAvailable,
+            estimatedDays: data.estimatedDays,
+          });
+          if (data.serviceable) {
+            if (data.city && !getValues("city")) setValue("city", data.city);
+            if (data.state && !getValues("state")) setValue("state", data.state);
+          }
+        })
+        .catch(() => {
+          if (!isMounted) return;
+          setPincodeStatus({
+            loading: false,
+            checked: true,
+            serviceable: false,
+            message: "Unable to verify pincode.",
+          });
+        });
+      return () => {
+        isMounted = false;
+      };
+    } else {
+      setPincodeStatus({ loading: false, checked: false });
+    }
+  }, [watchedPincode, setValue, getValues]);
+
+  // COD availability calculation
+  const codMax = storeInfo?.codMaxRupees ?? 5000;
+  const isCodGloballyDisabled = storeInfo?.codEnabled === false;
+  const isCodAboveLimit = cart.total > codMax;
+  const isCodPincodeDisabled = pincodeStatus.checked && pincodeStatus.codAvailable === false;
+  const isCodDisabled = isCodGloballyDisabled || isCodAboveLimit || isCodPincodeDisabled;
+  const codDisableReason = isCodGloballyDisabled
+    ? "Cash on Delivery is temporarily disabled."
+    : isCodAboveLimit
+    ? `COD available up to ₹${codMax.toLocaleString("en-IN")} only. Total exceeds limit.`
+    : isCodPincodeDisabled
+    ? "Cash on Delivery is unavailable at this pincode (Prepaid only)."
+    : null;
+
+  // Auto-revert to online payment if COD becomes disabled
+  useEffect(() => {
+    if (isCodDisabled && selectedPaymentMethod === "cod") {
+      setValue("paymentMethod", "razorpay");
+    }
+  }, [isCodDisabled, selectedPaymentMethod, setValue]);
 
   // Autofill user details when authenticated
   useEffect(() => {
@@ -560,6 +640,22 @@ export default function CartPage() {
                     {errors.pincode && (
                       <p className="text-[13px] text-[#A94438] mt-1">{errors.pincode.message}</p>
                     )}
+                    {pincodeStatus.loading && (
+                      <p className="text-[12px] text-[#736E67] mt-1 flex items-center gap-1">
+                        <span className="w-3 h-3 border border-[#4E5942] border-t-transparent rounded-full animate-spin inline-block" />
+                        Verifying courier serviceability...
+                      </p>
+                    )}
+                    {pincodeStatus.checked && pincodeStatus.serviceable && (
+                      <p className="text-[12px] text-[#4E5942] font-medium mt-1 flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5" /> Express delivery available ({pincodeStatus.estimatedDays || 3}–{(pincodeStatus.estimatedDays || 3) + 1} days)
+                      </p>
+                    )}
+                    {pincodeStatus.checked && !pincodeStatus.serviceable && (
+                      <p className="text-[12px] text-[#A94438] font-medium mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5" /> Pincode not serviceable for courier delivery.
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -585,19 +681,29 @@ export default function CartPage() {
                       <span>UPI / Cards / NetBanking (Razorpay)</span>
                     </label>
                     <label
-                      className={`flex items-center gap-2.5 p-3.5 border rounded-xs cursor-pointer text-[15px] font-medium transition-colors ${
-                        selectedPaymentMethod === "cod"
-                          ? "border-[#1A1A1A] bg-[#FBF9F5] text-[#1A1A1A]"
-                          : "border-[#E8E3DA] bg-white text-[#4A4640]"
+                      className={`flex flex-col p-3.5 border rounded-xs transition-colors ${
+                        isCodDisabled
+                          ? "border-[#E8E3DA] bg-[#F9F7F2] text-[#9E988F] opacity-75 cursor-not-allowed"
+                          : selectedPaymentMethod === "cod"
+                          ? "border-[#1A1A1A] bg-[#FBF9F5] text-[#1A1A1A] cursor-pointer"
+                          : "border-[#E8E3DA] bg-white text-[#4A4640] cursor-pointer"
                       }`}
                     >
-                      <input
-                        type="radio"
-                        value="cod"
-                        {...register("paymentMethod")}
-                        className="text-[#4E5942] focus:ring-0"
-                      />
-                      <span>Cash on Delivery (COD)</span>
+                      <div className="flex items-center gap-2.5">
+                        <input
+                          type="radio"
+                          value="cod"
+                          disabled={isCodDisabled}
+                          {...register("paymentMethod")}
+                          className="text-[#4E5942] focus:ring-0 disabled:opacity-50"
+                        />
+                        <span className="text-[15px] font-medium">Cash on Delivery (COD)</span>
+                      </div>
+                      {codDisableReason && (
+                        <p className="text-[11px] text-[#8C6D1F] mt-1.5 pl-6 font-normal">
+                          {codDisableReason}
+                        </p>
+                      )}
                     </label>
                   </div>
                 </div>
@@ -673,6 +779,10 @@ export default function CartPage() {
                     formatINR(cart.shippingPaise, true)
                   )}
                 </span>
+              </div>
+              <div className="flex justify-between text-[13px] text-[#736E67] pt-1">
+                <span>Estimated GST Included (18%)</span>
+                <span>{formatINR(Math.round((cart.totalPaise * 18) / 118), true)}</span>
               </div>
               <div className="flex justify-between text-[18px] font-bold text-[#1A1A1A] pt-3 border-t border-[#E8E3DA]">
                 <span>Total Amount</span>

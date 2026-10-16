@@ -88,6 +88,11 @@ export interface StoreInfo {
   symbol: string;
   freeShippingThreshold: number;
   shippingFee: number;
+  codEnabled?: boolean;
+  codMaxRupees?: number;
+  announcementMessages?: string[];
+  supportPhone?: string;
+  gstin?: string;
   status: string;
   supportEmail: string;
 }
@@ -155,19 +160,38 @@ export type OrderStatus =
   | "refunded"
   | "failed";
 
+export interface OrderTimelineEvent {
+  id: string;
+  status: string;
+  message: string;
+  createdAt: string;
+}
+
+export interface OrderTracking {
+  courier: string | null;
+  trackingNo: string | null;
+  url: string | null;
+}
+
 export interface Order {
   id: string;
   reference: string;
   status: OrderStatus;
+  paymentStatus?: string;
+  invoiceNo?: string | null;
+  invoiceUrl?: string | null;
   subtotal: number;
   discount: number;
   shipping: number;
+  tax?: number;
   total: number;
   currency: string;
   couponCode: string | null;
   paymentMethod: "razorpay" | "cod";
   shippingAddress: ShippingAddress;
   items: OrderItem[];
+  tracking?: OrderTracking;
+  events?: OrderTimelineEvent[];
   createdAt: string;
 }
 
