@@ -95,8 +95,8 @@ export default function AdminPage() {
   };
 
   // Admin login form states
-  const [loginEmail, setLoginEmail] = useState("admin@maysha.com");
-  const [loginPassword, setLoginPassword] = useState("Admin123456!");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
   const [login2FaPin, setLogin2FaPin] = useState("");
   const [is2FaActive, setIs2FaActive] = useState<boolean | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -345,7 +345,9 @@ export default function AdminPage() {
     // If 2FA is active, prevent submission without entering the PIN
     if (is2FaActive && !login2FaPin.trim()) {
       setIsLoggingIn(false);
-      setLoginError("2FA Protection is enabled. Please enter your 4-6 digit security PIN.");
+      setLoginError(
+        "2FA Protection is enabled. Please enter your 4-6 digit security PIN.",
+      );
       return;
     }
 
@@ -1400,6 +1402,7 @@ export default function AdminPage() {
                   type="email"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
+                  placeholder="Type your email address"
                   required
                   className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] px-3.5 py-2.5 pl-10 rounded-2xs focus:outline-hidden focus:border-[#1A1A1A]"
                 />
@@ -1416,6 +1419,7 @@ export default function AdminPage() {
                   type="password"
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
+                  placeholder="Type your password"
                   required
                   className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] px-3.5 py-2.5 pl-10 rounded-2xs focus:outline-hidden focus:border-[#1A1A1A]"
                 />

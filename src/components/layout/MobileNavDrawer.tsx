@@ -80,7 +80,7 @@ export default function MobileNavDrawer() {
               alt="Maysha"
               width={120}
               height={40}
-              className="h-7 w-auto object-contain"
+              className="h-11 w-auto object-contain"
             />
           </Link>
           <div className="flex items-center gap-2">
