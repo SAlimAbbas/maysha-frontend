@@ -16,6 +16,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
+  const [website, setWebsite] = useState(""); // Bot honeypot trap
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -44,6 +45,7 @@ export default function RegisterPage() {
           email: email.trim(),
           password,
           phone: phone.trim() || undefined,
+          website: website.trim() || undefined,
         }),
       });
 
@@ -84,6 +86,20 @@ export default function RegisterPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Honeypot field for bot/spammer trapping */}
+          <div className="hidden" aria-hidden="true" style={{ display: "none" }}>
+            <label htmlFor="hp_register_website">Do not fill this field</label>
+            <input
+              type="text"
+              id="hp_register_website"
+              name="website"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              tabIndex={-1}
+              autoComplete="off"
+            />
+          </div>
+
           <div>
             <label className="text-[14px] font-semibold text-[#1A1A1A] block mb-1.5">
               Full Name

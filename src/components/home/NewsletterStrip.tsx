@@ -8,6 +8,7 @@ import { useUIStore } from "@/stores/uiStore";
 
 export default function NewsletterStrip() {
   const [email, setEmail] = useState("");
+  const [website, setWebsite] = useState(""); // Honeypot trap
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -23,7 +24,7 @@ export default function NewsletterStrip() {
     try {
       await apiBffFetch("newsletter", {
         method: "POST",
-        body: JSON.stringify({ email, source: "homepage_footer_strip" }),
+        body: JSON.stringify({ email, website, source: "homepage_footer_strip" }),
       });
 
       setIsSuccess(true);
@@ -73,6 +74,20 @@ export default function NewsletterStrip() {
             </div>
           ) : (
             <form onSubmit={handleSubscribe} className="mt-6 flex flex-col sm:flex-row gap-2 max-w-lg">
+              {/* Bot Honeypot Trap */}
+              <div className="hidden" aria-hidden="true" style={{ display: "none" }}>
+                <label htmlFor="hp_newsletter_website">Leave blank</label>
+                <input
+                  type="text"
+                  id="hp_newsletter_website"
+                  name="website"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  tabIndex={-1}
+                  autoComplete="off"
+                />
+              </div>
+
               <input
                 type="email"
                 required

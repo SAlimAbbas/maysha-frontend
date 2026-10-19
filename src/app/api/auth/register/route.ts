@@ -4,6 +4,19 @@ import { cookies } from "next/headers";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+
+    // Bot honeypot trap check: reject or silently return dummy success to trap bots
+    if (body.website || body.bot_trap) {
+      return NextResponse.json(
+        {
+          success: true,
+          message: "Registration successful. A verification email has been sent.",
+          user: { name: body.name || "Customer", email: body.email || "" },
+        },
+        { status: 201 }
+      );
+    }
+
     const cookieStore = await cookies();
     const cartToken = cookieStore.get("maysha_cart_token")?.value;
 

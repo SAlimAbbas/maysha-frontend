@@ -110,7 +110,7 @@ export default function JournalListingClient({ initialArticles }: JournalListing
           <div className="grid grid-cols-1 lg:grid-cols-12 items-stretch">
             <div className="lg:col-span-7 aspect-[16/10] lg:aspect-auto relative bg-[#EFECE4] min-h-[320px]">
               <Image
-                src={resolveSafeImageUrl(featuredArticle.heroImage)}
+                src={resolveSafeImageUrl(featuredArticle.heroImage || (featuredArticle as any).hero_image)}
                 alt={featuredArticle.title || "Featured Journal Story"}
                 fill
                 className="object-cover"
@@ -188,7 +188,7 @@ export default function JournalListingClient({ initialArticles }: JournalListing
             >
               <Link href={`/journal/${article.slug}`} className="block relative aspect-[16/10] bg-[#EFECE4] overflow-hidden">
                 <Image
-                  src={resolveSafeImageUrl(article.heroImage)}
+                  src={resolveSafeImageUrl(article.heroImage || (article as any).hero_image)}
                   alt={article.title || "The Maysha Journal Story"}
                   fill
                   className="object-cover group-hover:scale-105 transition-transform duration-500"

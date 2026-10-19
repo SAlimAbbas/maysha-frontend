@@ -217,6 +217,9 @@ export default function AdminPage() {
   const [descViewMode, setDescViewMode] = useState<"write" | "preview">(
     "write",
   );
+  const [howToUseViewMode, setHowToUseViewMode] = useState<"write" | "preview">(
+    "write",
+  );
   const [productFormData, setProductFormData] = useState({
     name: "",
     slug: "",
@@ -593,6 +596,63 @@ export default function AdminPage() {
     }, 50);
   };
 
+  const handleInsertHowToUseFormatting = (
+    type: "bold" | "italic" | "step" | "bullet" | "tip" | "divider",
+  ) => {
+    const textarea = document.getElementById(
+      "how-to-use-textarea",
+    ) as HTMLTextAreaElement | null;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = productFormData.usage_instructions || "";
+    const selected = text.substring(start, end);
+
+    let snippet = "";
+    switch (type) {
+      case "bold":
+        snippet = selected ? `**${selected}**` : "**Morning & Night**";
+        break;
+      case "italic":
+        snippet = selected ? `*${selected}*` : "*Gentle circular motions*";
+        break;
+      case "step":
+        snippet = selected
+          ? selected
+              .split("\n")
+              .map((l, i) => `${i + 1}. ${l.replace(/^\d+[\.\)]\s*/, "")}`)
+              .join("\n")
+          : "\n1. Dispense a coin-sized amount onto damp palms\n2. Gently massage across face and neck in upward circular motions\n3. Rinse thoroughly with lukewarm water and pat dry\n";
+        break;
+      case "bullet":
+        snippet = selected
+          ? selected
+              .split("\n")
+              .map((l) => `• ${l.replace(/^[•\-\*]\s*/, "")}`)
+              .join("\n")
+          : "\n• AM Ritual: Apply after toning before sunscreen\n• PM Ritual: Use as the restorative final layer before sleep\n";
+        break;
+      case "tip":
+        snippet = `\n> Pro Tip: ${selected || "For enhanced absorption, apply onto slightly damp skin immediately after misting."}\n`;
+        break;
+      case "divider":
+        snippet = "\n---\n";
+        break;
+    }
+
+    const nextText = text.substring(0, start) + snippet + text.substring(end);
+    setProductFormData({ ...productFormData, usage_instructions: nextText });
+
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(
+        start + snippet.length,
+        start + snippet.length,
+      );
+    }, 50);
+  };
+
   const handleOpenAddProduct = () => {
     setProductFormData({
       name: "",
@@ -615,6 +675,7 @@ export default function AdminPage() {
       ],
     });
     setDescViewMode("write");
+    setHowToUseViewMode("write");
     setEditingProduct(null);
     setShowAddProductModal(true);
   };
@@ -690,6 +751,7 @@ export default function AdminPage() {
       variants: variantsList,
     });
     setDescViewMode("write");
+    setHowToUseViewMode("write");
     setShowAddProductModal(true);
   };
 
@@ -4376,42 +4438,182 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* SECTION 7: Ingredients & Usage Instructions */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[14px] font-semibold text-[#1A1A1A] block mb-1.5">
-                    Key Ingredients (INCI List)
+              {/* SECTION 7: Ingredients */}
+              <div>
+                <label className="text-[14px] font-semibold text-[#1A1A1A] block mb-1.5">
+                  Key Ingredients (INCI List)
+                </label>
+                <textarea
+                  rows={2}
+                  value={productFormData.ingredients}
+                  onChange={(e) =>
+                    setProductFormData({
+                      ...productFormData,
+                      ingredients: e.target.value,
+                    })
+                  }
+                  placeholder="e.g. Rosa Damascena Flower Water, Niacinamide (5%), Centella Asiatica Extract, Sodium Hyaluronate..."
+                  className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] py-2.5 px-4 rounded-2xs focus:outline-none focus:border-[#1A1A1A] focus:bg-white transition-colors"
+                />
+              </div>
+
+              {/* SECTION 7B: How To Use with Rich Text Formatting Toolbar */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <label className="text-[14px] font-semibold text-[#1A1A1A] block">
+                    How To Use Ritual (Rich Text Editor)
                   </label>
-                  <textarea
-                    rows={3}
-                    value={productFormData.ingredients}
-                    onChange={(e) =>
-                      setProductFormData({
-                        ...productFormData,
-                        ingredients: e.target.value,
-                      })
-                    }
-                    placeholder="e.g. Rosa Damascena Flower Water, Niacinamide (5%), Centella Asiatica Extract, Sodium Hyaluronate..."
-                    className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] py-3 px-4 rounded-2xs focus:outline-none focus:border-[#1A1A1A] focus:bg-white transition-colors"
-                  />
+                  <div className="flex items-center border border-[#E8E3DA] rounded-2xs overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setHowToUseViewMode("write")}
+                      className={`px-3 py-1 text-[12px] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                        howToUseViewMode === "write"
+                          ? "bg-[#1A1A1A] text-white"
+                          : "bg-white text-[#736E67] hover:bg-[#FBF9F5]"
+                      }`}
+                    >
+                      <FileText className="w-3.5 h-3.5" /> Write / Format
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setHowToUseViewMode("preview")}
+                      className={`px-3 py-1 text-[12px] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                        howToUseViewMode === "preview"
+                          ? "bg-[#1A1A1A] text-white"
+                          : "bg-white text-[#736E67] hover:bg-[#FBF9F5]"
+                      }`}
+                    >
+                      <Eye className="w-3.5 h-3.5" /> Customer Preview
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <label className="text-[14px] font-semibold text-[#1A1A1A] block mb-1.5">
-                    How To Use (Step-by-Step Ritual)
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={productFormData.usage_instructions}
-                    onChange={(e) =>
-                      setProductFormData({
-                        ...productFormData,
-                        usage_instructions: e.target.value,
-                      })
-                    }
-                    placeholder="e.g. Dispense 2-3 drops onto clean palms and press gently into face and neck morning and night."
-                    className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] py-3 px-4 rounded-2xs focus:outline-none focus:border-[#1A1A1A] focus:bg-white transition-colors"
-                  />
-                </div>
+
+                {howToUseViewMode === "write" ? (
+                  <div className="border border-[#E8E3DA] rounded-xs overflow-hidden bg-white">
+                    {/* Rich Formatting Toolbar */}
+                    <div className="flex flex-wrap items-center gap-1 p-2 bg-[#F6F3EC] border-b border-[#E8E3DA]">
+                      <button
+                        type="button"
+                        onClick={() => handleInsertHowToUseFormatting("step")}
+                        className="px-2.5 py-1 text-[12px] font-semibold bg-white border border-[#E8E3DA] hover:border-[#1A1A1A] rounded-2xs flex items-center gap-1 text-[#1A1A1A] cursor-pointer"
+                        title="Add Numbered Steps (1. Step)"
+                      >
+                        <ListOrdered className="w-3.5 h-3.5 text-[#4E5942]" /> Step by Step
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleInsertHowToUseFormatting("bold")}
+                        className="px-2.5 py-1 text-[13px] font-bold bg-white border border-[#E8E3DA] hover:border-[#1A1A1A] rounded-2xs flex items-center gap-1 text-[#1A1A1A] cursor-pointer"
+                        title="Bold (**text**)"
+                      >
+                        <Bold className="w-3.5 h-3.5" /> Bold
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleInsertHowToUseFormatting("italic")}
+                        className="px-2.5 py-1 text-[13px] italic bg-white border border-[#E8E3DA] hover:border-[#1A1A1A] rounded-2xs flex items-center gap-1 text-[#1A1A1A] cursor-pointer"
+                        title="Italic (*text*)"
+                      >
+                        <Italic className="w-3.5 h-3.5" /> Italic
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleInsertHowToUseFormatting("bullet")}
+                        className="px-2.5 py-1 text-[12px] font-semibold bg-white border border-[#E8E3DA] hover:border-[#1A1A1A] rounded-2xs flex items-center gap-1 text-[#1A1A1A] cursor-pointer"
+                        title="Bullet Points (• AM / PM)"
+                      >
+                        <List className="w-3.5 h-3.5" /> Bullet
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleInsertHowToUseFormatting("tip")}
+                        className="px-2.5 py-1 text-[12px] font-semibold bg-white border border-[#E8E3DA] hover:border-[#1A1A1A] rounded-2xs flex items-center gap-1 text-[#4E5942] cursor-pointer"
+                        title="Ritual Pro Tip (> Pro Tip: ...)"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-[#4E5942]" /> Pro Tip
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleInsertHowToUseFormatting("divider")}
+                        className="px-2.5 py-1 text-[12px] font-semibold bg-white border border-[#E8E3DA] hover:border-[#1A1A1A] rounded-2xs flex items-center gap-1 text-[#1A1A1A] cursor-pointer"
+                        title="Divider Line (---)"
+                      >
+                        Divider
+                      </button>
+                    </div>
+
+                    <textarea
+                      id="how-to-use-textarea"
+                      rows={5}
+                      value={productFormData.usage_instructions}
+                      onChange={(e) =>
+                        setProductFormData({
+                          ...productFormData,
+                          usage_instructions: e.target.value,
+                        })
+                      }
+                      placeholder="e.g.&#10;1. Dispense 2-3 drops onto clean palms&#10;2. Warm between hands and press gently into face & neck&#10;3. Follow with moisturizer&#10;&#10;> Pro Tip: Apply to damp skin for maximum hydration lock."
+                      className="w-full bg-[#FFFFFF] p-4 text-[15px] leading-relaxed text-[#1A1A1A] focus:outline-none"
+                    />
+                  </div>
+                ) : (
+                  <div className="border border-[#E8E3DA] rounded-xs p-5 bg-[#FBF9F5] min-h-[140px] space-y-3">
+                    {productFormData.usage_instructions ? (
+                      productFormData.usage_instructions
+                        .split("\n")
+                        .map((line, idx) => {
+                          const trimmed = line.trim();
+                          if (!trimmed) return null;
+                          const stepMatch = trimmed.match(/^(\d+)[\.\)]\s*(.*)$/);
+                          if (stepMatch) {
+                            return (
+                              <div key={idx} className="flex items-start gap-3">
+                                <span className="w-6 h-6 rounded-full bg-[#EDF3E8] text-[#3E4534] border border-[#C5D7BD] text-xs font-semibold flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                                  {stepMatch[1]}
+                                </span>
+                                <p className="text-[14px] text-[#4A4640] leading-relaxed flex-1">
+                                  {trimmed.replace(/^(\d+)[\.\)]\s*/, "")}
+                                </p>
+                              </div>
+                            );
+                          }
+                          if (/^[•\-\*]\s*/.test(trimmed)) {
+                            return (
+                              <div key={idx} className="flex items-start gap-2.5 pl-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#4E5942] shrink-0 mt-2" />
+                                <p className="text-[14px] text-[#4A4640] leading-relaxed flex-1">
+                                  {trimmed.replace(/^[•\-\*]\s*/, "")}
+                                </p>
+                              </div>
+                            );
+                          }
+                          if (trimmed.startsWith(">")) {
+                            return (
+                              <div
+                                key={idx}
+                                className="p-3 bg-[#F6F8F4] border-l-3 border-[#4E5942] rounded-2xs text-[13px] text-[#3E4534] font-medium"
+                              >
+                                {trimmed.replace(/^>\s*/, "")}
+                              </div>
+                            );
+                          }
+                          if (trimmed === "---") {
+                            return <hr key={idx} className="border-[#E8E3DA] my-1" />;
+                          }
+                          return (
+                            <p key={idx} className="text-[14px] text-[#4A4640] leading-relaxed">
+                              {trimmed}
+                            </p>
+                          );
+                        })
+                    ) : (
+                      <p className="text-[13px] text-[#736E67] italic">
+                        No usage ritual specified yet. Use the formatting buttons above to create structured ritual steps!
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* SECTION 8: Key Benefits & Skin Types */}

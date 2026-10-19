@@ -39,12 +39,21 @@ function resolveSafeImageUrl(img: any, fallback: string = FALLBACK_JOURNAL_HERO)
 export async function generateMetadata({ params }: ArticlePageProps) {
   const { slug } = await params;
   try {
-    const article = await apiServerFetch<Article>(`articles/${slug}`);
-    const metaImg = resolveSafeImageUrl(article.heroImage);
-    const title = article.title?.trim() || "The Maysha Journal";
+    const raw = await apiServerFetch<any>(`articles/${slug}`);
+    const article: Article = (raw?.article ? raw.article : raw) as Article;
+    if (!article || (!article.title && !(article as any).name)) {
+      return {
+        title: "The Maysha Journal",
+      };
+    }
+    const metaImg = resolveSafeImageUrl(article.heroImage || (article as any).hero_image);
+    const title = (article.title || (article as any).name || "").trim() || "The Maysha Journal";
     return {
       title: `${title} | The Maysha Journal`,
-      description: article.excerpt || article.subtitle || "Botanical formulations and skincare science journal.",
+      description:
+        article.excerpt ||
+        article.subtitle ||
+        "Botanical formulations and skincare science journal.",
       openGraph: {
         title,
         description: article.excerpt || "",
@@ -62,44 +71,69 @@ export default async function ArticleDetailPage({ params }: ArticlePageProps) {
   const { slug } = await params;
 
   let article: Article;
+  let relatedFromApi: Article[] = [];
   try {
-    article = await apiServerFetch<Article>(`articles/${slug}`, { revalidate: 60 });
+    const raw = await apiServerFetch<any>(`articles/${slug}`, { revalidate: 60 });
+    article = (raw?.article ? raw.article : raw) as Article;
+    if (Array.isArray(raw?.related)) {
+      relatedFromApi = raw.related;
+    }
   } catch {
     notFound();
   }
 
-  // Fetch related articles
-  let allArticles: Article[] = [];
-  try {
-    allArticles = await apiServerFetch<Article[]>("articles", { revalidate: 60 });
-  } catch {
-    allArticles = [];
+  if (!article || (!article.id && !article.slug)) {
+    notFound();
   }
-  const relatedArticles = (Array.isArray(allArticles) ? allArticles : [])
-    .filter((a) => a && a.id !== article.id)
-    .slice(0, 3);
+
+  // Fetch related articles - prioritize related list returned directly by backend show API
+  let relatedArticles: Article[] = relatedFromApi;
+  if (!Array.isArray(relatedArticles) || relatedArticles.length === 0) {
+    try {
+      const allArticles = await apiServerFetch<any>("articles", { revalidate: 60 });
+      const list = Array.isArray(allArticles)
+        ? allArticles
+        : Array.isArray(allArticles?.data)
+        ? allArticles.data
+        : [];
+      relatedArticles = list
+        .filter((a: Article) => a && a.id !== article.id && a.slug !== article.slug)
+        .slice(0, 3);
+    } catch {
+      relatedArticles = [];
+    }
+  }
 
   // Fetch recommended products if slugs are present
+  const productSlugs: string[] =
+    article.recommendedProductSlugs ||
+    (article as any).recommended_product_slugs ||
+    [];
   let recommendedProducts: Product[] = [];
-  if (article.recommendedProductSlugs && article.recommendedProductSlugs.length > 0) {
+  if (Array.isArray(productSlugs) && productSlugs.length > 0) {
     try {
-      const allProducts = await apiServerFetch<Product[]>("products", { revalidate: 60 });
-      if (Array.isArray(allProducts)) {
-        recommendedProducts = allProducts.filter((p) =>
-          p && article.recommendedProductSlugs.includes(p.slug)
-        );
-      }
+      const allProducts = await apiServerFetch<any>("products", { revalidate: 60 });
+      const prodList: Product[] = Array.isArray(allProducts)
+        ? allProducts
+        : Array.isArray(allProducts?.data)
+        ? allProducts.data
+        : [];
+      recommendedProducts = prodList.filter(
+        (p) => p && productSlugs.includes(p.slug)
+      );
     } catch {
       recommendedProducts = [];
     }
   }
 
-  // Split content into paragraphs for editorial formatting
-  const paragraphs = (typeof article.content === "string" && article.content.trim().length > 0)
-    ? article.content.split(/\n\n+/).filter(Boolean)
+  const rawContent = article.content || "";
+  const isHtml = /<[a-z][\s\S]*>/i.test(rawContent);
+  const paragraphs = !isHtml && rawContent.trim().length > 0
+    ? rawContent.split(/\n\n+/).filter(Boolean)
     : [];
-  const heroImage = resolveSafeImageUrl(article.heroImage);
-  const articleTitle = article.title?.trim() || "The Maysha Journal Article";
+
+  const heroImage = resolveSafeImageUrl(article.heroImage || (article as any).hero_image);
+  const articleTitle = (article.title || (article as any).name || "").trim() || "The Maysha Journal Article";
 
   return (
     <article className="bg-[#FBF9F5] min-h-screen py-10 lg:py-16 border-b border-[#E8E3DA]">
@@ -186,30 +220,43 @@ export default async function ArticleDetailPage({ params }: ArticlePageProps) {
 
         {/* Editorial Article Body */}
         <div className="max-w-2xl mx-auto py-4">
-          <div className="article-body">
-            {paragraphs.map((p, idx) => {
-              if (idx === 0) {
-                // Opening paragraph receives drop cap
-                return (
-                  <p
-                    key={idx}
-                    className="editorial-drop-cap text-[17px] sm:text-[18px] text-[#4A4640] leading-relaxed mb-6 font-normal text-justify"
-                  >
-                    {p}
-                  </p>
-                );
-              }
+          {isHtml ? (
+            <div
+              className="article-body prose prose-stone max-w-none text-[#4A4640] leading-relaxed text-[17px] sm:text-[18px] [&>p]:mb-6 [&>p]:leading-relaxed [&>h2]:text-2xl [&>h2]:font-semibold [&>h2]:text-[#1A1A1A] [&>h2]:mt-8 [&>h2]:mb-4 [&>h3]:text-xl [&>h3]:font-semibold [&>h3]:text-[#1A1A1A] [&>h3]:mt-6 [&>h3]:mb-3 [&>ul]:list-disc [&>ul]:pl-5 [&>ul]:mb-6 [&>ol]:list-decimal [&>ol]:pl-5 [&>ol]:mb-6 [&>blockquote]:border-l-4 [&>blockquote]:border-[#4E5942] [&>blockquote]:pl-4 [&>blockquote]:italic [&>blockquote]:my-6 [&>blockquote]:text-[#3E4534]"
+              dangerouslySetInnerHTML={{ __html: rawContent }}
+            />
+          ) : (
+            <div className="article-body">
+              {paragraphs.length > 0 ? (
+                paragraphs.map((p, idx) => {
+                  if (idx === 0) {
+                    // Opening paragraph receives drop cap
+                    return (
+                      <p
+                        key={idx}
+                        className="editorial-drop-cap text-[17px] sm:text-[18px] text-[#4A4640] leading-relaxed mb-6 font-normal text-justify"
+                      >
+                        {p}
+                      </p>
+                    );
+                  }
 
-              return (
-                <p
-                  key={idx}
-                  className="text-[17px] sm:text-[18px] text-[#4A4640] leading-relaxed mb-6 font-normal"
-                >
-                  {p}
+                  return (
+                    <p
+                      key={idx}
+                      className="text-[17px] sm:text-[18px] text-[#4A4640] leading-relaxed mb-6 font-normal"
+                    >
+                      {p}
+                    </p>
+                  );
+                })
+              ) : (
+                <p className="text-[17px] sm:text-[18px] text-[#4A4640] leading-relaxed mb-6 font-normal">
+                  {rawContent || article.excerpt || "Article content coming soon."}
                 </p>
-              );
-            })}
-          </div>
+              )}
+            </div>
+          )}
 
           {/* Author Quote Box */}
           <div className="my-10 p-6 sm:p-8 bg-[#FFFFFF] border-l-4 border-[#4E5942] rounded-xs shadow-2xs space-y-2">
@@ -271,7 +318,7 @@ export default async function ArticleDetailPage({ params }: ArticlePageProps) {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {relatedArticles.map((rel) => {
-                const relImage = resolveSafeImageUrl(rel.heroImage);
+                const relImage = resolveSafeImageUrl(rel.heroImage || (rel as any).hero_image);
                 const relTitle = rel.title?.trim() || "Related Journal Story";
                 return (
                   <Link

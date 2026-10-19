@@ -84,6 +84,105 @@ const POPULAR_TOPICS = [
   "gentle",
 ];
 
+function formatInlineMarkdown(text: string) {
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong key={i} className="font-semibold text-[#1A1A1A]">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (part.startsWith("*") && part.endsWith("*")) {
+      return (
+        <em key={i} className="italic text-[#3E4534]">
+          {part.slice(1, -1)}
+        </em>
+      );
+    }
+    return part;
+  });
+}
+
+function renderFormattedHowToUse(raw: string | undefined | null) {
+  if (!raw || !raw.trim()) {
+    return (
+      <p className="text-[15px] text-[#736E67]">
+        Dispense adequate amount and gently press into cleansed skin morning and night.
+      </p>
+    );
+  }
+
+  const text = raw.trim();
+  if (/<[a-z][\s\S]*>/i.test(text)) {
+    return (
+      <div
+        className="prose prose-stone text-[15px] text-[#4A4640] leading-relaxed max-w-none space-y-2"
+        dangerouslySetInnerHTML={{ __html: text }}
+      />
+    );
+  }
+
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+
+  return (
+    <div className="space-y-3 pt-1">
+      {lines.map((line, idx) => {
+        const stepMatch = line.match(/^(\d+)[\.\)]\s*(.*)$/);
+        if (stepMatch) {
+          const stepNum = stepMatch[1];
+          const stepBody = stepMatch[2];
+          return (
+            <div key={idx} className="flex items-start gap-3">
+              <span className="w-6 h-6 rounded-full bg-[#EDF3E8] text-[#3E4534] border border-[#C5D7BD] text-xs font-semibold flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                {stepNum}
+              </span>
+              <p className="text-[15px] text-[#4A4640] leading-relaxed flex-1">
+                {formatInlineMarkdown(stepBody)}
+              </p>
+            </div>
+          );
+        }
+
+        if (/^[•\-\*]\s*/.test(line)) {
+          const bulletBody = line.replace(/^[•\-\*]\s*/, "");
+          return (
+            <div key={idx} className="flex items-start gap-2.5 pl-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#4E5942] shrink-0 mt-2" />
+              <p className="text-[15px] text-[#4A4640] leading-relaxed flex-1">
+                {formatInlineMarkdown(bulletBody)}
+              </p>
+            </div>
+          );
+        }
+
+        if (line.startsWith(">")) {
+          const quoteBody = line.replace(/^>\s*/, "");
+          return (
+            <div
+              key={idx}
+              className="my-3 p-3.5 bg-[#F6F8F4] border-l-3 border-[#4E5942] rounded-2xs text-[14px] text-[#3E4534]"
+            >
+              {formatInlineMarkdown(quoteBody)}
+            </div>
+          );
+        }
+
+        if (line === "---" || line === "___") {
+          return <hr key={idx} className="my-2 border-[#E8E3DA]" />;
+        }
+
+        return (
+          <p key={idx} className="text-[15px] text-[#4A4640] leading-relaxed">
+            {formatInlineMarkdown(line)}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function ProductDetailClient({
   product,
   related = [],
@@ -407,7 +506,7 @@ export default function ProductDetailClient({
                   setIsZoomOpen(true);
                   setIsZoomedIn(false);
                 }}
-                className="relative w-full aspect-square sm:aspect-[4/5] bg-[#EFECE4] rounded-xs overflow-hidden border border-[#E8E3DA] shadow-xs cursor-zoom-in group"
+                className="relative w-full aspect-square aspect-[4/5] bg-[#EFECE4] rounded-xs overflow-hidden border border-[#E8E3DA] shadow-xs cursor-zoom-in group"
                 title="Click to view full image and zoom"
               >
                 <Image
@@ -762,11 +861,8 @@ export default function ProductDetailClient({
                   />
                 </button>
                 {activeTab === "use" && (
-                  <div className="pb-4 text-[15px] text-[#4A4640] leading-relaxed animate-in fade-in duration-200">
-                    <p>
-                      {product.usageInstructions ||
-                        "Dispense adequate amount and gently press into skin."}
-                    </p>
+                  <div className="pb-4 animate-in fade-in duration-200">
+                    {renderFormattedHowToUse(product.usageInstructions)}
                   </div>
                 )}
               </div>
