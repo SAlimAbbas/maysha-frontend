@@ -32,6 +32,24 @@ function isPathAllowed(pathString: string): boolean {
 
 async function handleProxy(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   const { path } = await params;
+
+  // Prevent path traversal attacks (Finding B6)
+  const hasTraversal = path.some(
+    (segment) =>
+      !segment ||
+      segment === "." ||
+      segment === ".." ||
+      segment.includes("/") ||
+      segment.includes("\\") ||
+      decodeURIComponent(segment).includes("..")
+  );
+  if (hasTraversal) {
+    return NextResponse.json(
+      { success: false, message: "Invalid or traversed path." },
+      { status: 400 }
+    );
+  }
+
   const pathString = path.join("/");
 
   if (!isPathAllowed(pathString)) {

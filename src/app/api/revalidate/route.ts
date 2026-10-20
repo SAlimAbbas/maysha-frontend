@@ -1,11 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag, revalidatePath } from "next/cache";
+import crypto from "crypto";
 
 export async function POST(req: NextRequest) {
   const secret = req.headers.get("x-revalidate-secret");
-  const expectedSecret = process.env.REVALIDATE_SECRET || "maysha_revalidate_secret_key";
+  const expectedSecret = process.env.REVALIDATE_SECRET;
 
-  if (secret !== expectedSecret) {
+  if (!expectedSecret || !secret) {
+    return NextResponse.json(
+      { success: false, message: "Invalid secret token or revalidation unconfigured." },
+      { status: 401 }
+    );
+  }
+
+  // Security (Finding B7): Constant-time comparison to prevent timing attacks
+  const secretBuffer = Buffer.from(secret);
+  const expectedBuffer = Buffer.from(expectedSecret);
+
+  if (
+    secretBuffer.length !== expectedBuffer.length ||
+    !crypto.timingSafeEqual(secretBuffer, expectedBuffer)
+  ) {
     return NextResponse.json({ success: false, message: "Invalid secret token." }, { status: 401 });
   }
 

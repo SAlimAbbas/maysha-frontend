@@ -678,9 +678,12 @@ export default function OrderConfirmationPage({ params }: OrderPageProps) {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <h4 className="font-bold text-sm text-[#1A1A1A]">Maysha Skincare Technologies Pvt. Ltd.</h4>
-                    <p className="mt-1">100 Feet Road, Indiranagar, Bengaluru, KA 560038</p>
-                    <p className="font-mono mt-0.5">GSTIN: {invoiceData.gstin || "29AABCU9603R1ZX"}</p>
-                    <p className="mt-0.5">FY: {invoiceData.financialYear || "2026-2027"}</p>
+                    {invoiceData.gstin && (
+                      <p className="font-mono mt-0.5">GSTIN: {invoiceData.gstin}</p>
+                    )}
+                    {invoiceData.financialYear && (
+                      <p className="mt-0.5">FY: {invoiceData.financialYear}</p>
+                    )}
                   </div>
                   <div className="text-right">
                     <p className="font-mono font-bold text-sm text-[#1A1A1A]">

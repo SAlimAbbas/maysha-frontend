@@ -257,6 +257,12 @@ export default function AdminPage() {
 
   const [showAddArticleModal, setShowAddArticleModal] = useState(false);
   const [editingArticle, setEditingArticle] = useState<any | null>(null);
+  const [articleContentViewMode, setArticleContentViewMode] = useState<
+    "write" | "preview"
+  >("write");
+  const [isCustomArticleCategory, setIsCustomArticleCategory] = useState(false);
+  const [customArticleCategoryInput, setCustomArticleCategoryInput] =
+    useState("");
   const [articleFormData, setArticleFormData] = useState({
     title: "",
     slug: "",
@@ -269,6 +275,22 @@ export default function AdminPage() {
     hero_image: "",
     is_featured: false,
   });
+
+  // Dynamic Journal Article Categories (derived from existing stories + defaults)
+  const defaultArticleCategories = [
+    "Skincare Science",
+    "Ingredient Focus",
+    "Rituals & Guides",
+    "Ingredient Deep Dives",
+    "Daily Rituals",
+    "Sustainability",
+  ];
+  const dynamicArticleCategories = Array.from(
+    new Set([
+      ...defaultArticleCategories,
+      ...articles.map((a: any) => a.category).filter(Boolean),
+    ]),
+  );
 
   const isAdmin = user && user.role === "admin";
 
@@ -987,6 +1009,77 @@ export default function AdminPage() {
   // -------------------------------------------------------------
   // Journal / Article Operations
   // -------------------------------------------------------------
+  const handleInsertArticleFormatting = (
+    type:
+      | "bold"
+      | "italic"
+      | "h2"
+      | "h3"
+      | "bullet"
+      | "number"
+      | "quote"
+      | "hr",
+  ) => {
+    const textarea = document.getElementById(
+      "article-content-textarea",
+    ) as HTMLTextAreaElement | null;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = articleFormData.content || "";
+    const selected = text.substring(start, end);
+
+    let snippet = "";
+    switch (type) {
+      case "bold":
+        snippet = selected ? `**${selected}**` : "**Key Botanical Principle**";
+        break;
+      case "italic":
+        snippet = selected ? `*${selected}*` : "*Cellular renewal*";
+        break;
+      case "h2":
+        snippet = `\n## ${selected || "Scientific Methodology & Findings"}\n`;
+        break;
+      case "h3":
+        snippet = `\n### ${selected || "Clinical Evidence & Observations"}\n`;
+        break;
+      case "bullet":
+        snippet = selected
+          ? selected
+              .split("\n")
+              .map((l) => `• ${l.replace(/^[•\-\*]\s*/, "")}`)
+              .join("\n")
+          : "\n• Bioactive flavonoid concentration\n• Synergistic antioxidant protection\n• Non-comedogenic barrier restoration\n";
+        break;
+      case "number":
+        snippet = selected
+          ? selected
+              .split("\n")
+              .map((l, i) => `${i + 1}. ${l.replace(/^\d+[\.\)]\s*/, "")}`)
+              .join("\n")
+          : "\n1. Morning topical application following essence\n2. Gentle press-in motion to encourage lymph circulation\n3. Consistent ritual adherence over 28-day skin cycle\n";
+        break;
+      case "quote":
+        snippet = `\n> ${selected || "Botanical synergy elevates molecular efficacy beyond isolated synthetic compounds."}\n`;
+        break;
+      case "hr":
+        snippet = "\n---\n";
+        break;
+    }
+
+    const nextText = text.substring(0, start) + snippet + text.substring(end);
+    setArticleFormData({ ...articleFormData, content: nextText });
+
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(
+        start + snippet.length,
+        start + snippet.length,
+      );
+    }, 50);
+  };
+
   const handleOpenAddArticle = () => {
     setArticleFormData({
       title: "",
@@ -1001,16 +1094,24 @@ export default function AdminPage() {
       is_featured: false,
     });
     setEditingArticle(null);
+    setIsCustomArticleCategory(false);
+    setCustomArticleCategoryInput("");
+    setArticleContentViewMode("write");
     setShowAddArticleModal(true);
   };
 
   const handleOpenEditArticle = (art: any) => {
     setEditingArticle(art);
+    const cat = art.category || "Skincare Science";
+    const isCustom = !defaultArticleCategories.includes(cat) && !dynamicArticleCategories.includes(cat);
+    setIsCustomArticleCategory(isCustom);
+    setCustomArticleCategoryInput(isCustom ? cat : "");
+    setArticleContentViewMode("write");
     setArticleFormData({
       title: art.title || "",
       slug: art.slug || "",
       subtitle: art.subtitle || "",
-      category: art.category || "Skincare Science",
+      category: cat,
       author: art.author || "Maysha Formulation Team",
       reading_time: art.readingTime || art.reading_time || "5 min read",
       excerpt: art.excerpt || "",
@@ -5032,24 +5133,78 @@ export default function AdminPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
-                    Category
-                  </label>
-                  <select
-                    value={articleFormData.category}
-                    onChange={(e) =>
-                      setArticleFormData({
-                        ...articleFormData,
-                        category: e.target.value,
-                      })
-                    }
-                    className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs cursor-pointer"
-                  >
-                    <option value="Skincare Science">Skincare Science</option>
-                    <option value="Ingredient Focus">Ingredient Focus</option>
-                    <option value="Rituals & Guides">Rituals & Guides</option>
-                    <option value="Sustainability">Sustainability</option>
-                  </select>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[13px] font-semibold text-[#1A1A1A]">
+                      Category *
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextIsCustom = !isCustomArticleCategory;
+                        setIsCustomArticleCategory(nextIsCustom);
+                        if (nextIsCustom) {
+                          setCustomArticleCategoryInput("");
+                        } else {
+                          setArticleFormData({
+                            ...articleFormData,
+                            category:
+                              dynamicArticleCategories[0] || "Skincare Science",
+                          });
+                        }
+                      }}
+                      className="text-[11px] font-semibold text-[#4E5942] hover:underline cursor-pointer"
+                    >
+                      {isCustomArticleCategory
+                        ? "← Pick Existing"
+                        : "+ New Category"}
+                    </button>
+                  </div>
+
+                  {isCustomArticleCategory ? (
+                    <input
+                      type="text"
+                      required
+                      value={customArticleCategoryInput}
+                      onChange={(e) => {
+                        setCustomArticleCategoryInput(e.target.value);
+                        setArticleFormData({
+                          ...articleFormData,
+                          category: e.target.value,
+                        });
+                      }}
+                      placeholder="e.g. Skin Microbiome"
+                      className="w-full bg-[#FFFFFF] border-2 border-[#4E5942] text-[14px] p-2.5 rounded-2xs focus:outline-none"
+                      autoFocus
+                    />
+                  ) : (
+                    <select
+                      value={articleFormData.category}
+                      onChange={(e) => {
+                        if (e.target.value === "__create_new__") {
+                          setIsCustomArticleCategory(true);
+                          setCustomArticleCategoryInput("");
+                        } else {
+                          setArticleFormData({
+                            ...articleFormData,
+                            category: e.target.value,
+                          });
+                        }
+                      }}
+                      className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs cursor-pointer"
+                    >
+                      {dynamicArticleCategories.map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                      <option
+                        value="__create_new__"
+                        className="font-semibold text-[#4E5942]"
+                      >
+                        + Create New Category...
+                      </option>
+                    </select>
+                  )}
                 </div>
                 <div>
                   <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
@@ -5115,23 +5270,203 @@ export default function AdminPage() {
                 />
               </div>
 
-              <div>
-                <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
-                  Full Article Content *
-                </label>
-                <textarea
-                  required
-                  rows={6}
-                  value={articleFormData.content}
-                  onChange={(e) =>
-                    setArticleFormData({
-                      ...articleFormData,
-                      content: e.target.value,
-                    })
-                  }
-                  placeholder="Markdown or story paragraphs..."
-                  className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs font-mono text-[13px]"
-                />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[13px] font-semibold text-[#1A1A1A] block">
+                    Full Article Content (Rich Text Editor) *
+                  </label>
+                  <div className="flex items-center border border-[#E8E3DA] rounded-2xs overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setArticleContentViewMode("write")}
+                      className={`px-3 py-1 text-[12px] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                        articleContentViewMode === "write"
+                          ? "bg-[#1A1A1A] text-white"
+                          : "bg-white text-[#736E67] hover:bg-[#FBF9F5]"
+                      }`}
+                    >
+                      <FileText className="w-3.5 h-3.5" /> Write / Format
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setArticleContentViewMode("preview")}
+                      className={`px-3 py-1 text-[12px] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                        articleContentViewMode === "preview"
+                          ? "bg-[#1A1A1A] text-white"
+                          : "bg-white text-[#736E67] hover:bg-[#FBF9F5]"
+                      }`}
+                    >
+                      <Eye className="w-3.5 h-3.5" /> Story Preview
+                    </button>
+                  </div>
+                </div>
+
+                {articleContentViewMode === "write" ? (
+                  <div className="border border-[#E8E3DA] rounded-xs overflow-hidden bg-white">
+                    {/* Rich Formatting Toolbar */}
+                    <div className="flex flex-wrap items-center gap-1 p-2 bg-[#F6F3EC] border-b border-[#E8E3DA]">
+                      <button
+                        type="button"
+                        onClick={() => handleInsertArticleFormatting("bold")}
+                        className="px-2.5 py-1 text-[12px] font-bold bg-white border border-[#E8E3DA] hover:border-[#1A1A1A] rounded-2xs flex items-center gap-1 text-[#1A1A1A] cursor-pointer"
+                        title="Bold (**text**)"
+                      >
+                        <Bold className="w-3 h-3" /> Bold
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleInsertArticleFormatting("italic")}
+                        className="px-2.5 py-1 text-[12px] italic bg-white border border-[#E8E3DA] hover:border-[#1A1A1A] rounded-2xs flex items-center gap-1 text-[#1A1A1A] cursor-pointer"
+                        title="Italic (*text*)"
+                      >
+                        <Italic className="w-3 h-3" /> Italic
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleInsertArticleFormatting("h2")}
+                        className="px-2.5 py-1 text-[12px] font-semibold bg-white border border-[#E8E3DA] hover:border-[#1A1A1A] rounded-2xs flex items-center gap-1 text-[#1A1A1A] cursor-pointer"
+                        title="Section Heading (## Title)"
+                      >
+                        <Heading2 className="w-3 h-3" /> H2 Title
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleInsertArticleFormatting("h3")}
+                        className="px-2.5 py-1 text-[12px] font-semibold bg-white border border-[#E8E3DA] hover:border-[#1A1A1A] rounded-2xs flex items-center gap-1 text-[#1A1A1A] cursor-pointer"
+                        title="Subheading (### Subtitle)"
+                      >
+                        H3 Subtitle
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleInsertArticleFormatting("bullet")}
+                        className="px-2.5 py-1 text-[12px] font-semibold bg-white border border-[#E8E3DA] hover:border-[#1A1A1A] rounded-2xs flex items-center gap-1 text-[#1A1A1A] cursor-pointer"
+                        title="Bullet List (• item)"
+                      >
+                        <List className="w-3 h-3" /> Bullet List
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleInsertArticleFormatting("number")}
+                        className="px-2.5 py-1 text-[12px] font-semibold bg-white border border-[#E8E3DA] hover:border-[#1A1A1A] rounded-2xs flex items-center gap-1 text-[#1A1A1A] cursor-pointer"
+                        title="Numbered Steps (1. step)"
+                      >
+                        <ListOrdered className="w-3 h-3" /> Steps
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleInsertArticleFormatting("quote")}
+                        className="px-2.5 py-1 text-[12px] font-semibold bg-white border border-[#E8E3DA] hover:border-[#1A1A1A] rounded-2xs flex items-center gap-1 text-[#1A1A1A] cursor-pointer"
+                        title="Editorial Quote (> quote)"
+                      >
+                        <Quote className="w-3 h-3" /> Quote
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleInsertArticleFormatting("hr")}
+                        className="px-2.5 py-1 text-[12px] font-semibold bg-white border border-[#E8E3DA] hover:border-[#1A1A1A] rounded-2xs flex items-center gap-1 text-[#1A1A1A] cursor-pointer"
+                        title="Section Divider (---)"
+                      >
+                        Divider
+                      </button>
+                    </div>
+
+                    <textarea
+                      id="article-content-textarea"
+                      required
+                      rows={10}
+                      value={articleFormData.content}
+                      onChange={(e) =>
+                        setArticleFormData({
+                          ...articleFormData,
+                          content: e.target.value,
+                        })
+                      }
+                      placeholder="Write your editorial story with scientific depth, ritual guidance, formatting..."
+                      className="w-full bg-[#FFFFFF] p-4 text-[14px] leading-relaxed text-[#1A1A1A] focus:outline-none font-mono"
+                    />
+                  </div>
+                ) : (
+                  <div className="border border-[#E8E3DA] rounded-xs p-6 bg-[#FBF9F5] min-h-[220px] max-h-[380px] overflow-y-auto space-y-4">
+                    {articleFormData.content ? (
+                      articleFormData.content
+                        .split("\n\n")
+                        .map((para, pIdx) => {
+                          const trimmed = para.trim();
+                          if (!trimmed) return null;
+                          if (trimmed.startsWith("## ")) {
+                            return (
+                              <h2
+                                key={pIdx}
+                                className="text-xl font-bold text-[#1A1A1A] font-serif tracking-tight mt-4 mb-2 pb-1 border-b border-[#E8E3DA]"
+                              >
+                                {trimmed.replace(/^##\s*/, "")}
+                              </h2>
+                            );
+                          }
+                          if (trimmed.startsWith("### ")) {
+                            return (
+                              <h3
+                                key={pIdx}
+                                className="text-lg font-semibold text-[#2C2925] mt-3 mb-1"
+                              >
+                                {trimmed.replace(/^###\s*/, "")}
+                              </h3>
+                            );
+                          }
+                          if (trimmed.startsWith("> ")) {
+                            return (
+                              <blockquote
+                                key={pIdx}
+                                className="border-l-4 border-[#4E5942] pl-4 py-2 italic text-[15px] text-[#3E4534] bg-white rounded-2xs shadow-xs"
+                              >
+                                {trimmed.replace(/^>\s*/, "")}
+                              </blockquote>
+                            );
+                          }
+                          if (trimmed === "---") {
+                            return (
+                              <hr
+                                key={pIdx}
+                                className="my-4 border-t border-[#E8E3DA]"
+                              />
+                            );
+                          }
+                          if (
+                            trimmed.startsWith("• ") ||
+                            trimmed.startsWith("- ")
+                          ) {
+                            const items = trimmed.split("\n");
+                            return (
+                              <ul
+                                key={pIdx}
+                                className="space-y-1.5 pl-4 list-disc text-[#4A4640] text-[14px]"
+                              >
+                                {items.map((it, iIdx) => (
+                                  <li key={iIdx}>
+                                    {it.replace(/^[•\-*]\s*/, "")}
+                                  </li>
+                                ))}
+                              </ul>
+                            );
+                          }
+                          return (
+                            <p
+                              key={pIdx}
+                              className="text-[14px] leading-relaxed text-[#4A4640] whitespace-pre-line"
+                            >
+                              {trimmed}
+                            </p>
+                          );
+                        })
+                    ) : (
+                      <p className="text-[#736E67] text-[14px] italic">
+                        No article content entered yet. Switch back to Write
+                        mode to compose your story.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="pt-3 border-t border-[#F0ECE4] flex items-center justify-end gap-3">

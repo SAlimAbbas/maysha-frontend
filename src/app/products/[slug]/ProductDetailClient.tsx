@@ -109,7 +109,8 @@ function renderFormattedHowToUse(raw: string | undefined | null) {
   if (!raw || !raw.trim()) {
     return (
       <p className="text-[15px] text-[#736E67]">
-        Dispense adequate amount and gently press into cleansed skin morning and night.
+        Dispense adequate amount and gently press into cleansed skin morning and
+        night.
       </p>
     );
   }
@@ -124,7 +125,10 @@ function renderFormattedHowToUse(raw: string | undefined | null) {
     );
   }
 
-  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
 
   return (
     <div className="space-y-3 pt-1">
@@ -841,8 +845,6 @@ export default function ProductDetailClient({
                       <span className="font-semibold text-[#1A1A1A]">
                         {product.skinTypes?.join(", ") || "All Skin Types"}
                       </span>
-                      . Safe for compromised, barrier-sensitive skin and
-                      everyday Indian climate conditions.
                     </p>
                   </div>
                 )}

@@ -6,8 +6,8 @@ const securityHeaders = [
     value: "on",
   },
   {
-    key: "X-XSS-Protection",
-    value: "1; mode=block",
+    key: "Strict-Transport-Security",
+    value: "max-age=31536000; includeSubDomains; preload",
   },
   {
     key: "X-Frame-Options",
@@ -32,7 +32,23 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "**",
+        hostname: "res.cloudinary.com",
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+      {
+        protocol: "https",
+        hostname: "imagedelivery.net",
+      },
+      {
+        protocol: "https",
+        hostname: "mayshaindia.com",
+      },
+      {
+        protocol: "https",
+        hostname: "api.mayshaindia.com",
       },
       {
         protocol: "http",
