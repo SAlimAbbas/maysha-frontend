@@ -19,7 +19,8 @@ const FALLBACK_PRODUCTS = [
     id: "face-wash",
     slug: "face-wash",
     name: "Vitamin C & Niacinamide Face Wash",
-    subtitle: "Gentle Everyday Herbal Cleanser with Aloe Vera & Mild Surfactants",
+    subtitle:
+      "Gentle Everyday Herbal Cleanser with Aloe Vera & Mild Surfactants",
     price: 399,
     mrp: 499,
     discount: "20% OFF",
@@ -33,7 +34,8 @@ const FALLBACK_PRODUCTS = [
     id: "rosemary-hair-oil",
     slug: "rosemary-hair-oil",
     name: "Rosemary Hair Oil with Blend of 8 Oils",
-    subtitle: "Strengthens Hair Roots & Controls Frizz with 100% Pure Botanical Extracts",
+    subtitle:
+      "Strengthens Hair Roots & Controls Frizz with 100% Pure Botanical Extracts",
     price: 499,
     mrp: 699,
     discount: "28% OFF",
@@ -58,20 +60,25 @@ export default function MoreWaysToCare({ products = [] }: MoreWaysToCareProps) {
           const safeImg =
             typeof rawImg === "string" && rawImg.trim().length > 0
               ? rawImg.trim()
-              : typeof rawImg === "object" && rawImg !== null && (rawImg as any).url
-              ? String((rawImg as any).url)
-              : "/images/products/face-wash/face-wash-1.png";
+              : typeof rawImg === "object" &&
+                  rawImg !== null &&
+                  (rawImg as any).url
+                ? String((rawImg as any).url)
+                : "/images/products/face-wash/face-wash-1.png";
 
           const primaryVar = p.variants?.[0];
           const discountStr =
             p.discountPercentage > 0
               ? `${p.discountPercentage}% OFF`
               : primaryVar && primaryVar.mrp > primaryVar.price
-              ? `${Math.round(((primaryVar.mrp - primaryVar.price) / primaryVar.mrp) * 100)}% OFF`
-              : "";
+                ? `${Math.round(((primaryVar.mrp - primaryVar.price) / primaryVar.mrp) * 100)}% OFF`
+                : "";
 
           const parsedBadges = p.badge
-            ? p.badge.split(",").map((b) => b.trim()).filter(Boolean)
+            ? p.badge
+                .split(",")
+                .map((b) => b.trim())
+                .filter(Boolean)
             : ["New Launch"];
 
           return {
@@ -112,7 +119,7 @@ export default function MoreWaysToCare({ products = [] }: MoreWaysToCareProps) {
             More ways to care
           </h2>
           <p className="text-sm md:text-base text-[#736E67] mt-2">
-            Explore our latest additions to your skincare routine.
+            Explore our latest additions to your beautycare routine.
           </p>
         </div>
 
@@ -137,10 +144,11 @@ export default function MoreWaysToCare({ products = [] }: MoreWaysToCareProps) {
                             bLabel.toLowerCase().includes("new")
                               ? "bg-[#4E5942] text-white"
                               : bLabel.toLowerCase().includes("bestseller")
-                              ? "bg-[#1A1A1A] text-white"
-                              : bLabel.toLowerCase().includes("off") || bLabel.includes("%")
-                              ? "bg-[#A94438] text-white"
-                              : "bg-[#EDF3E8] text-[#3E4534] border border-[#C5D7BD]"
+                                ? "bg-[#1A1A1A] text-white"
+                                : bLabel.toLowerCase().includes("off") ||
+                                    bLabel.includes("%")
+                                  ? "bg-[#A94438] text-white"
+                                  : "bg-[#EDF3E8] text-[#3E4534] border border-[#C5D7BD]"
                           }`}
                         >
                           {bLabel}

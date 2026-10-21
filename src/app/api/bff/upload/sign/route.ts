@@ -6,10 +6,16 @@ const API_SECRET = process.env.CLOUDINARY_API_SECRET;
 const API_KEY = process.env.CLOUDINARY_API_KEY;
 const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME;
 
-async function verifyAdminSession(): Promise<boolean> {
+async function verifyAdminSession(req: NextRequest): Promise<boolean> {
   const cookieStore = await cookies();
-  const sessionToken = cookieStore.get("maysha_session")?.value;
-  if (!sessionToken) return false;
+  const sessionToken =
+    cookieStore.get("maysha_session")?.value ||
+    req.cookies.get("maysha_session")?.value ||
+    req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+
+  if (!sessionToken) {
+    return false;
+  }
 
   const baseUrl = process.env.API_URL || "http://127.0.0.1:8000";
   try {
@@ -20,9 +26,14 @@ async function verifyAdminSession(): Promise<boolean> {
       },
       cache: "no-store",
     });
-    if (!res.ok) return false;
+
+    if (!res.ok) {
+      return false;
+    }
+
     const data = await res.json();
-    return data?.data?.role === "admin" || data?.role === "admin";
+    const user = data?.data?.user || data?.data || data?.user;
+    return user?.role === "admin" || Boolean(user?.is_admin);
   } catch {
     return false;
   }
@@ -37,7 +48,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const isAdmin = await verifyAdminSession();
+    const isAdmin = await verifyAdminSession(req);
     if (!isAdmin) {
       return NextResponse.json(
         { success: false, message: "Unauthorized. Admin privileges required for signing uploads." },

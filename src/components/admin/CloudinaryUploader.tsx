@@ -46,6 +46,7 @@ export default function CloudinaryUploader({
       const res = await fetch("/api/bff/upload", {
         method: "POST",
         body: formData,
+        credentials: "include",
       });
 
       const json = await res.json();

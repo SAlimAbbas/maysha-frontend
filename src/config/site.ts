@@ -15,6 +15,7 @@ export const SITE_CONFIG = {
     "Hand-Harvested Damask Rose & Ayurvedic Cold-Pressed Oils",
   ],
   navLinks: [
+    { label: "Home", href: "/" },
     { label: "Shop", href: "/shop" },
     { label: "About", href: "/about" },
     { label: "Journal", href: "/journal" },

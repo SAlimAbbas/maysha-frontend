@@ -61,6 +61,7 @@ export default function CloudinaryGalleryUploader({
         const res = await fetch("/api/bff/upload", {
           method: "POST",
           body: formData,
+          credentials: "include",
         });
 
         const json = await res.json();

@@ -12,6 +12,7 @@ interface LanguageContextType {
 
 const TRANSLATIONS: Record<Language, Record<string, string>> = {
   en: {
+    home: "Home",
     shop: "Shop",
     about: "About",
     journal: "Journal",
@@ -38,6 +39,7 @@ const TRANSLATIONS: Record<Language, Record<string, string>> = {
     dropCapIntro: "The botanical journey begins with nature's purest harvest.",
   },
   hi: {
+    home: "होम",
     shop: "दुकान",
     about: "हमारे बारे में",
     journal: "जर्नल",

@@ -197,6 +197,25 @@ export default function Header() {
 
             {/* Desktop Navigation Links (Minimalist style) */}
             <nav className="hidden lg:flex items-center gap-6 xl:gap-8 ml-4">
+              {/* 0. HOME */}
+              <div className="relative py-2">
+                <Link
+                  href="/"
+                  className={`text-[15px] xl:text-[16px] tracking-wide transition-colors flex items-center cursor-pointer ${
+                    pathname === "/"
+                      ? "text-[#1A1A1A] font-semibold"
+                      : "text-[#4A4640] hover:text-[#1A1A1A]"
+                  }`}
+                >
+                  <span>{t("home", "Home")}</span>
+                </Link>
+                <span
+                  className={`absolute bottom-0 left-0 w-full h-[2px] bg-[#4E5942] transition-transform duration-200 origin-left ${
+                    pathname === "/" ? "scale-x-100" : "scale-x-0"
+                  }`}
+                />
+              </div>
+
               {/* 1. SHOP (Hover to show Categories) */}
               <div
                 className="relative py-2"

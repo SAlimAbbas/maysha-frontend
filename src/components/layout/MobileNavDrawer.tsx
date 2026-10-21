@@ -18,9 +18,13 @@ import { useCartStore } from "@/stores/cartStore";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
 import { useWishlist } from "@/hooks/useWishlist";
+import { usePathname } from "next/navigation";
+import { useLanguage } from "@/providers/LanguageProvider";
 import LanguageSwitcher from "@/components/layout/LanguageSwitcher";
 
 export default function MobileNavDrawer() {
+  const pathname = usePathname();
+  const { t } = useLanguage();
   const { isMobileMenuOpen, closeMobileMenu, openSearch } = useUIStore();
   const { openCart } = useCartStore();
   const { cart } = useCart();
@@ -110,6 +114,19 @@ export default function MobileNavDrawer() {
         {/* Links Navigation List */}
         <div className="flex-1 overflow-y-auto px-5 py-4 divide-y divide-[#F0ECE4]">
           <div className="py-2 space-y-1">
+            <Link
+              href="/"
+              onClick={closeMobileMenu}
+              className={`flex items-center justify-between py-3.5 text-[17px] font-semibold transition-colors ${
+                pathname === "/"
+                  ? "text-[#4E5942]"
+                  : "text-[#1A1A1A] hover:text-[#4E5942]"
+              }`}
+            >
+              <span>{t("home", "Home")}</span>
+              <ChevronRight className="w-5 h-5 text-[#8C867D]" />
+            </Link>
+
             <Link
               href="/shop"
               onClick={closeMobileMenu}
