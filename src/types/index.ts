@@ -92,9 +92,30 @@ export interface StoreInfo {
   codMaxRupees?: number;
   announcementMessages?: string[];
   supportPhone?: string;
+  supportWhatsapp?: string;
+  supportHours?: string;
+  storeAddress?: string;
   gstin?: string;
   status: string;
   supportEmail: string;
+  about?: {
+    heroTitle?: string;
+    heroSubtitle?: string;
+    heroImage?: string;
+    philosophyImage?: string;
+    storyTitle?: string;
+    storyContent?: string;
+  };
+  seo?: {
+    homeTitle?: string;
+    homeDescription?: string;
+    aboutTitle?: string;
+    aboutDescription?: string;
+    journalTitle?: string;
+    journalDescription?: string;
+    shopTitle?: string;
+    shopDescription?: string;
+  };
 }
 
 export interface CartLine {

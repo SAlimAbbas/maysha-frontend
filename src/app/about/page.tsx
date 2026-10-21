@@ -1,6 +1,7 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
+import type { Metadata } from "next";
 import {
   Leaf,
   Sparkles,
@@ -15,12 +16,40 @@ import {
 } from "lucide-react";
 import WhatMakesUsSpecial from "@/components/home/WhatMakesUsSpecial";
 import ContactForm from "@/components/about/ContactForm";
+import { apiServerFetch } from "@/lib/api";
+import { StoreInfo } from "@/types";
 
-export const metadata = {
-  title: "About Maysha | Our Botanical Philosophy & Clean Formulations",
-  description:
-    "Learn about Maysha's barrier-first skincare philosophy, pure botanical ingredients, ethical harvesting, and transparent biocompatible formulations.",
-};
+export const revalidate = 60;
+
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    const storeInfo = await apiServerFetch<StoreInfo>("store-info", {
+      revalidate: 60,
+      tags: ["settings", "store-info"],
+    });
+
+    const title = storeInfo?.seo?.aboutTitle || "About Maysha | Our Botanical Philosophy & Clean Formulations";
+    const description =
+      storeInfo?.seo?.aboutDescription ||
+      "Learn about Maysha's barrier-first skincare philosophy, pure botanical ingredients, ethical harvesting, and transparent biocompatible formulations.";
+
+    return {
+      title,
+      description,
+      openGraph: {
+        title,
+        description,
+        images: storeInfo?.about?.heroImage ? [{ url: storeInfo.about.heroImage }] : undefined,
+      },
+    };
+  } catch {
+    return {
+      title: "About Maysha | Our Botanical Philosophy & Clean Formulations",
+      description:
+        "Learn about Maysha's barrier-first skincare philosophy, pure botanical ingredients, ethical harvesting, and transparent biocompatible formulations.",
+    };
+  }
+}
 
 const INGREDIENTS = [
   {
@@ -92,7 +121,24 @@ const APPROACH_STEPS = [
   },
 ];
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  let storeInfo: StoreInfo | null = null;
+  try {
+    storeInfo = await apiServerFetch<StoreInfo>("store-info", {
+      revalidate: 60,
+      tags: ["settings", "store-info"],
+    });
+  } catch {
+    // Graceful fallback to default values
+  }
+
+  const heroImageSrc =
+    storeInfo?.about?.heroImage ||
+    "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=1200&q=85";
+  const philosophyImageSrc =
+    storeInfo?.about?.philosophyImage ||
+    "https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&w=1200&q=85";
+
   return (
     <div className="bg-[#FBF9F5] min-h-screen py-10 lg:py-16 border-b border-[#E8E3DA]">
       <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 space-y-20">
@@ -111,11 +157,18 @@ export default function AboutPage() {
             Our Purpose &amp; Provenance
           </span>
           <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-normal text-[#1A1A1A] leading-[1.18] tracking-tight">
-            Clean Botanical Science <br />
-            <span className="italic font-normal text-[#4E5942]">for Resilient, Real Skin</span>
+            {storeInfo?.about?.heroTitle ? (
+              storeInfo.about.heroTitle
+            ) : (
+              <>
+                Clean Botanical Science <br />
+                <span className="italic font-normal text-[#4E5942]">for Resilient, Real Skin</span>
+              </>
+            )}
           </h1>
           <p className="text-[18px] sm:text-[20px] text-[#3D3A34] leading-[1.7] font-normal">
-            Maysha was founded on an unwavering truth: skincare should support your skin&apos;s natural biology, never wage war against it. We formulate restorative, biocompatible skincare using pure botanical extracts balanced with clinically proven actives.
+            {storeInfo?.about?.heroSubtitle ||
+              "Maysha was founded on an unwavering truth: skincare should support your skin's natural biology, never wage war against it. We formulate restorative, biocompatible skincare using pure botanical extracts balanced with clinically proven actives."}
           </p>
         </div>
 
@@ -123,8 +176,8 @@ export default function AboutPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="aspect-[4/3] relative bg-[#EFECE4] rounded-xs overflow-hidden border border-[#E8E3DA]">
             <Image
-              src="https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=1200&q=85"
-              alt="Maysha botanical skincare bottles on stone"
+              src={heroImageSrc}
+              alt={storeInfo?.about?.heroTitle || "Maysha botanical skincare"}
               fill
               className="object-cover"
               sizes="(max-width: 768px) 100vw, 50vw"
@@ -133,8 +186,8 @@ export default function AboutPage() {
           </div>
           <div className="aspect-[4/3] relative bg-[#EFECE4] rounded-xs overflow-hidden border border-[#E8E3DA]">
             <Image
-              src="https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&w=1200&q=85"
-              alt="Fresh hand-picked botanicals in soft morning light"
+              src={philosophyImageSrc}
+              alt="Maysha laboratory & botanical formulation"
               fill
               className="object-cover"
               sizes="(max-width: 768px) 100vw, 50vw"
@@ -149,20 +202,28 @@ export default function AboutPage() {
               Our Journey
             </span>
             <h2 className="text-3xl sm:text-4xl font-normal text-[#1A1A1A] leading-snug tracking-tight">
-              Born from a need for honest, barrier-conscious skincare.
+              {storeInfo?.about?.storyTitle || "Born from a need for honest, barrier-conscious skincare."}
             </h2>
           </div>
 
           <div className="lg:col-span-7 space-y-6 text-[17px] sm:text-[18px] text-[#3D3A34] leading-[1.75] font-normal">
-            <p>
-              In an industry dominated by aggressive 10-step routines, harsh chemical peels, and marketing buzzwords, we witnessed countless consumers battling sensitized, compromised moisture barriers. Skin was constantly inflamed, reactive, and tired.
-            </p>
-            <p>
-              We set out to create an antidote: minimalist skincare that honors the cutaneous acid mantle. We spent two years collaborating with cosmetic chemists and organic farmers across India to harvest botanical actives at their peak therapeutic potency.
-            </p>
-            <p className="border-l-2 border-[#4E5942] pl-5 italic text-[#1A1A1A] text-[18px] sm:text-[19px] leading-relaxed">
-              &ldquo;We don&apos;t believe in miracle overnight cures. We believe in daily physiological consistency, biocompatible ingredients, and skin that feels calm and radiant in its own skin.&rdquo;
-            </p>
+            {storeInfo?.about?.storyContent ? (
+              <div className="whitespace-pre-line space-y-4">
+                {storeInfo.about.storyContent}
+              </div>
+            ) : (
+              <>
+                <p>
+                  In an industry dominated by aggressive 10-step routines, harsh chemical peels, and marketing buzzwords, we witnessed countless consumers battling sensitized, compromised moisture barriers. Skin was constantly inflamed, reactive, and tired.
+                </p>
+                <p>
+                  We set out to create an antidote: minimalist skincare that honors the cutaneous acid mantle. We spent two years collaborating with cosmetic chemists and organic farmers across India to harvest botanical actives at their peak therapeutic potency.
+                </p>
+                <p className="border-l-2 border-[#4E5942] pl-5 italic text-[#1A1A1A] text-[18px] sm:text-[19px] leading-relaxed">
+                  &ldquo;We don&apos;t believe in miracle overnight cures. We believe in daily physiological consistency, biocompatible ingredients, and skin that feels calm and radiant in its own skin.&rdquo;
+                </p>
+              </>
+            )}
           </div>
         </div>
 
@@ -352,12 +413,28 @@ export default function AboutPage() {
 
               <div className="pt-4 space-y-2.5 text-[15px] sm:text-[16px] text-[#4A4640]">
                 <p>
-                  Email: <span className="font-medium text-[#1A1A1A]">care@mayshaskincare.com</span>
+                  Email:{" "}
+                  <a
+                    href={`mailto:${storeInfo?.supportEmail || "care@mayshaskincare.com"}`}
+                    className="font-medium text-[#1A1A1A] hover:underline"
+                  >
+                    {storeInfo?.supportEmail || "care@mayshaskincare.com"}
+                  </a>
                 </p>
                 <p>
-                  WhatsApp: <span className="font-medium text-[#1A1A1A]">+91 98765 43210</span>
+                  WhatsApp:{" "}
+                  <a
+                    href={`https://wa.me/${(storeInfo?.supportWhatsapp || storeInfo?.supportPhone || "+919876543210").replace(/[^0-9]/g, "")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-[#1A1A1A] hover:underline"
+                  >
+                    {storeInfo?.supportWhatsapp || storeInfo?.supportPhone || "+91 98765 43210"}
+                  </a>
                 </p>
-                <p className="text-[14px] text-[#736E67]">Mon - Sat: 9:30 AM to 6:30 PM IST</p>
+                <p className="text-[14px] text-[#736E67]">
+                  {storeInfo?.supportHours || "Mon - Sat: 9:30 AM to 6:30 PM IST"}
+                </p>
               </div>
             </div>
 

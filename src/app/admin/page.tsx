@@ -159,10 +159,14 @@ export default function AdminPage() {
     social_instagram: "https://instagram.com/mayshaskincare",
     social_facebook: "https://facebook.com/mayshaskincare",
     about_hero_title: "Clean Botanical Science for Resilient, Real Skin",
+    about_hero_subtitle:
+      "Maysha was founded on an unwavering truth: skincare should support your skin's natural biology, never wage war against it. We formulate restorative, biocompatible skincare using pure botanical extracts balanced with clinically proven actives.",
     about_hero_image:
       "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=1200&q=85",
     about_philosophy_image:
       "https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&w=1200&q=85",
+    about_story_title: "Born from a need for honest, barrier-conscious skincare.",
+    about_story_content: "",
     admin_2fa_enabled: false,
     admin_2fa_pin: "9281",
     seo_home_title: "Maysha | Clean Botanical Science for Real Skin",
@@ -3612,13 +3616,31 @@ export default function AdminPage() {
                     </label>
                     <input
                       type="text"
-                      value={siteSettings.about_hero_title}
+                      value={siteSettings.about_hero_title || ""}
                       onChange={(e) =>
                         setSiteSettings({
                           ...siteSettings,
                           about_hero_title: e.target.value,
                         })
                       }
+                      placeholder="Clean Botanical Science for Resilient, Real Skin"
+                      className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
+                      About Page Hero Subtitle / Mission Statement
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={siteSettings.about_hero_subtitle || ""}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          about_hero_subtitle: e.target.value,
+                        })
+                      }
+                      placeholder="Maysha was founded on an unwavering truth: skincare should support your skin's natural biology..."
                       className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                     />
                   </div>
@@ -3647,6 +3669,42 @@ export default function AdminPage() {
                             about_philosophy_image: url,
                           })
                         }
+                      />
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-[#F0ECE4] space-y-4">
+                    <div>
+                      <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
+                        &quot;Our Journey&quot; Section Headline
+                      </label>
+                      <input
+                        type="text"
+                        value={siteSettings.about_story_title || ""}
+                        onChange={(e) =>
+                          setSiteSettings({
+                            ...siteSettings,
+                            about_story_title: e.target.value,
+                          })
+                        }
+                        placeholder="Born from a need for honest, barrier-conscious skincare."
+                        className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
+                        &quot;Our Journey&quot; Story Narrative / Paragraphs (Optional override)
+                      </label>
+                      <textarea
+                        rows={4}
+                        value={siteSettings.about_story_content || ""}
+                        onChange={(e) =>
+                          setSiteSettings({
+                            ...siteSettings,
+                            about_story_content: e.target.value,
+                          })
+                        }
+                        placeholder="Leave blank to use default brand story, or enter custom narrative paragraphs..."
+                        className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                       />
                     </div>
                   </div>
