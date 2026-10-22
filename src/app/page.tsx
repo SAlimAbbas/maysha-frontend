@@ -14,24 +14,33 @@ export const revalidate = 60; // 60s ISR
 
 export default async function HomePage() {
   // Fetch homepage datasets in parallel with server caching
-  const [bannersRes, bestsellersRes, newProductsRes] = await Promise.allSettled([
-    apiServerFetch<Banner[]>("banners", { revalidate: 300, tags: ["banners"] }),
-    apiServerFetch<Product[]>("products/bestsellers", {
-      revalidate: 60,
-      tags: ["products"],
-    }),
-    apiServerFetch<Product[]>("products/new", {
-      revalidate: 60,
-      tags: ["products"],
-    }),
-  ]);
+  const [bannersRes, bestsellersRes, newProductsRes] = await Promise.allSettled(
+    [
+      apiServerFetch<Banner[]>("banners", {
+        revalidate: 300,
+        tags: ["banners"],
+      }),
+      apiServerFetch<Product[]>("products/bestsellers", {
+        revalidate: 60,
+        tags: ["products"],
+      }),
+      apiServerFetch<Product[]>("products/new", {
+        revalidate: 60,
+        tags: ["products"],
+      }),
+    ],
+  );
 
   const banners = bannersRes.status === "fulfilled" ? bannersRes.value : [];
   const bestsellers =
     bestsellersRes.status === "fulfilled" && Array.isArray(bestsellersRes.value)
       ? bestsellersRes.value.filter((p) => {
           const b = (p.badge || "").toLowerCase();
-          return b.includes("bestseller") || b.includes("best seller") || Boolean(p.isFeatured);
+          return (
+            b.includes("bestseller") ||
+            b.includes("best seller") ||
+            Boolean(p.isFeatured)
+          );
         })
       : [];
   const newProducts =
@@ -62,11 +71,11 @@ export default async function HomePage() {
       {/* 7. From the Journal (Skincare Tips, Insights & More) */}
       <HomeJournalSection />
 
-      {/* 8. Better Skin. A Kinder Planet. Newsletter Signup Strip */}
-      <NewsletterStrip />
-
       {/* 9. Interested in becoming a Distributor Banner (Google Form) */}
       <DistributorBanner />
+
+      {/* 8. Better Skin. A Kinder Planet. Newsletter Signup Strip */}
+      <NewsletterStrip />
     </div>
   );
 }

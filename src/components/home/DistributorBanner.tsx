@@ -7,11 +7,11 @@ interface DistributorBannerProps {
 }
 
 export default function DistributorBanner({
-  formUrl = "https://docs.google.com/forms/d/e/YOUR_GOOGLE_FORM_ID/viewform",
+  formUrl = "https://docs.google.com/forms/d/e/1FAIpQLScgXNpr8Hja_Azd0v6x2moBjJbYmwP-tLbRvnQUIZXWzGAFeQ/viewform?usp=sharing&ouid=115929252466889515193",
 }: DistributorBannerProps) {
   return (
-    <section className="w-full bg-[#FBF9F5] py-8 sm:py-12 border-t border-[#E8E3DA]">
-      <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="w-full bg-[#FBF9F5] py-8 sm:py-12 border-[#E8E3DA]">
+      <div className="max-w-[1360px] mx-auto px-4 sm:px-8">
         <a
           href={formUrl}
           target="_blank"
