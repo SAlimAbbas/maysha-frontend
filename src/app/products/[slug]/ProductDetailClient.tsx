@@ -33,13 +33,14 @@ import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
 import { useWishlist } from "@/hooks/useWishlist";
 import { useUIStore } from "@/stores/uiStore";
-import { Product, Review } from "@/types";
+import { Product, Review, CouponOffer } from "@/types";
 import { formatINR, apiBffFetch } from "@/lib/api";
 
 interface ProductDetailClientProps {
   product: Product;
   related: Product[];
   initialReviews: Review[];
+  initialOffers?: CouponOffer[];
 }
 
 interface OfferItem {
@@ -191,6 +192,7 @@ export default function ProductDetailClient({
   product,
   related = [],
   initialReviews = [],
+  initialOffers = [],
 }: ProductDetailClientProps) {
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedVariantId, setSelectedVariantId] = useState(
@@ -206,9 +208,40 @@ export default function ProductDetailClient({
   const [zoomIndex, setZoomIndex] = useState(0);
   const [isZoomedIn, setIsZoomedIn] = useState(false);
 
-  // Offers State
-  const [offers, setOffers] = useState<OfferItem[]>(DEFAULT_OFFERS);
+  // Dynamic Offers State (SSR hydrated with fallback, refreshed via client fetch)
+  const [offers, setOffers] = useState<OfferItem[]>(() => {
+    if (initialOffers && initialOffers.length > 0) {
+      return initialOffers.map((o) => ({
+        id: String(o.id),
+        code: o.code,
+        description: o.description,
+      }));
+    }
+    return DEFAULT_OFFERS;
+  });
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    apiBffFetch<CouponOffer[]>("coupons")
+      .then((data) => {
+        if (isMounted && Array.isArray(data) && data.length > 0) {
+          setOffers(
+            data.map((o) => ({
+              id: String(o.id),
+              code: o.code,
+              description: o.description,
+            })),
+          );
+        }
+      })
+      .catch(() => {
+        // keep fallback or initial offers
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Pincode Delivery Check
   const [pincode, setPincode] = useState("");
@@ -546,55 +579,57 @@ export default function ProductDetailClient({
               </div>
             </div>
 
-            {/* Offers Ticket Strip (Screenshot 1: Under Images Div) */}
-            <div className="pt-2">
-              <div className="flex items-center justify-between mb-3.5">
-                <h3 className="text-[17px] font-semibold text-[#1A1A1A] tracking-tight">
-                  Offers ({offers.length})
-                </h3>
-              </div>
+            {/* Offers Ticket Strip (Dynamic from Database) */}
+            {offers.length > 0 && (
+              <div className="pt-2">
+                <div className="flex items-center justify-between mb-3.5">
+                  <h3 className="text-[17px] font-semibold text-[#1A1A1A] tracking-tight">
+                    Offers ({offers.length})
+                  </h3>
+                </div>
 
-              <div className="flex gap-4 overflow-x-auto pb-3 pt-1 scrollbar-thin">
-                {offers.map((offer) => (
-                  <div
-                    key={offer.code}
-                    className="relative shrink-0 w-[240px] sm:w-[260px] bg-[#111111] text-white p-4.5 rounded-xl flex flex-col justify-between shadow-md group hover:bg-[#000000] transition-all overflow-hidden"
-                  >
-                    {/* Perforated Notches on Left and Right (matching screenshot 1) */}
-                    <div className="absolute -left-2.5 top-1/2 -translate-y-1/2 w-5 h-5 bg-[#FBF9F5] rounded-full border border-[#E8E3DA]" />
-                    <div className="absolute -right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 bg-[#FBF9F5] rounded-full border border-[#E8E3DA]" />
+                <div className="flex gap-4 overflow-x-auto pb-3 pt-1 scrollbar-thin">
+                  {offers.map((offer) => (
+                    <div
+                      key={offer.code}
+                      className="relative shrink-0 w-[240px] sm:w-[260px] bg-[#111111] text-white p-4.5 rounded-xl flex flex-col justify-between shadow-md group hover:bg-[#000000] transition-all overflow-hidden"
+                    >
+                      {/* Perforated Notches on Left and Right (matching screenshot 1) */}
+                      <div className="absolute -left-2.5 top-1/2 -translate-y-1/2 w-5 h-5 bg-[#FBF9F5] rounded-full border border-[#E8E3DA]" />
+                      <div className="absolute -right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 bg-[#FBF9F5] rounded-full border border-[#E8E3DA]" />
 
-                    {/* Faint Percent Watermark */}
-                    <div className="absolute right-2 top-1 opacity-10 text-4xl font-black pointer-events-none">
-                      %
+                      {/* Faint Percent Watermark */}
+                      <div className="absolute right-2 top-1 opacity-10 text-4xl font-black pointer-events-none">
+                        %
+                      </div>
+
+                      {/* Top Code Pill with Copy Action */}
+                      <div className="flex items-center justify-between pl-1 pr-1 mb-3">
+                        <button
+                          type="button"
+                          onClick={() => handleCopyCoupon(offer.code)}
+                          className="flex items-center gap-2 border border-dashed border-white/60 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-md text-[13px] font-mono font-bold tracking-wider transition-colors cursor-pointer"
+                          title="Click to copy coupon code"
+                        >
+                          <Copy className="w-3.5 h-3.5 text-white/80" />
+                          <span>{offer.code}</span>
+                        </button>
+                        {copiedCode === offer.code && (
+                          <span className="text-[11px] font-semibold text-[#86EFAC] animate-in fade-in">
+                            Copied! ✓
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Bottom Description */}
+                      <p className="text-[13px] font-medium text-[#E5E0D8] leading-snug pl-1 pr-1">
+                        {offer.description}
+                      </p>
                     </div>
-
-                    {/* Top Code Pill with Copy Action */}
-                    <div className="flex items-center justify-between pl-1 pr-1 mb-3">
-                      <button
-                        type="button"
-                        onClick={() => handleCopyCoupon(offer.code)}
-                        className="flex items-center gap-2 border border-dashed border-white/60 bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-md text-[13px] font-mono font-bold tracking-wider transition-colors cursor-pointer"
-                        title="Click to copy coupon code"
-                      >
-                        <Copy className="w-3.5 h-3.5 text-white/80" />
-                        <span>{offer.code}</span>
-                      </button>
-                      {copiedCode === offer.code && (
-                        <span className="text-[11px] font-semibold text-[#86EFAC] animate-in fade-in">
-                          Copied! ✓
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Bottom Description */}
-                    <p className="text-[13px] font-medium text-[#E5E0D8] leading-snug pl-1 pr-1">
-                      {offer.description}
-                    </p>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Product Details Column */}

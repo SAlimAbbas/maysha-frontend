@@ -51,7 +51,7 @@ export default function ContactForm() {
       setMessage("");
     } catch (err: any) {
       setErrorMessage(
-        err.message || "Failed to submit message. Please try again or reach out directly to care@maysha.com."
+        err.message || "Failed to submit message. Please try again or reach out directly to our customer care team."
       );
     } finally {
       setIsLoading(false);

@@ -262,6 +262,12 @@ export default function CartPage() {
       } catch {}
     }
 
+    if (!values.name?.trim() || !values.email?.trim() || !values.phone?.trim() || !values.line1?.trim()) {
+      setCheckoutError("Please provide all required customer contact details (name, email, phone, and delivery address) before proceeding to payment.");
+      setIsCheckingOut(false);
+      return;
+    }
+
     try {
       // 1. Create order on server
       const orderRes = await apiBffFetch<Order>("orders", {
@@ -275,16 +281,16 @@ export default function CartPage() {
             quantity: item.quantity,
           })),
           shipping_address: {
-            name: values.name,
-            phone: values.phone,
-            line1: values.line1,
-            city: values.city,
-            state: values.state,
-            pincode: values.pincode,
+            name: values.name.trim(),
+            phone: values.phone.trim(),
+            line1: values.line1.trim(),
+            city: values.city.trim(),
+            state: values.state.trim(),
+            pincode: values.pincode.trim(),
           },
           payment_method: values.paymentMethod,
           coupon_code: cart.couponCode || undefined,
-          guest_email: values.email,
+          guest_email: values.email.trim(),
         }),
       });
 
@@ -310,8 +316,10 @@ export default function CartPage() {
         throw new Error("Unable to initialize payment gateway. Please check your network and retry.");
       }
 
+      const razorpayKey = rzpData.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "";
+
       const options = {
-        key: rzpData.keyId,
+        key: razorpayKey,
         amount: rzpData.amountPaise,
         currency: rzpData.currency || "INR",
         name: "Maysha Skincare",
@@ -335,6 +343,7 @@ export default function CartPage() {
                 razorpay_signature: response.razorpay_signature,
               }),
             });
+            // Clear cart queries upon verified payment
             queryClient.invalidateQueries({ queryKey: ["cart"] });
             router.push(`/orders/${order.reference}`);
           } catch (verifyErr: any) {
@@ -347,8 +356,10 @@ export default function CartPage() {
         modal: {
           ondismiss: function () {
             setIsCheckingOut(false);
+            // Cart remains intact so the user does not lose their selection
+            queryClient.invalidateQueries({ queryKey: ["cart"] });
             setCheckoutError(
-              "Payment window closed. Your items and order draft are reserved; please click Place Order again to complete payment."
+              "Payment window closed. Your cart items are preserved; please click 'Place Order' again or select COD to complete your purchase."
             );
           },
         },
@@ -357,13 +368,18 @@ export default function CartPage() {
       const razorpayInstance = new (window as any).Razorpay(options);
       razorpayInstance.on("payment.failed", function (failResponse: any) {
         setIsCheckingOut(false);
-        setCheckoutError(
-          failResponse.error?.description || "Payment failed. Please try with another card, UPI, or select COD."
-        );
+        // Cart remains intact so the user does not lose their selection
+        queryClient.invalidateQueries({ queryKey: ["cart"] });
+        const errMsg =
+          failResponse.error?.description ||
+          "Payment failed. Your items remain in your cart. Please try with UPI, card, or Cash on Delivery.";
+        setCheckoutError(errMsg);
+        addToast("Payment Failed", errMsg, "error");
       });
       razorpayInstance.open();
     } catch (err: any) {
       setIsCheckingOut(false);
+      queryClient.invalidateQueries({ queryKey: ["cart"] });
       if (err instanceof ApiClientError && err.errors) {
         const mapped = mapDottedErrors(err.errors);
         for (const [key, msg] of Object.entries(mapped)) {

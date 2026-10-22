@@ -285,3 +285,15 @@ export interface ToastMessage {
   description?: string;
   type?: "success" | "info" | "error";
 }
+
+export interface CouponOffer {
+  id: string;
+  code: string;
+  type?: string;
+  value?: number;
+  minOrderRupees?: number;
+  maxDiscountRupees?: number | null;
+  firstOrderOnly?: boolean;
+  description: string;
+}
+

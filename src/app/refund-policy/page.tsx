@@ -1,13 +1,31 @@
 import React from "react";
 import Link from "next/link";
-import { RotateCcw, ArrowLeft, ShieldAlert, CheckCircle2, HelpCircle } from "lucide-react";
+import { RotateCcw, ArrowLeft } from "lucide-react";
+import { apiServerFetch } from "@/lib/api";
+import { StoreInfo } from "@/types";
+
+export const revalidate = 60;
 
 export const metadata = {
   title: "Refund & Returns Policy | Maysha Skincare",
   description: "Our 7-day hassle-free replacement, damaged transit guarantee, and prompt refund processing policy.",
 };
 
-export default function RefundPolicyPage() {
+export default async function RefundPolicyPage() {
+  let storeInfo: StoreInfo | null = null;
+  try {
+    storeInfo = await apiServerFetch<StoreInfo>("store-info", {
+      revalidate: 60,
+      tags: ["settings", "store-info"],
+    });
+  } catch {
+    // Fallback
+  }
+
+  const supportEmail = storeInfo?.supportEmail || "care@mayshaskincare.com";
+  const supportPhone = storeInfo?.supportWhatsapp || storeInfo?.supportPhone || "+91 98765 43210";
+  const supportHours = storeInfo?.supportHours || "Mon - Sat, 9:30 AM - 6:30 PM IST";
+
   return (
     <main className="min-h-screen bg-[#FBF9F5] pt-28 pb-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
@@ -23,20 +41,20 @@ export default function RefundPolicyPage() {
             <RotateCcw className="w-4 h-4" /> Returns & Guarantee
           </div>
           <h1 className="font-serif text-3xl sm:text-4xl text-[#1A1A1A] font-light mb-4">
-            Refund, Return & Cancellation Policy
+            Refund & Replacement Policy
           </h1>
           <p className="text-sm text-[#736E67]">
-            Clean beauty backed by an uncompromising customer satisfaction guarantee.
+            At Maysha, we formulate pure, biocompatible skincare. We stand firmly behind the freshness and clinical efficacy of every batch.
           </p>
         </div>
 
-        <div className="bg-white border border-[#E8E3DA] rounded-xs p-8 sm:p-12 space-y-8 text-[#4A4742] leading-relaxed text-[15px]">
+        <div className="bg-white border border-[#E8E3DA] rounded-xs p-8 sm:p-12 space-y-8 text-[#5A5650] leading-relaxed">
           <section className="space-y-3">
             <h2 className="font-serif text-xl text-[#1A1A1A] font-normal">
-              1. 7-Day Damaged or Defective Guarantee
+              1. 7-Day Damaged Transit & Defect Guarantee
             </h2>
             <p>
-              Due to strict hygiene, microbiological purity, and safety regulations governing personal skincare formulations, we cannot accept returns of opened or used products. However, if your order arrives:
+              Due to the sterile and hygienic nature of botanical skincare formulations, opened or used bottles cannot be returned for resale. However, we offer an absolute replacement guarantee if any formulation arrives:
             </p>
             <ul className="list-disc pl-5 space-y-1.5 text-sm">
               <li>Physically damaged during transit or with a broken safety seal,</li>
@@ -44,7 +62,11 @@ export default function RefundPolicyPage() {
               <li>Missing items from your package manifest,</li>
             </ul>
             <p>
-              Please notify us within <strong>7 days of delivery</strong> at <a href="mailto:care@maysha.in" className="text-[#4E5942] underline">care@maysha.in</a> with photos of the outer box and invoice. We will immediately ship an express replacement at zero cost or issue a 100% full refund.
+              Please notify us within <strong>7 days of delivery</strong> at{" "}
+              <a href={`mailto:${supportEmail}`} className="text-[#4E5942] underline">
+                {supportEmail}
+              </a>{" "}
+              with photos of the outer box and invoice. We will immediately ship an express replacement at zero cost or issue a 100% full refund.
             </p>
           </section>
 
@@ -65,8 +87,12 @@ export default function RefundPolicyPage() {
               Approved refunds are initiated within <strong>24 business hours</strong>:
             </p>
             <ul className="list-disc pl-5 space-y-1.5 text-sm">
-              <li><strong>Prepaid Orders (UPI / Cards):</strong> Refunded directly to your original source account via Razorpay within 3 to 5 banking business days.</li>
-              <li><strong>Cash on Delivery (COD):</strong> Refunded via IMPS / UPI to your provided verified bank account details within 2 to 4 business days.</li>
+              <li>
+                <strong>Prepaid Orders (UPI / Cards):</strong> Refunded directly to your original source account via Razorpay within 3 to 5 banking business days.
+              </li>
+              <li>
+                <strong>Cash on Delivery (COD):</strong> Refunded via IMPS / UPI to your provided verified bank account details within 2 to 4 business days.
+              </li>
             </ul>
           </section>
 
@@ -75,8 +101,24 @@ export default function RefundPolicyPage() {
               4. Contact for Returns
             </h2>
             <div className="bg-[#FBF9F5] p-5 rounded-2xs border border-[#E8E3DA] text-xs space-y-1 text-[#1A1A1A]">
-              <p><strong>Support Email:</strong> care@maysha.in</p>
-              <p><strong>Customer WhatsApp:</strong> +91 98765 43210 (Mon - Sat, 9:30 AM - 6:30 PM IST)</p>
+              <p>
+                <strong>Support Email:</strong>{" "}
+                <a href={`mailto:${supportEmail}`} className="hover:underline">
+                  {supportEmail}
+                </a>
+              </p>
+              <p>
+                <strong>Customer WhatsApp:</strong>{" "}
+                <a
+                  href={`https://wa.me/${supportPhone.replace(/[^0-9]/g, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:underline"
+                >
+                  {supportPhone}
+                </a>{" "}
+                ({supportHours})
+              </p>
             </div>
           </section>
         </div>

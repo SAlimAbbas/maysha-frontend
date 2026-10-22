@@ -41,7 +41,7 @@ export default function ContactForm() {
       setSubject("");
       setMessage("");
     } catch (err: any) {
-      setError(err.message || "Unable to send your inquiry. Please try again or email care@maysha.in.");
+      setError(err.message || "Unable to send your inquiry. Please try again or reach out to our concierge support team.");
     } finally {
       setIsSubmitting(false);
     }

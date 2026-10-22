@@ -1,13 +1,29 @@
 import React from "react";
 import Link from "next/link";
 import { ShieldCheck, Lock, Eye, ArrowLeft } from "lucide-react";
+import { apiServerFetch } from "@/lib/api";
+import { StoreInfo } from "@/types";
+
+export const revalidate = 60;
 
 export const metadata = {
   title: "Privacy Policy | Maysha Skincare",
   description: "Learn how Maysha collects, protects, and uses your personal information with absolute integrity and bank-grade data security.",
 };
 
-export default function PrivacyPolicyPage() {
+export default async function PrivacyPolicyPage() {
+  let storeInfo: StoreInfo | null = null;
+  try {
+    storeInfo = await apiServerFetch<StoreInfo>("store-info", {
+      revalidate: 60,
+      tags: ["settings", "store-info"],
+    });
+  } catch {
+    // Fallback
+  }
+
+  const supportEmail = storeInfo?.supportEmail || "care@mayshaskincare.com";
+  const storeAddress = storeInfo?.storeAddress || "Maysha Organics Lab, India";
   return (
     <main className="min-h-screen bg-[#FBF9F5] pt-28 pb-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
@@ -86,10 +102,10 @@ export default function PrivacyPolicyPage() {
               In compliance with the Information Technology Act 2000 and the Consumer Protection (E-Commerce) Rules, 2020:
             </p>
             <div className="bg-[#FBF9F5] p-5 rounded-2xs border border-[#E8E3DA] text-xs space-y-1 text-[#1A1A1A]">
-              <p><strong>Grievance Officer:</strong> Syed Alim Abbas</p>
+              <p><strong>Grievance Officer:</strong> Grievance Redressal Officer</p>
               <p><strong>Entity:</strong> Maysha Skincare Private Limited</p>
-              <p><strong>Email:</strong> grievance@maysha.in / care@maysha.in</p>
-              <p><strong>Address:</strong> Bengaluru, Karnataka, India - 560001</p>
+              <p><strong>Email:</strong> <a href={`mailto:${supportEmail}`} className="hover:underline">{supportEmail}</a></p>
+              <p><strong>Address:</strong> {storeAddress}</p>
               <p><strong>Response Time:</strong> Within 48 hours acknowledgment and 30 days resolution.</p>
             </div>
           </section>

@@ -7,14 +7,22 @@ import { ArrowRight, CheckCircle2, ShieldCheck, Sparkles, Leaf, HeartHandshake }
 import { useUIStore } from "@/stores/uiStore";
 import { apiBffFetch } from "@/lib/api";
 import { SITE_CONFIG } from "@/config/site";
+import { useCart } from "@/hooks/useCart";
 
 export default function Footer() {
+  const { storeInfo } = useCart();
   const [email, setEmail] = useState("");
   const [website, setWebsite] = useState(""); // Hidden honeypot
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { addToast } = useUIStore();
+
+  const supportEmail = storeInfo?.supportEmail || SITE_CONFIG.supportEmail;
+  const supportPhone = storeInfo?.supportWhatsapp || storeInfo?.supportPhone || SITE_CONFIG.supportPhone;
+  const supportHours = storeInfo?.supportHours || SITE_CONFIG.hours;
+  const storeAddress = storeInfo?.storeAddress || SITE_CONFIG.address;
+  const brandName = storeInfo?.brand || SITE_CONFIG.name;
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -240,9 +248,32 @@ export default function Footer() {
               Have questions about your skincare routine or order? Our skincare specialists are here to guide you.
             </p>
             <div className="text-[15px] text-[#D8D2C6] space-y-2 pt-1 font-normal">
-              <p>Email: <span className="text-[#8EA07E] font-medium">{SITE_CONFIG.supportEmail}</span></p>
-              <p>WhatsApp: <span className="text-[#8EA07E] font-medium">{SITE_CONFIG.supportPhone}</span></p>
-              <p className="text-[14px] text-[#736E67]">{SITE_CONFIG.hours}</p>
+              <p>
+                Email:{" "}
+                <a
+                  href={`mailto:${supportEmail}`}
+                  className="text-[#8EA07E] font-medium hover:underline"
+                >
+                  {supportEmail}
+                </a>
+              </p>
+              <p>
+                WhatsApp:{" "}
+                <a
+                  href={`https://wa.me/${supportPhone.replace(/[^0-9]/g, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#8EA07E] font-medium hover:underline"
+                >
+                  {supportPhone}
+                </a>
+              </p>
+              <p className="text-[14px] text-[#736E67]">{supportHours}</p>
+              {storeAddress && (
+                <p className="text-[13px] text-[#A69F93] pt-1 leading-snug">
+                  {storeAddress}
+                </p>
+              )}
               <div className="pt-2">
                 <Link href="/contact" className="inline-flex items-center text-xs font-semibold text-[#8EA07E] hover:underline uppercase tracking-wider">
                   Contact Concierge Desk →
@@ -254,7 +285,7 @@ export default function Footer() {
 
         {/* Bottom Copyright Strip */}
         <div className="border-t border-[#2C2C2C] mt-12 pt-8 flex flex-col sm:flex-row items-center justify-between text-[14px] text-[#736E67] gap-4 font-normal">
-          <p>© {new Date().getFullYear()} {SITE_CONFIG.name} Skincare Technologies Pvt. Ltd. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} {brandName} Skincare Technologies Pvt. Ltd. All rights reserved.</p>
           <div className="flex flex-wrap gap-4 sm:gap-6">
             <Link href="/privacy" className="hover:text-[#A69F93] transition-colors">
               Privacy Policy

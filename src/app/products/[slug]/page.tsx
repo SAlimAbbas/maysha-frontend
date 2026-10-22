@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import ProductDetailClient from "./ProductDetailClient";
 import { apiServerFetch } from "@/lib/api";
-import { Product, Review } from "@/types";
+import { Product, Review, CouponOffer } from "@/types";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -62,9 +62,10 @@ export default async function ProductDetailPage({ params }: PageProps) {
   let product: Product | null = null;
   let related: Product[] = [];
   let reviews: Review[] = [];
+  let offers: CouponOffer[] = [];
 
   try {
-    const [pData, rData] = await Promise.all([
+    const [pData, rData, cData] = await Promise.all([
       apiServerFetch<{ product: Product; related: Product[] }>(`products/${slug}`, {
         revalidate: 60,
         tags: [`product:${slug}`],
@@ -73,11 +74,16 @@ export default async function ProductDetailPage({ params }: PageProps) {
         revalidate: 60,
         tags: [`reviews:${slug}`],
       }).catch(() => []),
+      apiServerFetch<CouponOffer[]>("coupons", {
+        revalidate: 60,
+        tags: ["coupons"],
+      }).catch(() => []),
     ]);
 
     product = pData.product;
     related = pData.related || [];
     reviews = rData || [];
+    offers = Array.isArray(cData) ? cData : [];
   } catch {
     notFound();
   }
@@ -129,6 +135,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
         product={product}
         related={related}
         initialReviews={reviews}
+        initialOffers={offers}
       />
     </>
   );

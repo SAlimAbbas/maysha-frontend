@@ -2,13 +2,32 @@ import React from "react";
 import Link from "next/link";
 import { Mail, Phone, MapPin, Clock, MessageSquare, ArrowLeft } from "lucide-react";
 import ContactForm from "./ContactForm";
+import { apiServerFetch } from "@/lib/api";
+import { StoreInfo } from "@/types";
+
+export const revalidate = 60;
 
 export const metadata = {
   title: "Contact Us & Concierge Care | Maysha Skincare",
   description: "Get in touch with the Maysha skincare concierge for orders, regimen guidance, and support.",
 };
 
-export default function ContactPage() {
+export default async function ContactPage() {
+  let storeInfo: StoreInfo | null = null;
+  try {
+    storeInfo = await apiServerFetch<StoreInfo>("store-info", {
+      revalidate: 60,
+      tags: ["settings", "store-info"],
+    });
+  } catch {
+    // Graceful fallback
+  }
+
+  const supportEmail = storeInfo?.supportEmail || "care@mayshaskincare.com";
+  const supportPhone = storeInfo?.supportWhatsapp || storeInfo?.supportPhone || "+91 98765 43210";
+  const storeAddress = storeInfo?.storeAddress || "Maysha Organics Lab, India";
+  const supportHours = storeInfo?.supportHours || "Monday to Saturday, 9:30 AM to 6:30 PM IST";
+
   return (
     <main className="min-h-screen bg-[#FBF9F5] pt-28 pb-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
@@ -42,8 +61,8 @@ export default function ContactPage() {
               <Mail className="w-5 h-5 text-[#4E5942] mt-0.5 shrink-0" />
               <div>
                 <p className="text-xs uppercase font-semibold tracking-wider text-[#736E67]">Email Support</p>
-                <a href="mailto:care@maysha.in" className="text-sm font-medium text-[#1A1A1A] hover:underline">
-                  care@maysha.in
+                <a href={`mailto:${supportEmail}`} className="text-sm font-medium text-[#1A1A1A] hover:underline">
+                  {supportEmail}
                 </a>
                 <p className="text-xs text-[#736E67] mt-0.5">Average reply time under 4 hours</p>
               </div>
@@ -53,10 +72,15 @@ export default function ContactPage() {
               <Phone className="w-5 h-5 text-[#4E5942] mt-0.5 shrink-0" />
               <div>
                 <p className="text-xs uppercase font-semibold tracking-wider text-[#736E67]">Phone & WhatsApp</p>
-                <a href="tel:+919876543210" className="text-sm font-medium text-[#1A1A1A] hover:underline">
-                  +91 98765 43210
+                <a
+                  href={`https://wa.me/${supportPhone.replace(/[^0-9]/g, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-medium text-[#1A1A1A] hover:underline"
+                >
+                  {supportPhone}
                 </a>
-                <p className="text-xs text-[#736E67] mt-0.5">Monday to Saturday, 9:30 AM to 6:30 PM IST</p>
+                <p className="text-xs text-[#736E67] mt-0.5">{supportHours}</p>
               </div>
             </div>
 
@@ -64,10 +88,8 @@ export default function ContactPage() {
               <MapPin className="w-5 h-5 text-[#4E5942] mt-0.5 shrink-0" />
               <div>
                 <p className="text-xs uppercase font-semibold tracking-wider text-[#736E67]">Headquarters & Labs</p>
-                <p className="text-sm text-[#1A1A1A]">
-                  Maysha Skincare Private Limited<br />
-                  100 Feet Road, Indiranagar<br />
-                  Bengaluru, Karnataka - 560038, India
+                <p className="text-sm text-[#1A1A1A] whitespace-pre-line">
+                  {storeAddress}
                 </p>
               </div>
             </div>

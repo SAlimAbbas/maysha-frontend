@@ -6,6 +6,7 @@ import RoutineSection from "@/components/home/RoutineSection";
 import CommitmentTrustStrip from "@/components/home/CommitmentTrustStrip";
 import HomeJournalSection from "@/components/home/HomeJournalSection";
 import NewsletterStrip from "@/components/home/NewsletterStrip";
+import DistributorBanner from "@/components/home/DistributorBanner";
 import { apiServerFetch } from "@/lib/api";
 import { Banner, Category, Concern, Product, Review } from "@/types";
 
@@ -63,6 +64,9 @@ export default async function HomePage() {
 
       {/* 8. Better Skin. A Kinder Planet. Newsletter Signup Strip */}
       <NewsletterStrip />
+
+      {/* 9. Interested in becoming a Distributor Banner (Google Form) */}
+      <DistributorBanner />
     </div>
   );
 }
