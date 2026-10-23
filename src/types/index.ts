@@ -98,6 +98,11 @@ export interface StoreInfo {
   gstin?: string;
   status: string;
   supportEmail: string;
+  socialLinks?: {
+    instagram?: string;
+    facebook?: string;
+    [key: string]: string | undefined;
+  };
   about?: {
     heroTitle?: string;
     heroSubtitle?: string;

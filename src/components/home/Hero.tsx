@@ -20,7 +20,8 @@ export default function Hero({ initialBanners = [] }: HeroProps) {
           {
             id: "banner-bogo",
             title: "BUY 1 GET 1 FREE — Vitamin C & Niacinamide Face Wash",
-            subtitle: "Gentle everyday herbal cleanser designed for regular use with Aloe Vera & Glycerin.",
+            subtitle:
+              "Gentle everyday herbal cleanser designed for regular use with Aloe Vera & Glycerin.",
             desktopImage: "/banners/maysha-bogo-banner.png",
             mobileImage: "/banners/maysha-bogo-banner.png",
             linkUrl: "/products/vitamin-c-niacinamide-face-wash",
@@ -124,7 +125,7 @@ export default function Hero({ initialBanners = [] }: HeroProps) {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <div className="relative w-full h-[260px] xs:h-[320px] sm:h-[400px] md:h-[460px] lg:h-[520px] xl:h-[580px]">
+        <div className="relative w-full aspect-[4/5] sm:aspect-[1/1] md:aspect-auto md:h-[480px] lg:h-[560px] xl:h-[620px] max-h-[640px]">
           {banners.map((banner, index) => {
             const isActive = index === currentIndex;
             return (
@@ -132,7 +133,9 @@ export default function Hero({ initialBanners = [] }: HeroProps) {
                 key={banner.id || index}
                 aria-hidden={!isActive}
                 className={`absolute inset-0 w-full h-full transition-opacity duration-700 ease-in-out ${
-                  isActive ? "opacity-100 z-10 pointer-events-auto" : "opacity-0 z-0 pointer-events-none"
+                  isActive
+                    ? "opacity-100 z-10 pointer-events-auto"
+                    : "opacity-0 z-0 pointer-events-none"
                 }`}
               >
                 <Link
@@ -141,8 +144,8 @@ export default function Hero({ initialBanners = [] }: HeroProps) {
                   tabIndex={isActive ? 0 : -1}
                   aria-label={banner.title}
                 >
-                  {/* Banner Image */}
-                  <div className="relative w-full h-full bg-[#EFECE4]">
+                  {/* Desktop & Tablet Banner Image (768px and up) */}
+                  <div className="relative w-full h-full bg-[#EFECE4] hidden md:block">
                     <Image
                       src={banner.desktopImage}
                       alt={banner.title || "Maysha Skincare Banner"}
@@ -154,14 +157,27 @@ export default function Hero({ initialBanners = [] }: HeroProps) {
                     />
                   </div>
 
+                  {/* Mobile Banner Image (under 768px) */}
+                  <div className="relative w-full h-full bg-[#EFECE4] block md:hidden">
+                    <Image
+                      src={banner.mobileImage || banner.desktopImage}
+                      alt={banner.title || "Maysha Skincare Banner"}
+                      fill
+                      priority={index === 0}
+                      quality={92}
+                      sizes="100vw"
+                      className="object-cover object-center w-full h-full"
+                    />
+                  </div>
+
                   {/* Accessibility & Visual Overlay */}
-                  {banner.badgeText && (
+                  {/* {banner.badgeText && (
                     <div className="absolute top-4 left-4 sm:top-6 sm:left-8 z-20">
                       <span className="inline-block bg-[#1A1A1A]/85 backdrop-blur-md text-[#FBF9F5] text-[13px] sm:text-[14px] font-semibold px-3.5 py-1.5 rounded-full uppercase tracking-wider shadow-sm border border-white/20">
                         {banner.badgeText}
                       </span>
                     </div>
-                  )}
+                  )} */}
                 </Link>
               </div>
             );
@@ -201,7 +217,11 @@ export default function Hero({ initialBanners = [] }: HeroProps) {
         {total > 1 && (
           <div className="absolute bottom-4 sm:bottom-6 left-0 right-0 z-20 flex items-center justify-center gap-3 pointer-events-none">
             <div className="flex items-center gap-2 bg-[#FFFFFF]/85 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-[#E8E3DA] shadow-sm pointer-events-auto">
-              <div className="flex items-center gap-1.5" role="tablist" aria-label="Slides">
+              <div
+                className="flex items-center gap-1.5"
+                role="tablist"
+                aria-label="Slides"
+              >
                 {banners.map((_, index) => {
                   const isActive = index === currentIndex;
                   return (
@@ -223,9 +243,9 @@ export default function Hero({ initialBanners = [] }: HeroProps) {
 
               <div className="h-3 w-[1px] bg-[#E8E3DA] mx-1" />
 
-              <span className="text-[14px] font-semibold text-[#1A1A1A] tracking-wider tabular-nums">
+              {/* <span className="text-[14px] font-semibold text-[#1A1A1A] tracking-wider tabular-nums">
                 {currentIndex + 1} <span className="text-[#888] font-normal">/</span> {total}
-              </span>
+              </span> */}
 
               <button
                 type="button"
@@ -233,7 +253,11 @@ export default function Hero({ initialBanners = [] }: HeroProps) {
                 aria-label={isPaused ? "Play slideshow" : "Pause slideshow"}
                 className="text-[#5A5650] hover:text-[#1A1A1A] p-0.5 transition-colors cursor-pointer"
               >
-                {isPaused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
+                {isPaused ? (
+                  <Play className="w-3.5 h-3.5" />
+                ) : (
+                  <Pause className="w-3.5 h-3.5" />
+                )}
               </button>
             </div>
           </div>

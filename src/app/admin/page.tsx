@@ -2585,17 +2585,41 @@ export default function AdminPage() {
                   key={ban.id || idx}
                   className="bg-[#FFFFFF] border border-[#E8E3DA] rounded-xs overflow-hidden shadow-2xs flex flex-col"
                 >
-                  <div className="aspect-[16/9] relative bg-[#EFECE4]">
-                    <Image
-                      src={ban.desktopImage || ban.desktop_image}
-                      alt={ban.title}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 768px) 100vw, 50vw"
-                    />
-                    <span className="absolute top-3 left-3 bg-white/90 backdrop-blur-xs px-2.5 py-0.5 rounded-full text-[11px] sm:text-[12px] font-semibold text-[#1A1A1A]">
-                      Slide #{idx + 1}
-                    </span>
+                  <div className="relative bg-[#EFECE4] flex flex-col sm:flex-row">
+                    <div className="flex-1 aspect-[16/9] relative bg-[#EFECE4] border-b sm:border-b-0 sm:border-r border-[#E8E3DA]">
+                      <Image
+                        src={ban.desktopImage || ban.desktop_image}
+                        alt={ban.title}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, 50vw"
+                      />
+                      <span className="absolute top-2.5 left-2.5 bg-black/75 text-white backdrop-blur-xs px-2 py-0.5 rounded text-[11px] font-semibold">
+                        Desktop #{idx + 1}
+                      </span>
+                    </div>
+                    {/* Mobile Banner Thumbnail */}
+                    <div className="w-full sm:w-28 aspect-[4/5] sm:aspect-auto relative bg-[#DCD8CF] shrink-0">
+                      {ban.mobileImage || ban.mobile_image ? (
+                        <>
+                          <Image
+                            src={ban.mobileImage || ban.mobile_image}
+                            alt={`${ban.title} Mobile`}
+                            fill
+                            className="object-cover"
+                            sizes="120px"
+                          />
+                          <span className="absolute bottom-1.5 left-1.5 bg-[#4E5942] text-white px-1.5 py-0.5 rounded text-[10px] font-semibold">
+                            Mobile
+                          </span>
+                        </>
+                      ) : (
+                        <div className="w-full h-full min-h-[90px] flex flex-col items-center justify-center p-2 text-center text-[#736E67] text-[10px]">
+                          <span>No mobile img</span>
+                          <span className="text-[9px] text-[#A69F93]">(uses desktop)</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="p-4 sm:p-6 flex-1 flex flex-col justify-between space-y-4">
@@ -3598,6 +3622,49 @@ export default function AdminPage() {
                           store_address: e.target.value,
                         })
                       }
+                      className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
+                    />
+                  </div>
+
+                  <div className="pt-2 border-t border-[#F0ECE4] md:col-span-2">
+                    <h4 className="text-[14px] font-semibold text-[#1A1A1A] mb-1">
+                      Social Media Links (Displayed in Store Footer)
+                    </h4>
+                    <p className="text-[12px] text-[#736E67] mb-3">
+                      Enter the full profile URLs for your brand&apos;s social accounts.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
+                      Instagram Profile URL
+                    </label>
+                    <input
+                      type="url"
+                      value={siteSettings.social_instagram || ""}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          social_instagram: e.target.value,
+                        })
+                      }
+                      placeholder="https://instagram.com/mayshaskincare"
+                      className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
+                      Facebook Page URL
+                    </label>
+                    <input
+                      type="url"
+                      value={siteSettings.social_facebook || ""}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          social_facebook: e.target.value,
+                        })
+                      }
+                      placeholder="https://facebook.com/mayshaskincare"
                       className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                     />
                   </div>
@@ -5082,15 +5149,25 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* Cloudinary Direct Uploader for Desktop Banner */}
-              <CloudinaryUploader
-                label="Desktop Banner Image (1600x900 recommended)"
-                folder="maysha/banners"
-                currentImage={bannerFormData.desktop_image}
-                onUploadSuccess={(url) =>
-                  setBannerFormData({ ...bannerFormData, desktop_image: url })
-                }
-              />
+              {/* Responsive Banners Uploaders (Desktop & Mobile) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <CloudinaryUploader
+                  label="Desktop & Tablet Banner (1920x800 or 16:9 recommended)"
+                  folder="maysha/banners"
+                  currentImage={bannerFormData.desktop_image}
+                  onUploadSuccess={(url) =>
+                    setBannerFormData({ ...bannerFormData, desktop_image: url })
+                  }
+                />
+                <CloudinaryUploader
+                  label="Mobile Banner (1080x1350 or 4:5 / 1:1 recommended)"
+                  folder="maysha/banners"
+                  currentImage={bannerFormData.mobile_image}
+                  onUploadSuccess={(url) =>
+                    setBannerFormData({ ...bannerFormData, mobile_image: url })
+                  }
+                />
+              </div>
 
               <div className="pt-2 border-t border-[#F0ECE4] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <label className="inline-flex items-center gap-2 text-[13px] sm:text-[14px] text-[#1A1A1A] cursor-pointer">

@@ -34,10 +34,10 @@ export default function DistributorBanner({
           </div>
 
           {/* Subtle click indicator pill */}
-          <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10 bg-white/95 backdrop-blur-xs text-[#1A1A1A] px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase border border-[#E8E3DA] shadow-xs flex items-center gap-1.5 opacity-90 group-hover:opacity-100 group-hover:bg-[#4E5942] group-hover:text-white transition-all">
+          {/* <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10 bg-white/95 backdrop-blur-xs text-[#1A1A1A] px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wider uppercase border border-[#E8E3DA] shadow-xs flex items-center gap-1.5 opacity-90 group-hover:opacity-100 group-hover:bg-[#4E5942] group-hover:text-white transition-all">
             <span>Apply Now</span>
             <ExternalLink className="w-3.5 h-3.5" />
-          </div>
+          </div> */}
         </a>
       </div>
     </section>

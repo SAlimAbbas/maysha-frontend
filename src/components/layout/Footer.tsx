@@ -3,11 +3,52 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, CheckCircle2, ShieldCheck, Sparkles, Leaf, HeartHandshake } from "lucide-react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  ShieldCheck,
+  Sparkles,
+  Leaf,
+  HeartHandshake,
+} from "lucide-react";
 import { useUIStore } from "@/stores/uiStore";
 import { apiBffFetch } from "@/lib/api";
 import { SITE_CONFIG } from "@/config/site";
 import { useCart } from "@/hooks/useCart";
+
+function InstagramIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+    </svg>
+  );
+}
+
+function FacebookIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+    </svg>
+  );
+}
 
 export default function Footer() {
   const { storeInfo } = useCart();
@@ -19,10 +60,15 @@ export default function Footer() {
   const { addToast } = useUIStore();
 
   const supportEmail = storeInfo?.supportEmail || SITE_CONFIG.supportEmail;
-  const supportPhone = storeInfo?.supportWhatsapp || storeInfo?.supportPhone || SITE_CONFIG.supportPhone;
+  const supportPhone =
+    storeInfo?.supportWhatsapp ||
+    storeInfo?.supportPhone ||
+    SITE_CONFIG.supportPhone;
   const supportHours = storeInfo?.supportHours || SITE_CONFIG.hours;
   const storeAddress = storeInfo?.storeAddress || SITE_CONFIG.address;
   const brandName = storeInfo?.brand || SITE_CONFIG.name;
+  const instagramUrl = storeInfo?.socialLinks?.instagram || "https://instagram.com/mayshaskincare";
+  const facebookUrl = storeInfo?.socialLinks?.facebook || "https://facebook.com/mayshaskincare";
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,7 +151,11 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 lg:gap-12">
           {/* Brand & Newsletter Column */}
           <div className="lg:col-span-4 space-y-4">
-            <Link href="/" className="inline-block focus:outline-hidden" aria-label="Maysha Homepage">
+            <Link
+              href="/"
+              className="inline-block focus:outline-hidden"
+              aria-label="Maysha Homepage"
+            >
               <Image
                 src="/logo.png"
                 alt="Maysha"
@@ -115,7 +165,9 @@ export default function Footer() {
               />
             </Link>
             <p className="text-[15px] text-[#B5AFA6] leading-relaxed max-w-sm font-normal">
-              Thoughtfully crafted skincare that works with your skin, not against it. Experience restorative botanical formulations backed by clinical science.
+              Thoughtfully crafted skincare that works with your skin, not
+              against it. Experience restorative botanical formulations backed
+              by clinical science.
             </p>
 
             <div className="pt-2">
@@ -123,7 +175,8 @@ export default function Footer() {
                 Join the Maysha Circle
               </h5>
               <p className="text-[15px] text-[#A69F93] mb-3 font-normal">
-                Receive exclusive skincare rituals, early releases, and formulation insights.
+                Receive exclusive skincare rituals, early releases, and
+                formulation insights.
               </p>
 
               {successMessage ? (
@@ -132,7 +185,10 @@ export default function Footer() {
                   <span>{successMessage}</span>
                 </div>
               ) : (
-                <form onSubmit={handleSubscribe} className="flex flex-col gap-2">
+                <form
+                  onSubmit={handleSubscribe}
+                  className="flex flex-col gap-2"
+                >
                   <div className="flex gap-2">
                     {/* Honeypot field for spam prevention */}
                     <input
@@ -164,11 +220,48 @@ export default function Footer() {
                     </button>
                   </div>
                   {errorMessage && (
-                    <p className="text-xs text-[#E57373] mt-1">{errorMessage}</p>
+                    <p className="text-xs text-[#E57373] mt-1">
+                      {errorMessage}
+                    </p>
                   )}
                 </form>
               )}
             </div>
+
+            {/* Social Media Links */}
+            {(instagramUrl || facebookUrl) && (
+              <div className="pt-3 border-t border-[#2C2C2C]/80">
+                <span className="text-[12px] uppercase tracking-wider text-[#A69F93] font-semibold block mb-2.5">
+                  Follow Our Journey
+                </span>
+                <div className="flex items-center gap-3">
+                  {instagramUrl && (
+                    <a
+                      href={instagramUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-9 h-9 rounded-full bg-[#262626] hover:bg-[#4E5942] text-[#FBF9F5] flex items-center justify-center transition-all hover:scale-105"
+                      aria-label="Follow Maysha on Instagram"
+                      title="Follow us on Instagram"
+                    >
+                      <InstagramIcon className="w-4 h-4" />
+                    </a>
+                  )}
+                  {facebookUrl && (
+                    <a
+                      href={facebookUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-9 h-9 rounded-full bg-[#262626] hover:bg-[#4E5942] text-[#FBF9F5] flex items-center justify-center transition-all hover:scale-105"
+                      aria-label="Follow Maysha on Facebook"
+                      title="Follow us on Facebook"
+                    >
+                      <FacebookIcon className="w-4 h-4" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Quick Links Column */}
@@ -178,32 +271,50 @@ export default function Footer() {
             </h5>
             <ul className="space-y-2.5 text-[15px] text-[#A69F93]">
               <li>
-                <Link href="/shop" className="hover:text-white transition-colors">
+                <Link
+                  href="/shop"
+                  className="hover:text-white transition-colors"
+                >
                   All Products
                 </Link>
               </li>
               <li>
-                <Link href="/collections/cleansers" className="hover:text-white transition-colors">
+                <Link
+                  href="/collections/cleansers"
+                  className="hover:text-white transition-colors"
+                >
                   Cleansers & Balms
                 </Link>
               </li>
               <li>
-                <Link href="/collections/toners" className="hover:text-white transition-colors">
+                <Link
+                  href="/collections/toners"
+                  className="hover:text-white transition-colors"
+                >
                   Toners & Floral Mists
                 </Link>
               </li>
               <li>
-                <Link href="/collections/serums" className="hover:text-white transition-colors">
+                <Link
+                  href="/collections/serums"
+                  className="hover:text-white transition-colors"
+                >
                   Active Serums & Peptides
                 </Link>
               </li>
               <li>
-                <Link href="/collections/moisturizers" className="hover:text-white transition-colors">
+                <Link
+                  href="/collections/moisturizers"
+                  className="hover:text-white transition-colors"
+                >
                   Barrier Moisture Creams
                 </Link>
               </li>
               <li>
-                <Link href="/collections/sunscreen" className="hover:text-white transition-colors">
+                <Link
+                  href="/collections/sunscreen"
+                  className="hover:text-white transition-colors"
+                >
                   Mineral Sunscreen SPF 50
                 </Link>
               </li>
@@ -217,22 +328,34 @@ export default function Footer() {
             </h5>
             <ul className="space-y-2.5 text-[15px] text-[#A69F93]">
               <li>
-                <Link href="/about" className="hover:text-white transition-colors">
+                <Link
+                  href="/about"
+                  className="hover:text-white transition-colors"
+                >
                   Our Story & Philosophy
                 </Link>
               </li>
               <li>
-                <Link href="/about#ingredients" className="hover:text-white transition-colors">
+                <Link
+                  href="/about#ingredients"
+                  className="hover:text-white transition-colors"
+                >
                   Ingredient Transparency
                 </Link>
               </li>
               <li>
-                <Link href="/journal" className="hover:text-white transition-colors">
+                <Link
+                  href="/journal"
+                  className="hover:text-white transition-colors"
+                >
                   Skincare Journal
                 </Link>
               </li>
               <li>
-                <Link href="/orders/track" className="hover:text-white transition-colors">
+                <Link
+                  href="/orders/track"
+                  className="hover:text-white transition-colors"
+                >
                   Track Your Order
                 </Link>
               </li>
@@ -245,7 +368,8 @@ export default function Footer() {
               Customer Care
             </h5>
             <p className="text-[15px] text-[#A69F93] leading-relaxed font-normal">
-              Have questions about your skincare routine or order? Our skincare specialists are here to guide you.
+              Have questions about your skincare routine or order? Our skincare
+              specialists are here to guide you.
             </p>
             <div className="text-[15px] text-[#D8D2C6] space-y-2 pt-1 font-normal">
               <p>
@@ -275,7 +399,10 @@ export default function Footer() {
                 </p>
               )}
               <div className="pt-2">
-                <Link href="/contact" className="inline-flex items-center text-xs font-semibold text-[#8EA07E] hover:underline uppercase tracking-wider">
+                <Link
+                  href="/contact"
+                  className="inline-flex items-center text-xs font-semibold text-[#8EA07E] hover:underline uppercase tracking-wider"
+                >
                   Contact Concierge Desk →
                 </Link>
               </div>
@@ -285,21 +412,38 @@ export default function Footer() {
 
         {/* Bottom Copyright Strip */}
         <div className="border-t border-[#2C2C2C] mt-12 pt-8 flex flex-col sm:flex-row items-center justify-between text-[14px] text-[#736E67] gap-4 font-normal">
-          <p>© {new Date().getFullYear()} {brandName} Skincare Technologies Pvt. Ltd. All rights reserved.</p>
+          <p>
+            © {new Date().getFullYear()} {brandName}. All rights reserved.
+          </p>
           <div className="flex flex-wrap gap-4 sm:gap-6">
-            <Link href="/privacy" className="hover:text-[#A69F93] transition-colors">
+            <Link
+              href="/privacy"
+              className="hover:text-[#A69F93] transition-colors"
+            >
               Privacy Policy
             </Link>
-            <Link href="/terms" className="hover:text-[#A69F93] transition-colors">
+            <Link
+              href="/terms"
+              className="hover:text-[#A69F93] transition-colors"
+            >
               Terms of Service
             </Link>
-            <Link href="/shipping-policy" className="hover:text-[#A69F93] transition-colors">
+            <Link
+              href="/shipping-policy"
+              className="hover:text-[#A69F93] transition-colors"
+            >
               Shipping Policy
             </Link>
-            <Link href="/refund-policy" className="hover:text-[#A69F93] transition-colors">
+            <Link
+              href="/refund-policy"
+              className="hover:text-[#A69F93] transition-colors"
+            >
               Refund Policy
             </Link>
-            <Link href="/contact" className="hover:text-[#A69F93] transition-colors">
+            <Link
+              href="/contact"
+              className="hover:text-[#A69F93] transition-colors"
+            >
               Contact
             </Link>
           </div>
