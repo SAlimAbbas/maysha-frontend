@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import ProductCard from "@/components/product/ProductCard";
 import SkincareRoutineSteps from "@/components/product/SkincareRoutineSteps";
+import DOMPurify from "isomorphic-dompurify";
 import OfferBadge from "@/components/ui/OfferBadge";
 import { useCart } from "@/hooks/useCart";
 import { useAuth } from "@/hooks/useAuth";
@@ -121,7 +122,7 @@ function renderFormattedHowToUse(raw: string | undefined | null) {
     return (
       <div
         className="prose prose-stone text-[15px] text-[#4A4640] leading-relaxed max-w-none space-y-2"
-        dangerouslySetInnerHTML={{ __html: text }}
+        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(text) }}
       />
     );
   }

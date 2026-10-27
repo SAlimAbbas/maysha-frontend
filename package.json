@@ -12,6 +12,7 @@
     "@hookform/resolvers": "^5.9.1",
     "@tanstack/react-query": "^5.104.1",
     "clsx": "^2.1.1",
+    "isomorphic-dompurify": "^3.19.0",
     "lucide-react": "^1.49.0",
     "motion": "^13.4.6",
     "next": "^16.4.3",

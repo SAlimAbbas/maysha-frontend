@@ -15,6 +15,7 @@ import {
 import { apiServerFetch } from "@/lib/api";
 import { Article, Product } from "@/types";
 import ProductCard from "@/components/product/ProductCard";
+import DOMPurify from "isomorphic-dompurify";
 
 interface ArticlePageProps {
   params: Promise<{ slug: string }>;
@@ -223,7 +224,7 @@ export default async function ArticleDetailPage({ params }: ArticlePageProps) {
           {isHtml ? (
             <div
               className="article-body prose prose-stone max-w-none text-[#4A4640] leading-relaxed text-[17px] sm:text-[18px] [&>p]:mb-6 [&>p]:leading-relaxed [&>h2]:text-2xl [&>h2]:font-semibold [&>h2]:text-[#1A1A1A] [&>h2]:mt-8 [&>h2]:mb-4 [&>h3]:text-xl [&>h3]:font-semibold [&>h3]:text-[#1A1A1A] [&>h3]:mt-6 [&>h3]:mb-3 [&>ul]:list-disc [&>ul]:pl-5 [&>ul]:mb-6 [&>ol]:list-decimal [&>ol]:pl-5 [&>ol]:mb-6 [&>blockquote]:border-l-4 [&>blockquote]:border-[#4E5942] [&>blockquote]:pl-4 [&>blockquote]:italic [&>blockquote]:my-6 [&>blockquote]:text-[#3E4534]"
-              dangerouslySetInnerHTML={{ __html: rawContent }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(rawContent) }}
             />
           ) : (
             <div className="article-body">
