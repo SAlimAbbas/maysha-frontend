@@ -1,9 +1,15 @@
 export interface ProductVariant {
   id: string;
+  sku?: string;
   size: string;
   price: number;
   mrp: number;
   inStock: boolean;
+  stockQuantity?: number;
+  weight_grams?: number;
+  length_cm?: number;
+  breadth_cm?: number;
+  height_cm?: number;
 }
 
 export interface Product {
@@ -181,15 +187,79 @@ export type OrderStatus =
   | "paid"
   | "processing"
   | "shipped"
+  | "out_for_delivery"
   | "delivered"
+  | "ndr"
+  | "rto"
+  | "rto_delivered"
   | "cancelled"
   | "refunded"
-  | "failed";
+  | "failed"
+  | "return_requested"
+  | "returned"
+  | "exception";
+
+export interface ShipmentEvent {
+  id?: string;
+  status: string;
+  srStatus?: string;
+  activity?: string | null;
+  location?: string | null;
+  note?: string | null;
+  occurredAt?: string | null;
+  occurred_at?: string | null;
+  created_at?: string | null;
+}
+
+export interface Shipment {
+  id: string;
+  courierName?: string | null;
+  courier_name?: string | null;
+  courierId?: number | null;
+  courier_id?: number | null;
+  awb?: string | null;
+  awb_code?: string | null;
+  trackingUrl?: string | null;
+  tracking_url?: string | null;
+  status: string;
+  srStatus?: string | null;
+  sr_status?: string | null;
+  ndr_reason?: string | null;
+  etd?: string | null;
+  labelUrl?: string | null;
+  manifestUrl?: string | null;
+  invoiceUrl?: string | null;
+  weightGrams?: number;
+  weight_grams?: number;
+  lengthCm?: number;
+  length_cm?: number;
+  breadthCm?: number;
+  breadth_cm?: number;
+  heightCm?: number;
+  height_cm?: number;
+  pickupScheduledAt?: string | null;
+  lastSyncedAt?: string | null;
+  events?: ShipmentEvent[];
+}
+
+export interface CourierRate {
+  courier_company_id: number;
+  courier_name: string;
+  rate: number;
+  etd: string;
+  cod?: number;
+}
+
+export interface ReturnRequest {
+  orderReference: string;
+  reason: string;
+}
 
 export interface OrderTimelineEvent {
   id: string;
   status: string;
-  message: string;
+  message?: string;
+  note?: string;
   createdAt: string;
 }
 
@@ -217,6 +287,7 @@ export interface Order {
   shippingAddress: ShippingAddress;
   items: OrderItem[];
   tracking?: OrderTracking;
+  shipment?: Shipment | null;
   events?: OrderTimelineEvent[];
   createdAt: string;
 }

@@ -57,7 +57,10 @@ export default function TrackOrderPage() {
       case "processing":
         return 1;
       case "shipped":
+      case "in_transit":
         return 2;
+      case "out_for_delivery":
+        return 2.5;
       case "delivered":
         return 3;
       default:
@@ -175,6 +178,17 @@ export default function TrackOrderPage() {
               </div>
             </div>
 
+            {/* NDR Alert if delivery attempt failed */}
+            {order.status === "ndr" && (
+              <div className="p-4 bg-[#FFF4E5] border border-[#FFE2B8] rounded-xs flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-[#B76E00] shrink-0 mt-0.5" />
+                <div className="text-xs text-[#7A4B00] leading-relaxed">
+                  <span className="font-semibold text-[#B76E00] block text-[13px] mb-0.5">Delivery Attempt Failed</span>
+                  {order.shipment?.ndr_reason || "Courier reported customer unavailable. A re-attempt is being scheduled."}
+                </div>
+              </div>
+            )}
+
             {/* Step-by-Step Progress Bar */}
             <div>
               <h3 className="text-[15px] font-semibold text-[#1A1A1A] mb-4">
@@ -227,6 +241,54 @@ export default function TrackOrderPage() {
                 })}
               </div>
             </div>
+
+            {/* Live Carrier Checkpoints & Waybill Details */}
+            {(order.shipment || (order.tracking && order.tracking.trackingNo)) && (
+              <div className="p-4 bg-[#FBF9F5] border border-[#E8E3DA] rounded-xs space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[#E8E3DA]">
+                  <div>
+                    <span className="text-[11px] uppercase tracking-wider text-[#736E67] font-semibold block">
+                      Courier Partner
+                    </span>
+                    <span className="font-semibold text-sm text-[#1A1A1A]">
+                      {order.shipment?.courier_name || order.tracking?.courier || "Express Carrier"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] uppercase tracking-wider text-[#736E67] font-semibold block sm:text-right">
+                      AWB Waybill
+                    </span>
+                    <span className="font-mono font-bold text-sm text-[#1A1A1A]">
+                      {order.shipment?.awb_code || order.tracking?.trackingNo}
+                    </span>
+                  </div>
+                </div>
+
+                {order.shipment?.events && order.shipment.events.length > 0 && (
+                  <div className="space-y-2 pt-1">
+                    <span className="text-[11px] uppercase tracking-wider text-[#736E67] font-semibold block">
+                      Tracking Checkpoints
+                    </span>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                      {order.shipment.events.map((evt, i) => (
+                        <div key={i} className="flex items-start justify-between text-xs py-1 border-b border-[#F0ECE4] last:border-0">
+                          <div>
+                            <span className="font-semibold text-[#1A1A1A] block">{evt.activity || evt.status}</span>
+                            {evt.location && <span className="text-[#736E67] text-[11px]">{evt.location}</span>}
+                          </div>
+                          <span className="text-[11px] text-[#A69F93] shrink-0 font-mono">
+                            {new Date(evt.occurred_at || evt.occurredAt || evt.created_at || Date.now()).toLocaleDateString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                            })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Delivery Details */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6 border-t border-[#E8E3DA]">

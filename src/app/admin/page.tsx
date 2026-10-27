@@ -53,6 +53,13 @@ import {
   Globe2,
   Sliders,
   ShieldCheck,
+  Truck,
+  Printer,
+  Download,
+  RotateCcw,
+  DollarSign,
+  X,
+  Copy,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { apiBffFetch, formatINR } from "@/lib/api";
@@ -64,6 +71,7 @@ type AdminTab =
   | "overview"
   | "products"
   | "orders"
+  | "shipping"
   | "categories"
   | "banners"
   | "articles"
@@ -181,9 +189,48 @@ export default function AdminPage() {
     seo_shop_title: "Shop All Botanical Formulations | Maysha",
     seo_shop_description:
       "Explore all cleansers, serums, toners, moisturizers, and room mists thoughtfully engineered for real skin.",
+    shiprocket_enabled: false,
+    shiprocket_pickup_location: "Primary",
+    shiprocket_auto_create: true,
+    shiprocket_courier_strategy: "cheapest",
+    default_weight_grams: 250,
+    default_length_cm: 15,
+    default_breadth_cm: 10,
+    default_height_cm: 8,
+    return_window_days: 7,
+    low_wallet_threshold: 500,
   });
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+  // Logistics & Shiprocket states
+  const [shippingFilter, setShippingFilter] = useState("all");
+  const [shipments, setShipments] = useState<any[]>([]);
+  const [walletData, setWalletData] = useState<any | null>(null);
+  const [showFulfillmentModal, setShowFulfillmentModal] = useState(false);
+  const [selectedFulfillOrder, setSelectedFulfillOrder] = useState<any | null>(null);
+  const [fulfillShipment, setFulfillShipment] = useState<any | null>(null);
+  const [fulfillWeight, setFulfillWeight] = useState(250);
+  const [fulfillLength, setFulfillLength] = useState(15);
+  const [fulfillBreadth, setFulfillBreadth] = useState(10);
+  const [fulfillHeight, setFulfillHeight] = useState(8);
+  const [courierRates, setCourierRates] = useState<any[]>([]);
+  const [isLoadingRates, setIsLoadingRates] = useState(false);
+  const [isAssigningCourier, setIsAssigningCourier] = useState(false);
+  const [isCreatingShipment, setIsCreatingShipment] = useState(false);
+  const [isActionLoading, setIsActionLoading] = useState(false);
+  const [pickupDate, setPickupDate] = useState("");
+
+  // NDR Re-attempt states
+  const [showNdrModal, setShowNdrModal] = useState(false);
+  const [selectedNdrShipment, setSelectedNdrShipment] = useState<any | null>(null);
+  const [ndrComments, setNdrComments] = useState("Customer requested delivery retry.");
+  const [ndrDeferredDate, setNdrDeferredDate] = useState("");
+  const [isReattemptingNdr, setIsReattemptingNdr] = useState(false);
+
+  // Shiprocket Doctor Diagnostics
+  const [doctorData, setDoctorData] = useState<any | null>(null);
+  const [isRunningDoctor, setIsRunningDoctor] = useState(false);
 
   // Newsletter broadcast form state
   const [campaignSubject, setCampaignSubject] = useState("");
@@ -201,6 +248,10 @@ export default function AdminPage() {
     mrp: number;
     stock: number;
     sku?: string;
+    weight_grams?: number;
+    length_cm?: number;
+    breadth_cm?: number;
+    height_cm?: number;
   }
 
   const AVAILABLE_BADGES = [
@@ -315,6 +366,8 @@ export default function AdminPage() {
         settingsRes,
         subsRes,
         couponsRes,
+        shipmentsRes,
+        walletRes,
       ] = await Promise.all([
         apiBffFetch<any>("admin/dashboard/stats").catch(() => null),
         apiBffFetch<any>("admin/products").catch(() => null),
@@ -328,6 +381,8 @@ export default function AdminPage() {
         apiBffFetch<any>("admin/settings").catch(() => null),
         apiBffFetch<any>("admin/subscribers").catch(() => null),
         apiBffFetch<any>("admin/coupons").catch(() => null),
+        apiBffFetch<any>("admin/shipments").catch(() => null),
+        apiBffFetch<any>("admin/shiprocket/wallet").catch(() => null),
       ]);
 
       if (statsRes?.data) setStats(statsRes.data);
@@ -341,10 +396,285 @@ export default function AdminPage() {
         setSiteSettings((prev: any) => ({ ...prev, ...settingsRes.data }));
       if (subsRes?.data) setSubscribersData(subsRes.data);
       if (couponsRes?.data) setCoupons(couponsRes.data);
+      if (shipmentsRes?.data) {
+        setShipments(Array.isArray(shipmentsRes.data) ? shipmentsRes.data : shipmentsRes.data.items || []);
+      }
+      if (walletRes?.data) {
+        setWalletData(walletRes.data.data || walletRes.data);
+      }
     } catch (err) {
       console.error("Admin data fetch error:", err);
     } finally {
       setIsLoadingData(false);
+    }
+  };
+
+  // -------------------------------------------------------------
+  // Shiprocket & Logistics Management Handlers
+  // -------------------------------------------------------------
+  const loadShipments = async () => {
+    try {
+      const res = await apiBffFetch<any>("admin/shipments");
+      if (res?.data) {
+        setShipments(Array.isArray(res.data) ? res.data : res.data.items || []);
+      }
+    } catch (err: any) {
+      console.error("Failed to load shipments:", err);
+    }
+  };
+
+  const loadWallet = async () => {
+    try {
+      const res = await apiBffFetch<any>("admin/shiprocket/wallet");
+      if (res?.data) {
+        setWalletData(res.data.data || res.data);
+      }
+    } catch (err: any) {
+      console.error("Failed to load wallet balance:", err);
+    }
+  };
+
+  const handleOpenFulfillModal = async (order: any) => {
+    setSelectedFulfillOrder(order);
+    setCourierRates([]);
+    setShowFulfillmentModal(true);
+    setFulfillShipment(null);
+
+    // Compute prefill dimensions & weight from order variants
+    const totalVariantWeight =
+      order.items?.reduce(
+        (sum: number, itm: any) =>
+          sum + (itm.variant?.weight_grams || 250) * (itm.quantity || 1),
+        0
+      ) || Number(siteSettings.default_weight_grams || 250);
+
+    setFulfillWeight(totalVariantWeight);
+    setFulfillLength(Number(siteSettings.default_length_cm || 15));
+    setFulfillBreadth(Number(siteSettings.default_breadth_cm || 10));
+    setFulfillHeight(Number(siteSettings.default_height_cm || 8));
+
+    // Check if order already has a shipment on record
+    try {
+      const shipRes = await apiBffFetch<any>(`admin/orders/${order.id}/shipment`);
+      if (shipRes?.data) {
+        setFulfillShipment(shipRes.data);
+        if (shipRes.data.weight_grams) setFulfillWeight(shipRes.data.weight_grams);
+        if (shipRes.data.length_cm) setFulfillLength(shipRes.data.length_cm);
+        if (shipRes.data.breadth_cm) setFulfillBreadth(shipRes.data.breadth_cm);
+        if (shipRes.data.height_cm) setFulfillHeight(shipRes.data.height_cm);
+
+        // If not assigned courier yet, load available courier rates
+        if (!shipRes.data.awb_code) {
+          handleFetchCourierRates(shipRes.data.id);
+        }
+      }
+    } catch {
+      setFulfillShipment(null);
+    }
+  };
+
+  const handleCreateShiprocketShipment = async () => {
+    if (!selectedFulfillOrder) return;
+    setIsCreatingShipment(true);
+    try {
+      const res = await apiBffFetch<any>(`admin/orders/${selectedFulfillOrder.id}/shipment`, {
+        method: "POST",
+        body: JSON.stringify({
+          weight_grams: Number(fulfillWeight),
+          length_cm: Number(fulfillLength),
+          breadth_cm: Number(fulfillBreadth),
+          height_cm: Number(fulfillHeight),
+        }),
+      });
+      addToast(
+        "Shipment Created",
+        `Shiprocket order registered (ID: ${res.data?.sr_shipment_id || res.data?.id}).`,
+        "success"
+      );
+      setFulfillShipment(res.data);
+      loadAdminData();
+      if (res.data?.id) {
+        handleFetchCourierRates(res.data.id);
+      }
+    } catch (err: any) {
+      addToast("Shipment Notice", err.message || "Failed to create Shiprocket shipment.", "error");
+    } finally {
+      setIsCreatingShipment(false);
+    }
+  };
+
+  const handleFetchCourierRates = async (shipmentId: string | number) => {
+    setIsLoadingRates(true);
+    try {
+      const res = await apiBffFetch<any>(`admin/shipments/${shipmentId}/couriers`);
+      const couriers = res?.data || [];
+      setCourierRates(Array.isArray(couriers) ? couriers : []);
+      if (Array.isArray(couriers) && couriers.length === 0) {
+        addToast("No Couriers", "No courier partners serviceable for this pincode.", "info");
+      }
+    } catch (err: any) {
+      addToast("Rates Notice", err.message || "Could not retrieve courier rates.", "error");
+    } finally {
+      setIsLoadingRates(false);
+    }
+  };
+
+  const handleAssignCourier = async (
+    shipmentId: string | number,
+    courierId: number | string,
+    courierName: string,
+    rate?: number
+  ) => {
+    setIsAssigningCourier(true);
+    try {
+      const res = await apiBffFetch<any>(`admin/shipments/${shipmentId}/assign`, {
+        method: "POST",
+        body: JSON.stringify({
+          courier_id: courierId,
+          courier_name: courierName,
+          rate: rate,
+        }),
+      });
+      addToast(
+        "Courier Assigned",
+        `AWB ${res.data?.awb_code || "generated"} assigned via ${courierName}.`,
+        "success"
+      );
+      setFulfillShipment(res.data);
+      loadAdminData();
+    } catch (err: any) {
+      addToast("Assign Notice", err.message || "Failed to assign courier.", "error");
+    } finally {
+      setIsAssigningCourier(false);
+    }
+  };
+
+  const handleSchedulePickup = async (shipmentId: string | number) => {
+    setIsActionLoading(true);
+    try {
+      const res = await apiBffFetch<any>(`admin/shipments/${shipmentId}/pickup`, {
+        method: "POST",
+        body: JSON.stringify({
+          pickup_date: pickupDate || undefined,
+        }),
+      });
+      addToast(
+        "Pickup Scheduled",
+        res.message || "Courier pickup request scheduled successfully.",
+        "success"
+      );
+      setFulfillShipment(res.data);
+      loadAdminData();
+    } catch (err: any) {
+      addToast("Pickup Notice", err.message || "Failed to schedule pickup.", "error");
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleGenerateDocument = async (
+    shipmentId: string | number,
+    type: "label" | "manifest" | "invoice"
+  ) => {
+    setIsActionLoading(true);
+    try {
+      const res = await apiBffFetch<any>(`admin/shipments/${shipmentId}/${type}`, {
+        method: "POST",
+      });
+      const url =
+        res.data?.label_url ||
+        res.data?.manifest_url ||
+        res.data?.invoice_url ||
+        res.data?.url;
+      if (url) {
+        window.open(url, "_blank");
+        addToast("Document Ready", `${type.toUpperCase()} generated and opened.`, "success");
+      } else {
+        addToast("Document Generated", `${type.toUpperCase()} processed.`, "info");
+      }
+    } catch (err: any) {
+      addToast("Notice", err.message || `Failed to generate ${type}.`, "error");
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleCancelShipment = async (shipmentId: string | number) => {
+    if (!window.confirm("Are you sure you want to cancel this Shiprocket shipment?")) return;
+    setIsActionLoading(true);
+    try {
+      const res = await apiBffFetch<any>(`admin/shipments/${shipmentId}/cancel`, {
+        method: "POST",
+      });
+      addToast("Shipment Cancelled", res.message || "Shipment was cancelled.", "info");
+      setFulfillShipment(res.data);
+      loadAdminData();
+    } catch (err: any) {
+      addToast("Cancel Notice", err.message || "Failed to cancel shipment.", "error");
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleSyncTracking = async (shipmentId: string | number) => {
+    setIsActionLoading(true);
+    try {
+      const res = await apiBffFetch<any>(`admin/shipments/${shipmentId}/sync`, {
+        method: "POST",
+      });
+      addToast("Tracking Synced", "Live carrier status refreshed from Shiprocket.", "success");
+      setFulfillShipment(res.data);
+      loadAdminData();
+    } catch (err: any) {
+      addToast("Sync Notice", err.message || "Failed to sync tracking.", "error");
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleOpenNdrModal = (shipment: any) => {
+    setSelectedNdrShipment(shipment);
+    setNdrComments(`Customer requested re-attempt for order ${shipment.order?.reference || shipment.id}`);
+    setNdrDeferredDate("");
+    setShowNdrModal(true);
+  };
+
+  const handleReattemptNdr = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedNdrShipment) return;
+    setIsReattemptingNdr(true);
+    try {
+      await apiBffFetch<any>(`admin/shipments/${selectedNdrShipment.id}/ndr/reattempt`, {
+        method: "POST",
+        body: JSON.stringify({
+          comments: ndrComments.trim(),
+          deferred_date: ndrDeferredDate || undefined,
+        }),
+      });
+      addToast("NDR Re-attempt Sent", "Carrier instructed to re-attempt package delivery.", "success");
+      setShowNdrModal(false);
+      loadAdminData();
+    } catch (err: any) {
+      addToast("NDR Notice", err.message || "Failed to submit NDR instructions.", "error");
+    } finally {
+      setIsReattemptingNdr(false);
+    }
+  };
+
+  const handleRunDoctor = async () => {
+    setIsRunningDoctor(true);
+    try {
+      const res = await apiBffFetch<any>("admin/shiprocket/doctor");
+      setDoctorData(res.data);
+      if (res.data?.healthy) {
+        addToast("Shiprocket Health OK", "All API credentials and connection tests passed!", "success");
+      } else {
+        addToast("Configuration Warning", res.data?.message || "Shiprocket diagnostics reported missing settings.", "info");
+      }
+    } catch (err: any) {
+      addToast("Doctor Notice", err.message || "Diagnostics check failed.", "error");
+    } finally {
+      setIsRunningDoctor(false);
     }
   };
 
@@ -515,6 +845,10 @@ export default function AdminPage() {
       mrp: last?.mrp ? Math.round(last.mrp * 1.5) : 1199,
       stock: 40,
       sku: "",
+      weight_grams: 250,
+      length_cm: 15,
+      breadth_cm: 10,
+      height_cm: 8,
     };
     setProductFormData({
       ...productFormData,
@@ -727,6 +1061,10 @@ export default function AdminPage() {
         mrp: Number(v.mrp || 899),
         stock: Number(v.stock ?? 50),
         sku: v.sku || "",
+        weight_grams: v.weight_grams ? Number(v.weight_grams) : 250,
+        length_cm: v.length_cm ? Number(v.length_cm) : 15,
+        breadth_cm: v.breadth_cm ? Number(v.breadth_cm) : 10,
+        height_cm: v.height_cm ? Number(v.height_cm) : 8,
       }));
     } else {
       variantsList = [
@@ -737,6 +1075,10 @@ export default function AdminPage() {
           mrp: Number(prod.mrp || 899),
           stock: Number(prod.stock ?? 50),
           sku: "",
+          weight_grams: prod.weight_grams ? Number(prod.weight_grams) : 250,
+          length_cm: prod.length_cm ? Number(prod.length_cm) : 15,
+          breadth_cm: prod.breadth_cm ? Number(prod.breadth_cm) : 10,
+          height_cm: prod.height_cm ? Number(prod.height_cm) : 8,
         },
       ];
     }
@@ -834,6 +1176,10 @@ export default function AdminPage() {
         mrp: Number(v.mrp),
         stock: Number(v.stock),
         sku: v.sku || undefined,
+        weight_grams: v.weight_grams ? Number(v.weight_grams) : 250,
+        length_cm: v.length_cm ? Number(v.length_cm) : 15,
+        breadth_cm: v.breadth_cm ? Number(v.breadth_cm) : 10,
+        height_cm: v.height_cm ? Number(v.height_cm) : 8,
         is_active: true,
       })),
     };
@@ -1737,6 +2083,9 @@ export default function AdminPage() {
               <option value="orders">
                 🛍️ Orders Fulfillment ({orders.length})
               </option>
+              <option value="shipping">
+                🚚 Shipping & Logistics ({shipments.length})
+              </option>
               <option value="categories">
                 🗂️ Categories ({categories.length})
               </option>
@@ -1786,6 +2135,11 @@ export default function AdminPage() {
                   id: "orders",
                   label: `Orders (${orders.length})`,
                   icon: ShoppingBag,
+                },
+                {
+                  id: "shipping",
+                  label: `Shipping (${shipments.length})`,
+                  icon: Truck,
                 },
                 {
                   id: "categories",
@@ -2266,90 +2620,206 @@ export default function AdminPage() {
         {/* ------------------------------------------------------------- */}
         {/* TAB 3: ORDERS MANAGEMENT */}
         {/* ------------------------------------------------------------- */}
+        {/* ------------------------------------------------------------- */}
+        {/* TAB 3: ORDERS MANAGEMENT */}
+        {/* ------------------------------------------------------------- */}
         {activeTab === "orders" && (
           <div className="space-y-4 sm:space-y-6 animate-fadeIn">
-            <div>
-              <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">
-                Customer Orders Fulfillment
-              </h2>
-              <p className="text-[12px] sm:text-[14px] text-[#736E67]">
-                Track incoming purchases, update shipping dispatch status, and
-                manage receipts.
-              </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A]">
+                  Customer Orders Fulfillment
+                </h2>
+                <p className="text-[12px] sm:text-[14px] text-[#736E67]">
+                  Track incoming purchases, book Shiprocket pickups, print labels, and manage returns.
+                </p>
+              </div>
+
+              {/* Fulfillment Status Filter */}
+              <div className="flex items-center gap-2">
+                <span className="text-[12px] uppercase tracking-wider font-bold text-[#736E67] shrink-0">
+                  Fulfillment Filter:
+                </span>
+                <select
+                  value={shippingFilter}
+                  onChange={(e) => setShippingFilter(e.target.value)}
+                  className="bg-white border border-[#E8E3DA] text-[13px] font-semibold py-2 px-3 rounded-2xs focus:outline-none focus:border-[#1A1A1A] cursor-pointer shadow-2xs"
+                >
+                  <option value="all">All Orders ({orders.length})</option>
+                  <option value="ready_to_ship">
+                    Ready to Ship (
+                    {
+                      orders.filter((o) =>
+                        ["paid", "processing"].includes(o.status),
+                      ).length
+                    }
+                    )
+                  </option>
+                  <option value="in_transit">
+                    In Transit (
+                    {
+                      orders.filter((o) =>
+                        ["shipped", "in_transit", "out_for_delivery"].includes(
+                          o.status,
+                        ),
+                      ).length
+                    }
+                    )
+                  </option>
+                  <option value="delivered">
+                    Delivered (
+                    {orders.filter((o) => o.status === "delivered").length})
+                  </option>
+                  <option value="ndr">
+                    NDR Attention (
+                    {orders.filter((o) => o.status === "ndr").length})
+                  </option>
+                  <option value="rto">
+                    RTO Returns (
+                    {
+                      orders.filter((o) =>
+                        ["rto_initiated", "rto_delivered"].includes(o.status),
+                      ).length
+                    }
+                    )
+                  </option>
+                  <option value="exceptions">
+                    Exceptions & Cancelled (
+                    {
+                      orders.filter((o) =>
+                        ["ndr", "rto_initiated", "cancelled"].includes(
+                          o.status,
+                        ),
+                      ).length
+                    }
+                    )
+                  </option>
+                </select>
+              </div>
             </div>
 
             <div className="bg-[#FFFFFF] border border-[#E8E3DA] rounded-xs overflow-hidden shadow-2xs">
               {/* Mobile Orders Cards (< 768px) */}
               <div className="md:hidden divide-y divide-[#F0ECE4]">
-                {orders.map((ord) => (
-                  <div key={ord.id} className="p-3.5 space-y-3">
-                    {/* Header: Ref & Status */}
-                    <div className="flex items-center justify-between">
-                      <Link
-                        href={`/orders/${ord.reference}`}
-                        target="_blank"
-                        className="font-mono font-bold text-[14px] text-[#1A1A1A] hover:underline flex items-center gap-1"
-                      >
-                        {ord.reference}
-                        <ExternalLink className="w-3 h-3 text-[#736E67]" />
-                      </Link>
-                      <span
-                        className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold uppercase ${
-                          ord.status === "delivered"
-                            ? "bg-[#EDF3E8] text-[#3E4534]"
-                            : ord.status === "shipped"
-                              ? "bg-[#E8F0FE] text-[#1967D2]"
-                              : ord.status === "cancelled"
-                                ? "bg-[#FDF2F2] text-[#9B1C1C]"
-                                : "bg-[#FFF8EB] text-[#8C6D1F]"
-                        }`}
-                      >
-                        {ord.status?.replace("_", " ")}
-                      </span>
-                    </div>
-
-                    {/* Customer & City */}
-                    <div className="text-[13px] bg-[#FBF9F5] p-2.5 rounded-2xs border border-[#F0ECE4] space-y-1">
+                {orders
+                  .filter((ord) => {
+                    if (shippingFilter === "all") return true;
+                    if (shippingFilter === "ready_to_ship")
+                      return ["paid", "processing"].includes(ord.status);
+                    if (shippingFilter === "in_transit")
+                      return [
+                        "shipped",
+                        "in_transit",
+                        "out_for_delivery",
+                      ].includes(ord.status);
+                    if (shippingFilter === "delivered")
+                      return ord.status === "delivered";
+                    if (shippingFilter === "ndr") return ord.status === "ndr";
+                    if (shippingFilter === "rto")
+                      return ["rto_initiated", "rto_delivered"].includes(
+                        ord.status,
+                      );
+                    if (shippingFilter === "exceptions")
+                      return ["ndr", "rto_initiated", "cancelled"].includes(
+                        ord.status,
+                      );
+                    return true;
+                  })
+                  .map((ord) => (
+                    <div key={ord.id} className="p-3.5 space-y-3">
+                      {/* Header: Ref & Status */}
                       <div className="flex items-center justify-between">
-                        <span className="font-semibold text-[#1A1A1A]">
-                          {ord.shippingAddress?.name || "Customer"}
-                        </span>
-                        <span className="text-[#736E67] text-[12px]">
-                          {ord.shippingAddress?.city || "India"}
+                        <Link
+                          href={`/orders/${ord.reference}`}
+                          target="_blank"
+                          className="font-mono font-bold text-[14px] text-[#1A1A1A] hover:underline flex items-center gap-1"
+                        >
+                          {ord.reference}
+                          <ExternalLink className="w-3 h-3 text-[#736E67]" />
+                        </Link>
+                        <span
+                          className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold uppercase ${
+                            ord.status === "delivered"
+                              ? "bg-[#EDF3E8] text-[#3E4534]"
+                              : ["shipped", "in_transit"].includes(ord.status)
+                                ? "bg-[#E8F0FE] text-[#1967D2]"
+                                : ord.status === "ndr"
+                                  ? "bg-[#FFF4E5] text-[#B76E00]"
+                                  : ["rto_initiated", "cancelled"].includes(
+                                        ord.status,
+                                      )
+                                    ? "bg-[#FDF2F2] text-[#9B1C1C]"
+                                    : "bg-[#FFF8EB] text-[#8C6D1F]"
+                          }`}
+                        >
+                          {ord.status?.replace("_", " ")}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between text-[12px] text-[#736E67] pt-1 border-t border-[#E8E3DA]/60">
-                        <span>
-                          {ord.items?.length || 1} product(s) •{" "}
-                          <span className="uppercase">{ord.paymentMethod}</span>
-                        </span>
-                        <span className="font-bold text-[#1A1A1A] text-[13px]">
-                          {formatINR(ord.total)}
-                        </span>
-                      </div>
-                    </div>
 
-                    {/* Quick Status Select on Mobile */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] uppercase tracking-wider font-bold text-[#736E67] shrink-0">
-                        Status:
-                      </span>
-                      <select
-                        value={ord.status}
-                        onChange={(e) =>
-                          handleUpdateOrderStatus(ord.id, e.target.value)
-                        }
-                        className="flex-1 bg-[#FBF9F5] border border-[#E8E3DA] text-[13px] font-medium py-2 px-3 rounded-2xs focus:outline-none focus:border-[#1A1A1A] cursor-pointer"
-                      >
-                        <option value="pending_payment">Pending Payment</option>
-                        <option value="processing">Processing</option>
-                        <option value="shipped">Dispatched / Shipped</option>
-                        <option value="delivered">Delivered</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
+                      {/* Customer & City */}
+                      <div className="text-[13px] bg-[#FBF9F5] p-2.5 rounded-2xs border border-[#F0ECE4] space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-[#1A1A1A]">
+                            {ord.shippingAddress?.name || "Customer"}
+                          </span>
+                          <span className="text-[#736E67] text-[12px]">
+                            {ord.shippingAddress?.city || "India"}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-[12px] text-[#736E67] pt-1 border-t border-[#E8E3DA]/60">
+                          <span>
+                            {ord.items?.length || 1} product(s) •{" "}
+                            <span className="uppercase">{ord.paymentMethod}</span>
+                          </span>
+                          <span className="font-bold text-[#1A1A1A] text-[13px]">
+                            {formatINR(ord.total)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Shiprocket Fulfillment Button & Mobile Status */}
+                      <div className="flex flex-col gap-2 pt-1 border-t border-[#F0ECE4]">
+                        <div className="flex items-center justify-between">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenFulfillModal(ord)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xs text-[12px] font-semibold bg-[#4E5942] hover:bg-[#3D4733] text-white transition-colors cursor-pointer"
+                          >
+                            <Truck className="w-3.5 h-3.5" />
+                            <span>Ship with Shiprocket</span>
+                          </button>
+                          {ord.shipment?.awb_code && (
+                            <span className="font-mono text-[11px] font-bold text-[#4E5942] bg-[#EDF3E8] px-2 py-0.5 rounded-2xs border border-[#C5D7BD]">
+                              AWB: {ord.shipment.awb_code}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] uppercase tracking-wider font-bold text-[#736E67] shrink-0">
+                            Status:
+                          </span>
+                          <select
+                            value={ord.status}
+                            onChange={(e) =>
+                              handleUpdateOrderStatus(ord.id, e.target.value)
+                            }
+                            className="flex-1 bg-[#FBF9F5] border border-[#E8E3DA] text-[13px] font-medium py-2 px-3 rounded-2xs focus:outline-none focus:border-[#1A1A1A] cursor-pointer"
+                          >
+                            <option value="pending_payment">Pending Payment</option>
+                            <option value="processing">Processing</option>
+                            <option value="shipped">Dispatched / Shipped</option>
+                            <option value="in_transit">In Transit</option>
+                            <option value="out_for_delivery">Out for Delivery</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="ndr">NDR (Failed Attempt)</option>
+                            <option value="rto_initiated">RTO Initiated</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
 
               {/* Desktop Orders Table (>= 768px) */}
@@ -2362,82 +2832,449 @@ export default function AdminPage() {
                       <th className="py-3 px-4">Items / Total</th>
                       <th className="py-3 px-4">Payment</th>
                       <th className="py-3 px-4">Fulfillment Status</th>
-                      <th className="py-3 px-4 text-right">Change Status</th>
+                      <th className="py-3 px-4 text-right">Fulfill & Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#F0ECE4]">
-                    {orders.map((ord) => (
-                      <tr
-                        key={ord.id}
-                        className="hover:bg-[#FBF9F5] transition-colors"
-                      >
-                        <td className="py-3.5 px-4">
-                          <Link
-                            href={`/orders/${ord.reference}`}
-                            target="_blank"
-                            className="font-mono font-bold text-[#1A1A1A] hover:underline"
-                          >
-                            {ord.reference}
-                          </Link>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <p className="font-semibold text-[#1A1A1A]">
-                            {ord.shippingAddress?.name}
-                          </p>
-                          <p className="text-[12px] text-[#736E67]">
-                            {ord.shippingAddress?.city}
-                          </p>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <p className="font-bold text-[#1A1A1A]">
-                            {formatINR(ord.total)}
-                          </p>
-                          <span className="text-[12px] text-[#736E67]">
-                            {ord.items?.length || 1} product(s)
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 uppercase text-[12px] font-semibold text-[#4A4640]">
-                          {ord.paymentMethod}
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span
-                            className={`inline-block px-2.5 py-0.5 rounded-full text-[12px] font-semibold uppercase ${
-                              ord.status === "delivered"
-                                ? "bg-[#EDF3E8] text-[#3E4534]"
-                                : ord.status === "shipped"
-                                  ? "bg-[#E8F0FE] text-[#1967D2]"
-                                  : ord.status === "cancelled"
-                                    ? "bg-[#FDF2F2] text-[#9B1C1C]"
-                                    : "bg-[#FFF8EB] text-[#8C6D1F]"
-                            }`}
-                          >
-                            {ord.status.replace("_", " ")}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4 text-right">
-                          <select
-                            value={ord.status}
-                            onChange={(e) =>
-                              handleUpdateOrderStatus(ord.id, e.target.value)
-                            }
-                            className="bg-[#FBF9F5] border border-[#E8E3DA] text-[13px] px-2.5 py-1.5 rounded-2xs focus:outline-hidden cursor-pointer"
-                          >
-                            <option value="pending_payment">
-                              Pending Payment
-                            </option>
-                            <option value="processing">Processing</option>
-                            <option value="shipped">
-                              Dispatched / Shipped
-                            </option>
-                            <option value="delivered">Delivered</option>
-                            <option value="cancelled">Cancelled</option>
-                          </select>
-                        </td>
-                      </tr>
-                    ))}
+                    {orders
+                      .filter((ord) => {
+                        if (shippingFilter === "all") return true;
+                        if (shippingFilter === "ready_to_ship")
+                          return ["paid", "processing"].includes(ord.status);
+                        if (shippingFilter === "in_transit")
+                          return [
+                            "shipped",
+                            "in_transit",
+                            "out_for_delivery",
+                          ].includes(ord.status);
+                        if (shippingFilter === "delivered")
+                          return ord.status === "delivered";
+                        if (shippingFilter === "ndr")
+                          return ord.status === "ndr";
+                        if (shippingFilter === "rto")
+                          return ["rto_initiated", "rto_delivered"].includes(
+                            ord.status,
+                          );
+                        if (shippingFilter === "exceptions")
+                          return ["ndr", "rto_initiated", "cancelled"].includes(
+                            ord.status,
+                          );
+                        return true;
+                      })
+                      .map((ord) => (
+                        <tr
+                          key={ord.id}
+                          className="hover:bg-[#FBF9F5] transition-colors"
+                        >
+                          <td className="py-3.5 px-4">
+                            <Link
+                              href={`/orders/${ord.reference}`}
+                              target="_blank"
+                              className="font-mono font-bold text-[#1A1A1A] hover:underline"
+                            >
+                              {ord.reference}
+                            </Link>
+                            {ord.shipment?.awb_code && (
+                              <span className="block font-mono text-[11px] font-semibold text-[#4E5942]">
+                                AWB: {ord.shipment.awb_code}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <p className="font-semibold text-[#1A1A1A]">
+                              {ord.shippingAddress?.name}
+                            </p>
+                            <p className="text-[12px] text-[#736E67]">
+                              {ord.shippingAddress?.city} (
+                              {ord.shippingAddress?.pincode})
+                            </p>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <p className="font-bold text-[#1A1A1A]">
+                              {formatINR(ord.total)}
+                            </p>
+                            <span className="text-[12px] text-[#736E67]">
+                              {ord.items?.length || 1} product(s)
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 uppercase text-[12px] font-semibold text-[#4A4640]">
+                            {ord.paymentMethod}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span
+                              className={`inline-block px-2.5 py-0.5 rounded-full text-[12px] font-semibold uppercase ${
+                                ord.status === "delivered"
+                                  ? "bg-[#EDF3E8] text-[#3E4534]"
+                                  : ["shipped", "in_transit"].includes(
+                                        ord.status,
+                                      )
+                                    ? "bg-[#E8F0FE] text-[#1967D2]"
+                                    : ord.status === "ndr"
+                                      ? "bg-[#FFF4E5] text-[#B76E00]"
+                                      : [
+                                            "rto_initiated",
+                                            "cancelled",
+                                          ].includes(ord.status)
+                                        ? "bg-[#FDF2F2] text-[#9B1C1C]"
+                                        : "bg-[#FFF8EB] text-[#8C6D1F]"
+                              }`}
+                            >
+                              {ord.status.replace("_", " ")}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <div className="inline-flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenFulfillModal(ord)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xs text-[12px] font-semibold bg-[#4E5942] hover:bg-[#3D4733] text-white transition-colors cursor-pointer"
+                                title="Fulfill with Shiprocket"
+                              >
+                                <Truck className="w-3.5 h-3.5" />
+                                <span>Ship</span>
+                              </button>
+
+                              <select
+                                value={ord.status}
+                                onChange={(e) =>
+                                  handleUpdateOrderStatus(ord.id, e.target.value)
+                                }
+                                className="bg-[#FBF9F5] border border-[#E8E3DA] text-[13px] px-2.5 py-1.5 rounded-2xs focus:outline-hidden cursor-pointer"
+                              >
+                                <option value="pending_payment">
+                                  Pending Payment
+                                </option>
+                                <option value="processing">Processing</option>
+                                <option value="shipped">
+                                  Dispatched / Shipped
+                                </option>
+                                <option value="in_transit">In Transit</option>
+                                <option value="out_for_delivery">
+                                  Out for Delivery
+                                </option>
+                                <option value="delivered">Delivered</option>
+                                <option value="ndr">NDR (Failed)</option>
+                                <option value="rto_initiated">
+                                  RTO Initiated
+                                </option>
+                                <option value="cancelled">Cancelled</option>
+                              </select>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ------------------------------------------------------------- */}
+        {/* TAB 3.5: SHIPPING & LOGISTICS (SHIPROCKET CONSOLE) */}
+        {/* ------------------------------------------------------------- */}
+        {activeTab === "shipping" && (
+          <div className="space-y-6 animate-fadeIn">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg sm:text-xl font-semibold text-[#1A1A1A] flex items-center gap-2">
+                  <Truck className="w-5 h-5 text-[#4E5942]" /> Shiprocket Logistics & Courier Dashboard
+                </h2>
+                <p className="text-[12px] sm:text-[14px] text-[#736E67]">
+                  Monitor wallet balances, live courier serviceability, package tracking, and NDR re-attempt workflows.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    loadShipments();
+                    loadWallet();
+                  }}
+                  className="bg-white border border-[#E8E3DA] hover:border-[#1A1A1A] text-[#1A1A1A] px-3.5 py-2 rounded-2xs text-[13px] font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Refresh Logistics Data</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Wallet Balance Card & Low-Balance Alert */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-5 rounded-xs shadow-2xs space-y-2 md:col-span-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] uppercase tracking-wider font-semibold text-[#736E67]">
+                    Shiprocket Wallet Balance
+                  </span>
+                  <DollarSign className="w-4 h-4 text-[#4E5942]" />
+                </div>
+                <p className="text-3xl font-bold font-mono text-[#1A1A1A]">
+                  {formatINR(Number(walletData?.balance_amount || walletData?.balance || 0))}
+                </p>
+                <div className="flex items-center justify-between pt-2 border-t border-[#F0ECE4] text-[12px]">
+                  <span className="text-[#736E67]">
+                    Low Threshold: ₹{siteSettings.low_wallet_threshold || 500}
+                  </span>
+                  <a
+                    href="https://app.shiprocket.in/wallet"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#4E5942] font-semibold hover:underline inline-flex items-center gap-1"
+                  >
+                    Recharge Wallet <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+
+              {/* Low Balance Warning Banner */}
+              {Number(walletData?.balance_amount || walletData?.balance || 0) <
+                Number(siteSettings.low_wallet_threshold || 500) && (
+                <div className="bg-[#FFF4E5] border border-[#FFE2B8] p-5 rounded-xs md:col-span-2 flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-[#B76E00] shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-[14px] font-semibold text-[#B76E00]">
+                      Shiprocket Balance Below Threshold
+                    </h4>
+                    <p className="text-[13px] text-[#7A4B00] mt-1 leading-relaxed">
+                      Your Shiprocket prepaid shipping balance is lower than ₹{siteSettings.low_wallet_threshold || 500}. Automated courier label generation and pickup booking may fail once depleted. Please add credits on the Shiprocket portal.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Logistics Status Metrics Grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+              {[
+                {
+                  label: "Ready to Ship",
+                  count: orders.filter((o) => ["paid", "processing"].includes(o.status)).length,
+                  badgeColor: "bg-[#FFF8EB] text-[#8C6D1F]",
+                },
+                {
+                  label: "In Transit",
+                  count: shipments.filter((s) => ["in_transit", "shipped"].includes(s.status)).length,
+                  badgeColor: "bg-[#E8F0FE] text-[#1967D2]",
+                },
+                {
+                  label: "Out for Delivery",
+                  count: shipments.filter((s) => s.status === "out_for_delivery").length,
+                  badgeColor: "bg-[#EBF3FC] text-[#0B6BCB]",
+                },
+                {
+                  label: "Delivered",
+                  count: shipments.filter((s) => s.status === "delivered").length,
+                  badgeColor: "bg-[#EDF3E8] text-[#3E4534]",
+                },
+                {
+                  label: "NDR Attention",
+                  count: shipments.filter((s) => s.status === "ndr").length,
+                  badgeColor: "bg-[#FFF4E5] text-[#B76E00]",
+                },
+                {
+                  label: "RTO Initiated",
+                  count: shipments.filter((s) => ["rto_initiated", "rto_delivered"].includes(s.status)).length,
+                  badgeColor: "bg-[#FDF2F2] text-[#9B1C1C]",
+                },
+              ].map((m, idx) => (
+                <div key={idx} className="bg-[#FFFFFF] border border-[#E8E3DA] p-3.5 rounded-xs shadow-2xs space-y-1">
+                  <span className="text-[11px] uppercase tracking-wider font-semibold text-[#736E67] block truncate">
+                    {m.label}
+                  </span>
+                  <p className="text-2xl font-bold font-mono text-[#1A1A1A]">{m.count}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Actionable NDR Queue */}
+            {shipments.filter((s) => s.status === "ndr").length > 0 && (
+              <div className="bg-[#FFFFFF] border border-[#FFE2B8] rounded-xs overflow-hidden shadow-2xs space-y-3 p-4 sm:p-6">
+                <div className="flex items-center justify-between pb-3 border-b border-[#F0ECE4]">
+                  <div>
+                    <h3 className="text-base font-semibold text-[#B76E00] flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-[#B76E00]" /> Non-Delivery Reports (NDR Queue)
+                    </h3>
+                    <p className="text-[12px] text-[#736E67]">
+                      Packages where carrier delivery attempts failed. Submit buyer instructions or request a re-attempt.
+                    </p>
+                  </div>
+                  <span className="text-[12px] font-bold text-[#B76E00] bg-[#FFF4E5] px-2.5 py-0.5 rounded-full border border-[#FFE2B8]">
+                    {shipments.filter((s) => s.status === "ndr").length} Actionable
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-[13px]">
+                    <thead className="bg-[#FFFDF9] text-[#736E67] uppercase text-[11px] border-b border-[#E8E3DA]">
+                      <tr>
+                        <th className="py-2.5 px-3">Order Ref</th>
+                        <th className="py-2.5 px-3">AWB</th>
+                        <th className="py-2.5 px-3">Recipient & Contact</th>
+                        <th className="py-2.5 px-3">NDR Reason</th>
+                        <th className="py-2.5 px-3">Attempts</th>
+                        <th className="py-2.5 px-3 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#F0ECE4]">
+                      {shipments
+                        .filter((s) => s.status === "ndr")
+                        .map((s) => (
+                          <tr key={s.id} className="hover:bg-[#FFFDF9]">
+                            <td className="py-3 px-3 font-mono font-bold text-[#1A1A1A]">
+                              {s.order?.reference || `#${s.order_id}`}
+                            </td>
+                            <td className="py-3 px-3 font-mono text-[#4A4640]">
+                              {s.awb_code || "N/A"}
+                            </td>
+                            <td className="py-3 px-3">
+                              <p className="font-semibold text-[#1A1A1A]">
+                                {s.order?.shippingAddress?.name || "Customer"}
+                              </p>
+                              <p className="text-[11px] text-[#736E67]">
+                                {s.order?.shippingAddress?.phone}
+                              </p>
+                            </td>
+                            <td className="py-3 px-3 text-[#B76E00] font-medium">
+                              {s.ndr_reason || "Customer unavailable"}
+                            </td>
+                            <td className="py-3 px-3 font-mono text-center">
+                              {s.ndr_attempts || 1}
+                            </td>
+                            <td className="py-3 px-3 text-right">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenNdrModal(s)}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xs text-xs font-semibold bg-[#B76E00] hover:bg-[#995C00] text-white transition-colors cursor-pointer"
+                              >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                                <span>Instruct Re-attempt</span>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Shipments Registry Table */}
+            <div className="bg-[#FFFFFF] border border-[#E8E3DA] rounded-xs overflow-hidden shadow-2xs space-y-4 p-4 sm:p-6">
+              <div className="flex items-center justify-between pb-3 border-b border-[#F0ECE4]">
+                <div>
+                  <h3 className="text-base font-semibold text-[#1A1A1A]">
+                    Registered Shipments ({shipments.length})
+                  </h3>
+                  <p className="text-[12px] text-[#736E67]">
+                    All historical and active consignments registered via Shiprocket.
+                  </p>
+                </div>
+              </div>
+
+              {shipments.length === 0 ? (
+                <div className="py-12 text-center text-sm text-[#736E67]">
+                  No shipments recorded yet. Click &quot;Ship with Shiprocket&quot; on any pending order to create a consignment.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-[14px]">
+                    <thead className="bg-[#FBF9F5] text-[#736E67] uppercase text-[12px] border-b border-[#E8E3DA]">
+                      <tr>
+                        <th className="py-3 px-4">Order Ref</th>
+                        <th className="py-3 px-4">AWB / Courier</th>
+                        <th className="py-3 px-4">Weight & Dims</th>
+                        <th className="py-3 px-4">Consignment Status</th>
+                        <th className="py-3 px-4">ETD</th>
+                        <th className="py-3 px-4 text-right">Documents & Tracking</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#F0ECE4]">
+                      {shipments.map((s) => (
+                        <tr key={s.id} className="hover:bg-[#FBF9F5] transition-colors">
+                          <td className="py-3.5 px-4">
+                            <span className="font-mono font-bold text-[#1A1A1A]">
+                              {s.order?.reference || `#${s.order_id}`}
+                            </span>
+                            <span className="block text-[11px] text-[#736E67]">
+                              SR ID: {s.sr_shipment_id || s.id}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="font-mono font-bold text-[#1A1A1A]">
+                              {s.awb_code || "Pending Assignment"}
+                            </div>
+                            <span className="text-[12px] text-[#736E67]">
+                              {s.courier_name || "Unassigned"}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-[13px] text-[#4A4640]">
+                            <span>{s.weight_grams ? `${s.weight_grams}g` : "250g"}</span>
+                            <span className="block text-[11px] text-[#736E67]">
+                              {s.length_cm || 15}×{s.breadth_cm || 10}×{s.height_cm || 8} cm
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span
+                              className={`inline-block px-2.5 py-0.5 rounded-full text-[12px] font-semibold uppercase ${
+                                s.status === "delivered"
+                                  ? "bg-[#EDF3E8] text-[#3E4534]"
+                                  : ["in_transit", "shipped"].includes(s.status)
+                                    ? "bg-[#E8F0FE] text-[#1967D2]"
+                                    : s.status === "ndr"
+                                      ? "bg-[#FFF4E5] text-[#B76E00]"
+                                      : ["rto_initiated", "cancelled"].includes(s.status)
+                                        ? "bg-[#FDF2F2] text-[#9B1C1C]"
+                                        : "bg-[#FFF8EB] text-[#8C6D1F]"
+                              }`}
+                            >
+                              {s.status.replace("_", " ")}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-[13px] text-[#736E67]">
+                            {s.etd || "Standard Surface"}
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <div className="inline-flex items-center justify-end gap-1.5">
+                              {s.awb_code && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleGenerateDocument(s.id, "label")}
+                                    className="p-1.5 text-[#736E67] hover:text-[#1A1A1A] hover:bg-[#F5F2EB] rounded-2xs cursor-pointer"
+                                    title="Print Shipping Label"
+                                  >
+                                    <Printer className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSyncTracking(s.id)}
+                                    className="p-1.5 text-[#736E67] hover:text-[#4E5942] hover:bg-[#EDF3E8] rounded-2xs cursor-pointer"
+                                    title="Sync Tracking Status"
+                                  >
+                                    <RefreshCw className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
+                              {s.tracking_url && (
+                                <a
+                                  href={s.tracking_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="p-1.5 text-[#736E67] hover:text-[#1967D2] hover:bg-[#E8F0FE] rounded-2xs cursor-pointer"
+                                  title="View Public Tracking"
+                                >
+                                  <ExternalLink className="w-4 h-4" />
+                                </a>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -4081,6 +4918,270 @@ export default function AdminPage() {
                 </div>
               </div>
 
+              {/* Shiprocket Logistics & Gateway Integration */}
+              <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-6 rounded-xs space-y-6 shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#F0ECE4] gap-3">
+                  <div>
+                    <h3 className="text-base font-semibold text-[#1A1A1A] flex items-center gap-2">
+                      <Truck className="w-5 h-5 text-[#4E5942]" /> Shiprocket Gateway & Logistics Configuration
+                    </h3>
+                    <p className="text-[13px] text-[#736E67] mt-0.5">
+                      Configure automated courier fulfillment, pickup locations, default package parcels, and run connection diagnostics.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRunDoctor}
+                    disabled={isRunningDoctor}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xs text-[13px] font-semibold bg-[#4E5942] hover:bg-[#3D4733] text-white transition-colors cursor-pointer self-start sm:self-auto disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isRunningDoctor ? "animate-spin" : ""}`} />
+                    <span>{isRunningDoctor ? "Testing Connection..." : "Test Shiprocket Connection"}</span>
+                  </button>
+                </div>
+
+                {/* Doctor Diagnostic Audit Results Banner */}
+                {doctorData && (
+                  <div className={`p-4 rounded-xs border text-xs space-y-2 ${
+                    doctorData.healthy
+                      ? "bg-[#EDF3E8] border-[#C5D7BD] text-[#3E4534]"
+                      : "bg-[#FFF8EB] border-[#F2DEB5] text-[#8C6D1F]"
+                  }`}>
+                    <div className="flex items-center justify-between font-semibold text-sm">
+                      <span className="flex items-center gap-1.5">
+                        {doctorData.healthy ? <CheckCircle2 className="w-4 h-4 text-[#4E5942]" /> : <AlertTriangle className="w-4 h-4 text-[#8C6D1F]" />}
+                        {doctorData.healthy ? "Shiprocket Connected & Operational" : "Shiprocket Diagnostics Report"}
+                      </span>
+                      <span className="font-mono text-[11px] uppercase">{doctorData.configured ? "Configured" : "Missing Keys"}</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 font-mono">
+                      <div>
+                        <span className="block text-[#736E67] text-[10px] uppercase">Credentials:</span>
+                        <span>{doctorData.checks?.credentials?.status || "UNKNOWN"}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[#736E67] text-[10px] uppercase">Webhook Secret:</span>
+                        <span>{doctorData.checks?.webhook_token?.status || "UNKNOWN"}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[#736E67] text-[10px] uppercase">Pickup Location:</span>
+                        <span>{doctorData.checks?.pickup_location?.value || "Primary"}</span>
+                      </div>
+                    </div>
+
+                    {doctorData.wallet?.balance_amount !== undefined && (
+                      <p className="pt-1 text-[#4E5942] font-semibold">
+                        Live Prepaid Balance: ₹{doctorData.wallet.balance_amount}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Enable Shiprocket Toggle */}
+                  <div className="flex items-center justify-between p-3.5 bg-[#FBF9F5] border border-[#E8E3DA] rounded-xs">
+                    <div>
+                      <p className="text-[13px] font-semibold text-[#1A1A1A]">
+                        Enable Shiprocket Integration
+                      </p>
+                      <p className="text-[11px] text-[#736E67]">
+                        Activates live courier serviceability & dispatch
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(siteSettings.shiprocket_enabled)}
+                        onChange={(e) =>
+                          setSiteSettings({
+                            ...siteSettings,
+                            shiprocket_enabled: e.target.checked,
+                          })
+                        }
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-[#E8E3DA] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#4E5942]"></div>
+                    </label>
+                  </div>
+
+                  {/* Auto-create shipments Toggle */}
+                  <div className="flex items-center justify-between p-3.5 bg-[#FBF9F5] border border-[#E8E3DA] rounded-xs">
+                    <div>
+                      <p className="text-[13px] font-semibold text-[#1A1A1A]">
+                        Auto-Create Shipments on Order
+                      </p>
+                      <p className="text-[11px] text-[#736E67]">
+                        Queue consignment creation upon payment/COD
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(siteSettings.shiprocket_auto_create)}
+                        onChange={(e) =>
+                          setSiteSettings({
+                            ...siteSettings,
+                            shiprocket_auto_create: e.target.checked,
+                          })
+                        }
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-[#E8E3DA] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#4E5942]"></div>
+                    </label>
+                  </div>
+
+                  {/* Pickup Location */}
+                  <div>
+                    <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
+                      Shiprocket Pickup Location Nickname
+                    </label>
+                    <input
+                      type="text"
+                      value={siteSettings.shiprocket_pickup_location || "Primary"}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          shiprocket_pickup_location: e.target.value,
+                        })
+                      }
+                      placeholder="e.g. Primary or Maysha Organics Lab"
+                      className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
+                    />
+                  </div>
+
+                  {/* Courier Strategy */}
+                  <div>
+                    <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
+                      Preferred Courier Allocation Strategy
+                    </label>
+                    <select
+                      value={siteSettings.shiprocket_courier_strategy || "cheapest"}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          shiprocket_courier_strategy: e.target.value,
+                        })
+                      }
+                      className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs cursor-pointer"
+                    >
+                      <option value="cheapest">Cheapest Available Rate</option>
+                      <option value="fastest">Fastest Estimated Delivery (Fastest ETD)</option>
+                      <option value="manual">Manual Admin Selection Only</option>
+                    </select>
+                  </div>
+
+                  {/* Low Wallet Threshold */}
+                  <div>
+                    <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
+                      Low Wallet Alert Threshold (₹)
+                    </label>
+                    <input
+                      type="number"
+                      value={siteSettings.low_wallet_threshold ?? 500}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          low_wallet_threshold: Number(e.target.value),
+                        })
+                      }
+                      className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
+                    />
+                  </div>
+
+                  {/* Return Window Days */}
+                  <div>
+                    <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
+                      Customer Return Window (Days after Delivery)
+                    </label>
+                    <input
+                      type="number"
+                      value={siteSettings.return_window_days ?? 7}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          return_window_days: Number(e.target.value),
+                        })
+                      }
+                      className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
+                    />
+                  </div>
+                </div>
+
+                {/* Default Consignment Parcel Dimensions */}
+                <div className="pt-3 border-t border-[#F0ECE4] space-y-3">
+                  <h4 className="text-[14px] font-semibold text-[#1A1A1A]">
+                    Default Parcel Dimensions & Weight (Fallback for Products)
+                  </h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div>
+                      <label className="text-[12px] font-semibold text-[#736E67] block mb-1">
+                        Default Weight (g)
+                      </label>
+                      <input
+                        type="number"
+                        value={siteSettings.default_weight_grams ?? 250}
+                        onChange={(e) =>
+                          setSiteSettings({
+                            ...siteSettings,
+                            default_weight_grams: Number(e.target.value),
+                          })
+                        }
+                        className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[13px] p-2 rounded-2xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[12px] font-semibold text-[#736E67] block mb-1">
+                        Length (cm)
+                      </label>
+                      <input
+                        type="number"
+                        value={siteSettings.default_length_cm ?? 15}
+                        onChange={(e) =>
+                          setSiteSettings({
+                            ...siteSettings,
+                            default_length_cm: Number(e.target.value),
+                          })
+                        }
+                        className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[13px] p-2 rounded-2xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[12px] font-semibold text-[#736E67] block mb-1">
+                        Breadth (cm)
+                      </label>
+                      <input
+                        type="number"
+                        value={siteSettings.default_breadth_cm ?? 10}
+                        onChange={(e) =>
+                          setSiteSettings({
+                            ...siteSettings,
+                            default_breadth_cm: Number(e.target.value),
+                          })
+                        }
+                        className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[13px] p-2 rounded-2xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[12px] font-semibold text-[#736E67] block mb-1">
+                        Height (cm)
+                      </label>
+                      <input
+                        type="number"
+                        value={siteSettings.default_height_cm ?? 8}
+                        onChange={(e) =>
+                          setSiteSettings({
+                            ...siteSettings,
+                            default_height_cm: Number(e.target.value),
+                          })
+                        }
+                        className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[13px] p-2 rounded-2xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* 2-Step Authentication (2FA) */}
               <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-6 rounded-xs space-y-4 shadow-2xs">
                 <h3 className="text-base font-semibold text-[#1A1A1A] pb-2 border-b border-[#F0ECE4] flex items-center gap-2">
@@ -4369,108 +5470,208 @@ export default function AdminPage() {
                     return (
                       <div
                         key={vIdx}
-                        className="p-3 sm:p-4 bg-[#FBF9F5] border border-[#E8E3DA] rounded-2xs grid grid-cols-2 sm:grid-cols-12 gap-2 sm:gap-3 items-end sm:items-center"
+                        className="p-3 sm:p-4 bg-[#FBF9F5] border border-[#E8E3DA] rounded-2xs space-y-3"
                       >
-                        <div className="col-span-2 sm:col-span-3">
-                          <label className="text-[11px] sm:text-[12px] font-semibold text-[#736E67] block mb-1">
-                            Size / Volume *
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={v.size}
-                            onChange={(e) =>
-                              handleUpdateVariantRow(
-                                vIdx,
-                                "size",
-                                e.target.value,
-                              )
-                            }
-                            placeholder="e.g. 50ml or 100ml"
-                            className="w-full bg-white border border-[#E8E3DA] text-[13px] sm:text-[14px] py-2 px-3 rounded-2xs focus:outline-none focus:border-[#4E5942]"
-                          />
+                        <div className="grid grid-cols-2 sm:grid-cols-12 gap-2 sm:gap-3 items-end sm:items-center">
+                          <div className="col-span-2 sm:col-span-3">
+                            <label className="text-[11px] sm:text-[12px] font-semibold text-[#736E67] block mb-1">
+                              Size / Volume *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={v.size}
+                              onChange={(e) =>
+                                handleUpdateVariantRow(
+                                  vIdx,
+                                  "size",
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="e.g. 50ml or 100ml"
+                              className="w-full bg-white border border-[#E8E3DA] text-[13px] sm:text-[14px] py-2 px-3 rounded-2xs focus:outline-none focus:border-[#4E5942]"
+                            />
+                          </div>
+
+                          <div className="col-span-1 sm:col-span-2">
+                            <label className="text-[11px] sm:text-[12px] font-semibold text-[#736E67] block mb-1">
+                              Price (₹) *
+                            </label>
+                            <input
+                              type="number"
+                              required
+                              min={1}
+                              value={v.price}
+                              onChange={(e) =>
+                                handleUpdateVariantRow(
+                                  vIdx,
+                                  "price",
+                                  Number(e.target.value),
+                                )
+                              }
+                              className="w-full bg-white border border-[#E8E3DA] text-[13px] sm:text-[14px] py-2 px-3 rounded-2xs focus:outline-none focus:border-[#4E5942]"
+                            />
+                          </div>
+
+                          <div className="col-span-1 sm:col-span-2">
+                            <label className="text-[11px] sm:text-[12px] font-semibold text-[#736E67] block mb-1">
+                              MRP (₹) *
+                            </label>
+                            <input
+                              type="number"
+                              required
+                              min={1}
+                              value={v.mrp}
+                              onChange={(e) =>
+                                handleUpdateVariantRow(
+                                  vIdx,
+                                  "mrp",
+                                  Number(e.target.value),
+                                )
+                              }
+                              className="w-full bg-white border border-[#E8E3DA] text-[13px] sm:text-[14px] py-2 px-3 rounded-2xs focus:outline-none focus:border-[#4E5942]"
+                            />
+                          </div>
+
+                          <div className="col-span-1 sm:col-span-2">
+                            <label className="text-[11px] sm:text-[12px] font-semibold text-[#736E67] block mb-1">
+                              Stock Units *
+                            </label>
+                            <input
+                              type="number"
+                              required
+                              min={0}
+                              value={v.stock}
+                              onChange={(e) =>
+                                handleUpdateVariantRow(
+                                  vIdx,
+                                  "stock",
+                                  Number(e.target.value),
+                                )
+                              }
+                              className="w-full bg-white border border-[#E8E3DA] text-[13px] sm:text-[14px] py-2 px-3 rounded-2xs focus:outline-none focus:border-[#4E5942]"
+                            />
+                          </div>
+
+                          <div className="col-span-1 sm:col-span-3 flex items-center justify-between sm:justify-end gap-2 pt-1 sm:pt-0">
+                            {discountPct > 0 ? (
+                              <span className="text-[11px] sm:text-[12px] font-bold text-[#A94438] bg-[#FDF2F0] border border-[#F8B4B4] px-2 py-1 rounded-2xs shrink-0">
+                                {discountPct}% OFF
+                              </span>
+                            ) : (
+                              <span className="text-[11px] sm:text-[12px] text-[#736E67]">
+                                Standard
+                              </span>
+                            )}
+
+                            <button
+                              type="button"
+                              disabled={productFormData.variants.length <= 1}
+                              onClick={() => handleRemoveVariantRow(vIdx)}
+                              className="p-2 text-[#736E67] hover:text-[#A94438] hover:bg-[#FDF2F0] rounded-2xs transition-colors disabled:opacity-30 cursor-pointer"
+                              title="Remove variant"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
 
-                        <div className="col-span-1 sm:col-span-2">
-                          <label className="text-[11px] sm:text-[12px] font-semibold text-[#736E67] block mb-1">
-                            Price (₹) *
-                          </label>
-                          <input
-                            type="number"
-                            required
-                            min={1}
-                            value={v.price}
-                            onChange={(e) =>
-                              handleUpdateVariantRow(
-                                vIdx,
-                                "price",
-                                Number(e.target.value),
-                              )
-                            }
-                            className="w-full bg-white border border-[#E8E3DA] text-[13px] sm:text-[14px] py-2 px-3 rounded-2xs focus:outline-none focus:border-[#4E5942]"
-                          />
-                        </div>
-
-                        <div className="col-span-1 sm:col-span-2">
-                          <label className="text-[11px] sm:text-[12px] font-semibold text-[#736E67] block mb-1">
-                            MRP (₹) *
-                          </label>
-                          <input
-                            type="number"
-                            required
-                            min={1}
-                            value={v.mrp}
-                            onChange={(e) =>
-                              handleUpdateVariantRow(
-                                vIdx,
-                                "mrp",
-                                Number(e.target.value),
-                              )
-                            }
-                            className="w-full bg-white border border-[#E8E3DA] text-[13px] sm:text-[14px] py-2 px-3 rounded-2xs focus:outline-none focus:border-[#4E5942]"
-                          />
-                        </div>
-
-                        <div className="col-span-1 sm:col-span-2">
-                          <label className="text-[11px] sm:text-[12px] font-semibold text-[#736E67] block mb-1">
-                            Stock Units *
-                          </label>
-                          <input
-                            type="number"
-                            required
-                            min={0}
-                            value={v.stock}
-                            onChange={(e) =>
-                              handleUpdateVariantRow(
-                                vIdx,
-                                "stock",
-                                Number(e.target.value),
-                              )
-                            }
-                            className="w-full bg-white border border-[#E8E3DA] text-[13px] sm:text-[14px] py-2 px-3 rounded-2xs focus:outline-none focus:border-[#4E5942]"
-                          />
-                        </div>
-
-                        <div className="col-span-1 sm:col-span-3 flex items-center justify-between sm:justify-end gap-2 pt-1 sm:pt-0">
-                          {discountPct > 0 ? (
-                            <span className="text-[11px] sm:text-[12px] font-bold text-[#A94438] bg-[#FDF2F0] border border-[#F8B4B4] px-2 py-1 rounded-2xs shrink-0">
-                              {discountPct}% OFF
-                            </span>
-                          ) : (
-                            <span className="text-[11px] sm:text-[12px] text-[#736E67]">
-                              Standard
-                            </span>
-                          )}
-
-                          <button
-                            type="button"
-                            disabled={productFormData.variants.length <= 1}
-                            onClick={() => handleRemoveVariantRow(vIdx)}
-                            className="p-2 text-[#736E67] hover:text-[#A94438] hover:bg-[#FDF2F0] rounded-2xs transition-colors disabled:opacity-30 cursor-pointer"
-                            title="Remove variant"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                        {/* Shipping Parcel Dimensions Sub-row */}
+                        <div className="pt-2 border-t border-[#E8E3DA]/60 grid grid-cols-2 sm:grid-cols-5 gap-2 text-left">
+                          <div>
+                            <label className="text-[10px] sm:text-[11px] font-medium text-[#736E67] block mb-0.5">
+                              Weight (grams)
+                            </label>
+                            <input
+                              type="number"
+                              min={1}
+                              value={v.weight_grams ?? 250}
+                              onChange={(e) =>
+                                handleUpdateVariantRow(
+                                  vIdx,
+                                  "weight_grams",
+                                  Number(e.target.value),
+                                )
+                              }
+                              placeholder="250"
+                              className="w-full bg-white border border-[#E8E3DA] text-[12px] py-1.5 px-2.5 rounded-2xs focus:outline-none focus:border-[#4E5942]"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] sm:text-[11px] font-medium text-[#736E67] block mb-0.5">
+                              Length (cm)
+                            </label>
+                            <input
+                              type="number"
+                              min={1}
+                              value={v.length_cm ?? 15}
+                              onChange={(e) =>
+                                handleUpdateVariantRow(
+                                  vIdx,
+                                  "length_cm",
+                                  Number(e.target.value),
+                                )
+                              }
+                              placeholder="15"
+                              className="w-full bg-white border border-[#E8E3DA] text-[12px] py-1.5 px-2.5 rounded-2xs focus:outline-none focus:border-[#4E5942]"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] sm:text-[11px] font-medium text-[#736E67] block mb-0.5">
+                              Breadth (cm)
+                            </label>
+                            <input
+                              type="number"
+                              min={1}
+                              value={v.breadth_cm ?? 10}
+                              onChange={(e) =>
+                                handleUpdateVariantRow(
+                                  vIdx,
+                                  "breadth_cm",
+                                  Number(e.target.value),
+                                )
+                              }
+                              placeholder="10"
+                              className="w-full bg-white border border-[#E8E3DA] text-[12px] py-1.5 px-2.5 rounded-2xs focus:outline-none focus:border-[#4E5942]"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] sm:text-[11px] font-medium text-[#736E67] block mb-0.5">
+                              Height (cm)
+                            </label>
+                            <input
+                              type="number"
+                              min={1}
+                              value={v.height_cm ?? 8}
+                              onChange={(e) =>
+                                handleUpdateVariantRow(
+                                  vIdx,
+                                  "height_cm",
+                                  Number(e.target.value),
+                                )
+                              }
+                              placeholder="8"
+                              className="w-full bg-white border border-[#E8E3DA] text-[12px] py-1.5 px-2.5 rounded-2xs focus:outline-none focus:border-[#4E5942]"
+                            />
+                          </div>
+                          <div className="col-span-2 sm:col-span-1">
+                            <label className="text-[10px] sm:text-[11px] font-medium text-[#736E67] block mb-0.5">
+                              SKU (optional)
+                            </label>
+                            <input
+                              type="text"
+                              value={v.sku || ""}
+                              onChange={(e) =>
+                                handleUpdateVariantRow(
+                                  vIdx,
+                                  "sku",
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="MAY-50ML"
+                              className="w-full bg-white border border-[#E8E3DA] text-[12px] py-1.5 px-2.5 rounded-2xs focus:outline-none focus:border-[#4E5942]"
+                            />
+                          </div>
                         </div>
                       </div>
                     );
@@ -6070,6 +7271,535 @@ export default function AdminPage() {
                     : editingCategory
                       ? "Update Category"
                       : "Create Category"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ----------------------------------------------------------- */}
+      {/* SHIPROCKET FULFILLMENT MODAL                                */}
+      {/* ----------------------------------------------------------- */}
+      {showFulfillmentModal && selectedFulfillOrder && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-xs border border-[#E8E3DA] shadow-2xl max-w-3xl w-full my-6 max-h-[92vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-[#F0ECE4] flex items-center justify-between bg-[#FBF9F5] rounded-t-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-full bg-[#E5E9E1] text-[#4E5942] flex items-center justify-center shrink-0">
+                  <Truck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-serif text-[17px] sm:text-[19px] font-semibold text-[#1A1A1A]">
+                    Ship with Shiprocket
+                  </h3>
+                  <p className="text-[12px] text-[#736E67]">
+                    Order #{selectedFulfillOrder.reference || selectedFulfillOrder.id} &bull; Total: {formatINR(selectedFulfillOrder.total_amount || selectedFulfillOrder.total || 0)}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowFulfillmentModal(false)}
+                className="p-1.5 text-[#736E67] hover:text-[#1A1A1A] hover:bg-[#EAE5DD] rounded-2xs transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 sm:p-6 space-y-5 overflow-y-auto flex-1 text-[13px]">
+              {/* Destination & Order Summary Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="p-3.5 bg-[#FAF7F2] border border-[#EAE5DD] rounded-2xs space-y-1.5">
+                  <span className="text-[11px] font-semibold tracking-wider uppercase text-[#736E67] block">
+                    Delivery Destination
+                  </span>
+                  <p className="font-medium text-[#1A1A1A]">
+                    {selectedFulfillOrder.shipping_full_name || selectedFulfillOrder.customer_name || selectedFulfillOrder.user?.name || "Customer"}
+                  </p>
+                  <p className="text-[12px] text-[#555047] leading-relaxed">
+                    {selectedFulfillOrder.shipping_address_line1 || selectedFulfillOrder.shipping_address || "Address not provided"}
+                    {selectedFulfillOrder.shipping_address_line2 ? `, ${selectedFulfillOrder.shipping_address_line2}` : ""}
+                  </p>
+                  <p className="text-[12px] font-medium text-[#1A1A1A]">
+                    {selectedFulfillOrder.shipping_city || "City"}, {selectedFulfillOrder.shipping_state || "State"} - <span className="font-mono font-bold text-[#4E5942]">{selectedFulfillOrder.shipping_pincode || selectedFulfillOrder.shipping_postal_code || selectedFulfillOrder.pincode}</span>
+                  </p>
+                  <p className="text-[12px] text-[#736E67]">
+                    Phone: {selectedFulfillOrder.shipping_phone || selectedFulfillOrder.customer_phone || selectedFulfillOrder.user?.phone || "N/A"}
+                  </p>
+                </div>
+
+                <div className="p-3.5 bg-[#FAF7F2] border border-[#EAE5DD] rounded-2xs space-y-1.5">
+                  <span className="text-[11px] font-semibold tracking-wider uppercase text-[#736E67] block">
+                    Consignment Specs
+                  </span>
+                  <div className="flex justify-between items-center text-[12px]">
+                    <span className="text-[#736E67]">Payment Mode:</span>
+                    <span className="font-semibold uppercase px-2 py-0.5 rounded-2xs bg-white border border-[#E8E3DA] text-[#1A1A1A]">
+                      {selectedFulfillOrder.payment_method === "cod" ? "COD" : "Prepaid"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-[12px]">
+                    <span className="text-[#736E67]">Order Items:</span>
+                    <span className="font-medium text-[#1A1A1A]">
+                      {selectedFulfillOrder.items?.length || 1} product(s)
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-[12px]">
+                    <span className="text-[#736E67]">Order Status:</span>
+                    <span className="font-semibold capitalize text-[#4E5942]">
+                      {selectedFulfillOrder.status?.replace(/_/g, " ")}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-[12px]">
+                    <span className="text-[#736E67]">Pickup Warehouse:</span>
+                    <span className="font-medium text-[#1A1A1A]">
+                      {siteSettings.shiprocket_pickup_location || "Primary"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Package Dimensions & Weight Configurator */}
+              <div className="p-4 bg-white border border-[#E8E3DA] rounded-2xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[12px] font-semibold text-[#1A1A1A]">
+                    Package Dead Weight & Dimensions
+                  </span>
+                  <span className="text-[11px] text-[#736E67]">
+                    Used by Shiprocket to quote exact courier freight rates
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <div>
+                    <label className="text-[11px] font-semibold text-[#736E67] block mb-1">
+                      Weight (grams)
+                    </label>
+                    <input
+                      type="number"
+                      min={10}
+                      disabled={!!fulfillShipment?.awb_code}
+                      value={fulfillWeight}
+                      onChange={(e) => setFulfillWeight(Number(e.target.value))}
+                      className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[13px] py-1.5 px-2.5 rounded-2xs focus:outline-none focus:border-[#4E5942] disabled:opacity-60"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-[#736E67] block mb-1">
+                      Length (cm)
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      disabled={!!fulfillShipment?.awb_code}
+                      value={fulfillLength}
+                      onChange={(e) => setFulfillLength(Number(e.target.value))}
+                      className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[13px] py-1.5 px-2.5 rounded-2xs focus:outline-none focus:border-[#4E5942] disabled:opacity-60"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-[#736E67] block mb-1">
+                      Breadth (cm)
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      disabled={!!fulfillShipment?.awb_code}
+                      value={fulfillBreadth}
+                      onChange={(e) => setFulfillBreadth(Number(e.target.value))}
+                      className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[13px] py-1.5 px-2.5 rounded-2xs focus:outline-none focus:border-[#4E5942] disabled:opacity-60"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-[#736E67] block mb-1">
+                      Height (cm)
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      disabled={!!fulfillShipment?.awb_code}
+                      value={fulfillHeight}
+                      onChange={(e) => setFulfillHeight(Number(e.target.value))}
+                      className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[13px] py-1.5 px-2.5 rounded-2xs focus:outline-none focus:border-[#4E5942] disabled:opacity-60"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Stage 1: No Shipment Created Yet */}
+              {!fulfillShipment && (
+                <div className="p-4 bg-[#F7F9F6] border border-[#D5E0D0] rounded-2xs text-center space-y-3">
+                  <p className="text-[13px] text-[#4E5942] font-medium">
+                    No active Shiprocket order exists for this order yet.
+                  </p>
+                  <button
+                    type="button"
+                    disabled={isCreatingShipment}
+                    onClick={handleCreateShiprocketShipment}
+                    className="inline-flex items-center gap-2 bg-[#4E5942] hover:bg-[#3E4534] text-white text-[13px] font-semibold px-5 py-2.5 rounded-2xs transition-colors cursor-pointer disabled:opacity-60 shadow-xs"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>
+                      {isCreatingShipment
+                        ? "Registering Consignment..."
+                        : "Create Shiprocket Consignment"}
+                    </span>
+                  </button>
+                </div>
+              )}
+
+              {/* Stage 2: Shipment Exists */}
+              {fulfillShipment && (
+                <div className="space-y-4">
+                  {/* Shipment Status Banner */}
+                  <div className="p-4 bg-[#FBF9F5] border border-[#E8E3DA] rounded-2xs flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-[#736E67]">
+                          SR Shipment #{fulfillShipment.sr_shipment_id || fulfillShipment.id}
+                        </span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold uppercase bg-[#E5E9E1] text-[#4E5942]">
+                          {fulfillShipment.status?.replace(/_/g, " ")}
+                        </span>
+                      </div>
+                      <p className="text-[12px] text-[#555047]">
+                        Carrier: <span className="font-semibold text-[#1A1A1A]">{fulfillShipment.courier_name || "Unassigned"}</span>
+                        {fulfillShipment.awb_code && (
+                          <span className="ml-2 font-mono font-bold text-[#1A1A1A]">
+                            AWB: {fulfillShipment.awb_code}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+
+                    {fulfillShipment.awb_code && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(fulfillShipment.awb_code);
+                            addToast("Copied", "AWB copied to clipboard", "success");
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-[#4E5942] bg-white border border-[#D5E0D0] hover:bg-[#F2F5F0] rounded-2xs transition-colors cursor-pointer"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Copy AWB</span>
+                        </button>
+                        {fulfillShipment.tracking_url && (
+                          <a
+                            href={fulfillShipment.tracking_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold text-[#1A1A1A] bg-white border border-[#E8E3DA] hover:bg-[#F5F2EC] rounded-2xs transition-colors"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span>Track Online</span>
+                          </a>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* If NO AWB yet: Fetch & Select Live Courier Rates */}
+                  {!fulfillShipment.awb_code && (
+                    <div className="p-4 bg-white border border-[#E8E3DA] rounded-2xs space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-semibold text-[13px] text-[#1A1A1A]">
+                            Available Courier Partners
+                          </h4>
+                          <p className="text-[12px] text-[#736E67]">
+                            Real-time serviceability & freight quotes for {selectedFulfillOrder.shipping_pincode || selectedFulfillOrder.pincode}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={isLoadingRates}
+                          onClick={() => handleFetchCourierRates(fulfillShipment.id)}
+                          className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#4E5942] hover:text-[#3E4534] bg-[#F2F5F0] border border-[#D5E0D0] px-3 py-1.5 rounded-2xs transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${isLoadingRates ? "animate-spin" : ""}`} />
+                          <span>{isLoadingRates ? "Fetching..." : "Refresh Rates"}</span>
+                        </button>
+                      </div>
+
+                      {courierRates.length === 0 && !isLoadingRates && (
+                        <p className="text-[12px] text-[#736E67] text-center py-4 bg-[#FAF7F2] rounded-2xs">
+                          Click &quot;Refresh Rates&quot; to load available couriers and rates for this consignment.
+                        </p>
+                      )}
+
+                      {courierRates.length > 0 && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-64 overflow-y-auto pr-1">
+                          {courierRates.map((c: any, cIdx: number) => {
+                            const isCheapest = cIdx === 0;
+                            return (
+                              <div
+                                key={c.courier_company_id || cIdx}
+                                className="p-3 bg-[#FAF7F2] border border-[#EAE5DD] hover:border-[#4E5942] rounded-2xs flex items-center justify-between gap-3 transition-colors"
+                              >
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-[#1A1A1A] text-[13px]">
+                                      {c.courier_name}
+                                    </span>
+                                    {isCheapest && (
+                                      <span className="text-[10px] font-bold uppercase tracking-wider bg-[#E5E9E1] text-[#4E5942] px-1.5 py-0.5 rounded-2xs">
+                                        Best Rate
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-[11px] text-[#736E67]">
+                                    Rating: &starf; {c.rating || "4.5"} &bull; ETA: {c.estimated_delivery_days || "2-4"} days
+                                  </p>
+                                  <p className="text-[13px] font-bold text-[#1A1A1A] mt-0.5">
+                                    {formatINR(c.rate || c.freight_charge || 0)}
+                                  </p>
+                                </div>
+                                <button
+                                  type="button"
+                                  disabled={isAssigningCourier}
+                                  onClick={() =>
+                                    handleAssignCourier(
+                                      fulfillShipment.id,
+                                      c.courier_company_id,
+                                      c.courier_name,
+                                      c.rate || c.freight_charge
+                                    )
+                                  }
+                                  className="px-3 py-1.5 text-[12px] font-semibold bg-[#4E5942] hover:bg-[#3E4534] text-white rounded-2xs transition-colors cursor-pointer disabled:opacity-60 shrink-0"
+                                >
+                                  Assign
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* If AWB is Assigned: Action Toolbar & Documents */}
+                  {fulfillShipment.awb_code && (
+                    <div className="space-y-4">
+                      {/* Operational Action Buttons */}
+                      <div className="p-4 bg-white border border-[#E8E3DA] rounded-2xs space-y-3">
+                        <span className="text-[12px] font-semibold text-[#1A1A1A] block">
+                          Logistics & Dispatch Actions
+                        </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={isActionLoading}
+                            onClick={() => handleGenerateDocument(fulfillShipment.id, "label")}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 text-[12px] font-semibold bg-white border border-[#E8E3DA] hover:border-[#1A1A1A] text-[#1A1A1A] rounded-2xs transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            <Printer className="w-3.5 h-3.5 text-[#4E5942]" />
+                            <span>Print Shipping Label</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={isActionLoading}
+                            onClick={() => handleGenerateDocument(fulfillShipment.id, "manifest")}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 text-[12px] font-semibold bg-white border border-[#E8E3DA] hover:border-[#1A1A1A] text-[#1A1A1A] rounded-2xs transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            <FileText className="w-3.5 h-3.5 text-[#4E5942]" />
+                            <span>Print Manifest</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={isActionLoading}
+                            onClick={() => handleGenerateDocument(fulfillShipment.id, "invoice")}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 text-[12px] font-semibold bg-white border border-[#E8E3DA] hover:border-[#1A1A1A] text-[#1A1A1A] rounded-2xs transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            <Download className="w-3.5 h-3.5 text-[#4E5942]" />
+                            <span>Print Invoice</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={isActionLoading}
+                            onClick={() => handleSyncTracking(fulfillShipment.id)}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 text-[12px] font-semibold bg-[#F2F5F0] border border-[#D5E0D0] text-[#4E5942] hover:bg-[#E5E9E1] rounded-2xs transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 ${isActionLoading ? "animate-spin" : ""}`} />
+                            <span>Sync Live Tracking</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={isActionLoading}
+                            onClick={() => handleCancelShipment(fulfillShipment.id)}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 text-[12px] font-semibold text-[#A94438] bg-[#FDF2F0] border border-[#F8B4B4] hover:bg-[#FBE8E6] rounded-2xs transition-colors cursor-pointer disabled:opacity-50 ml-auto"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Cancel Shipment</span>
+                          </button>
+                        </div>
+
+                        {/* Schedule Pickup Row */}
+                        <div className="pt-3 border-t border-[#F0ECE4] flex flex-wrap items-center gap-2.5">
+                          <span className="text-[12px] font-medium text-[#736E67]">
+                            Pickup Date:
+                          </span>
+                          <input
+                            type="date"
+                            value={pickupDate}
+                            onChange={(e) => setPickupDate(e.target.value)}
+                            className="bg-[#FBF9F5] border border-[#E8E3DA] text-[12px] py-1.5 px-2.5 rounded-2xs focus:outline-none focus:border-[#4E5942]"
+                          />
+                          <button
+                            type="button"
+                            disabled={isActionLoading}
+                            onClick={() => handleSchedulePickup(fulfillShipment.id)}
+                            className="px-3.5 py-1.5 text-[12px] font-semibold bg-[#4E5942] hover:bg-[#3E4534] text-white rounded-2xs transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            Schedule Courier Pickup
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Milestone Checkpoint Timeline */}
+                      {fulfillShipment.events && fulfillShipment.events.length > 0 && (
+                        <div className="p-4 bg-white border border-[#E8E3DA] rounded-2xs space-y-3">
+                          <span className="text-[12px] font-semibold text-[#1A1A1A] block">
+                            Milestone Checkpoint Tracking
+                          </span>
+                          <div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-[#E8E3DA]">
+                            {fulfillShipment.events.map((evt: any, eIdx: number) => (
+                              <div key={evt.id || eIdx} className="relative">
+                                <div className="absolute -left-6 top-1 w-2.5 h-2.5 rounded-full bg-[#4E5942] border-2 border-white shadow-xs" />
+                                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                                  <span className="font-semibold text-[#1A1A1A] text-[12px]">
+                                    {evt.activity || evt.status}
+                                  </span>
+                                  <span className="text-[11px] text-[#736E67]">
+                                    {evt.event_time ? new Date(evt.event_time).toLocaleString() : ""}
+                                  </span>
+                                </div>
+                                {evt.location && (
+                                  <p className="text-[11px] text-[#555047]">
+                                    Location: {evt.location}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-[#F0ECE4] flex justify-end bg-[#FBF9F5] rounded-b-xs">
+              <button
+                type="button"
+                onClick={() => setShowFulfillmentModal(false)}
+                className="px-4 py-2 text-[13px] font-semibold text-[#1A1A1A] hover:bg-[#EAE5DD] rounded-2xs transition-colors cursor-pointer"
+              >
+                Close Window
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ----------------------------------------------------------- */}
+      {/* NDR RE-ATTEMPT INSTRUCTION MODAL                            */}
+      {/* ----------------------------------------------------------- */}
+      {showNdrModal && selectedNdrShipment && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-xs border border-[#E8E3DA] shadow-2xl max-w-lg w-full my-6 flex flex-col">
+            {/* Header */}
+            <div className="p-4 sm:p-5 border-b border-[#F0ECE4] flex items-center justify-between bg-[#FDF7F5] rounded-t-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-full bg-[#FCECE8] text-[#A94438] flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-serif text-[17px] font-semibold text-[#1A1A1A]">
+                    Instruct Delivery Re-attempt
+                  </h3>
+                  <p className="text-[12px] text-[#736E67]">
+                    Order #{selectedNdrShipment.order?.reference || selectedNdrShipment.id} &bull; AWB: {selectedNdrShipment.awb_code}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowNdrModal(false)}
+                className="p-1.5 text-[#736E67] hover:text-[#1A1A1A] hover:bg-[#EAE5DD] rounded-2xs transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleReattemptNdr} className="p-4 sm:p-6 space-y-4 text-[13px]">
+              <div className="p-3 bg-[#FAF7F2] border border-[#EAE5DD] rounded-2xs space-y-1">
+                <p className="text-[12px] text-[#555047]">
+                  <strong className="text-[#1A1A1A]">Customer:</strong> {selectedNdrShipment.order?.shipping_full_name || selectedNdrShipment.order?.user?.name || "Customer"} ({selectedNdrShipment.order?.shipping_phone || "Phone N/A"})
+                </p>
+                <p className="text-[12px] text-[#555047]">
+                  <strong className="text-[#1A1A1A]">Carrier:</strong> {selectedNdrShipment.courier_name}
+                </p>
+                {selectedNdrShipment.status_details && (
+                  <p className="text-[12px] text-[#A94438]">
+                    <strong>Reported NDR Reason:</strong> {selectedNdrShipment.status_details}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="text-[12px] font-semibold text-[#1A1A1A] block mb-1">
+                  Delivery Instructions / Action Comments *
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  value={ndrComments}
+                  onChange={(e) => setNdrComments(e.target.value)}
+                  placeholder="e.g. Customer confirmed availability, please re-attempt delivery between 2 PM - 6 PM."
+                  className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[13px] p-2.5 rounded-2xs focus:outline-none focus:border-[#4E5942]"
+                />
+              </div>
+
+              <div>
+                <label className="text-[12px] font-semibold text-[#1A1A1A] block mb-1">
+                  Deferred Re-attempt Date (Optional)
+                </label>
+                <input
+                  type="date"
+                  value={ndrDeferredDate}
+                  onChange={(e) => setNdrDeferredDate(e.target.value)}
+                  className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[13px] py-2 px-3 rounded-2xs focus:outline-none focus:border-[#4E5942]"
+                />
+                <span className="text-[11px] text-[#736E67] mt-1 block">
+                  Leave blank to instruct the carrier to retry delivery on the next immediate working cycle.
+                </span>
+              </div>
+
+              <div className="pt-3 border-t border-[#F0ECE4] flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowNdrModal(false)}
+                  className="px-4 py-2 text-[13px] font-semibold text-[#736E67] hover:text-[#1A1A1A] cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isReattemptingNdr}
+                  className="px-5 py-2.5 text-[13px] font-semibold bg-[#4E5942] hover:bg-[#3E4534] text-white rounded-2xs transition-colors cursor-pointer disabled:opacity-60"
+                >
+                  {isReattemptingNdr ? "Sending Instructions..." : "Submit Re-attempt Request"}
                 </button>
               </div>
             </form>

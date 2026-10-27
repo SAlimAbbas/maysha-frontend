@@ -22,6 +22,8 @@ import {
   Printer,
   RefreshCw,
   X,
+  RotateCcw,
+  AlertTriangle,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { apiBffFetch, formatINR } from "@/lib/api";
@@ -55,6 +57,13 @@ export default function OrderConfirmationPage({ params }: OrderPageProps) {
   const [emailInput, setEmailInput] = useState("");
   const [activeEmail, setActiveEmail] = useState<string>("");
   const [copied, setCopied] = useState(false);
+  const [awbCopied, setAwbCopied] = useState(false);
+
+  // Return request state
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnReason, setReturnReason] = useState("Damaged in transit");
+  const [returnComments, setReturnComments] = useState("");
+  const [isSubmittingReturn, setIsSubmittingReturn] = useState(false);
 
   // Review state for delivered order items
   const [reviewingItem, setReviewingItem] = useState<OrderItem | null>(null);
@@ -102,8 +111,12 @@ export default function OrderConfirmationPage({ params }: OrderPageProps) {
     enabled: Boolean(reference),
     retry: 1,
     refetchInterval: (query) => {
-      if (query.state.data?.status === "pending_payment") {
+      const status = query.state.data?.status;
+      if (status === "pending_payment") {
         return 3000;
+      }
+      if (status && !["delivered", "cancelled", "refunded", "rto_delivered"].includes(status)) {
+        return 60000;
       }
       return false;
     },
@@ -238,6 +251,32 @@ export default function OrderConfirmationPage({ params }: OrderPageProps) {
     }
   };
 
+  const handleRequestReturn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!order) return;
+    setIsSubmittingReturn(true);
+    try {
+      await apiBffFetch(`account/orders/${order.reference}/returns`, {
+        method: "POST",
+        body: JSON.stringify({
+          reason: returnReason,
+          comments: returnComments.trim() || undefined,
+        }),
+      });
+      addToast(
+        "Return Requested",
+        "Your return request has been submitted. Our concierge team will review it within 24 hours.",
+        "success"
+      );
+      setShowReturnModal(false);
+      refetch();
+    } catch (err: any) {
+      addToast("Return Notice", err.message || "Failed to submit return request.", "error");
+    } finally {
+      setIsSubmittingReturn(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "paid":
@@ -248,15 +287,53 @@ export default function OrderConfirmationPage({ params }: OrderPageProps) {
           </span>
         );
       case "shipped":
+      case "in_transit":
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-semibold bg-[#E8F0FE] text-[#1967D2] border border-[#AECBFA]">
-            <Package className="w-3.5 h-3.5" /> Dispatched / In Transit
+            <Truck className="w-3.5 h-3.5" /> Dispatched / In Transit
+          </span>
+        );
+      case "out_for_delivery":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-semibold bg-[#EBF3FC] text-[#0B6BCB] border border-[#B7D9F8]">
+            <Truck className="w-3.5 h-3.5 animate-pulse" /> Out for Delivery Today
           </span>
         );
       case "delivered":
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-semibold bg-[#EDF3E8] text-[#3E4534] border border-[#C5D7BD]">
             <CheckCircle2 className="w-3.5 h-3.5 text-[#4E5942]" /> Delivered
+          </span>
+        );
+      case "ndr":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-semibold bg-[#FFF4E5] text-[#B76E00] border border-[#FFE2B8]">
+            <AlertCircle className="w-3.5 h-3.5" /> Delivery Attempt Failed (NDR)
+          </span>
+        );
+      case "rto_initiated":
+      case "rto_delivered":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-semibold bg-[#FDF2F2] text-[#9B1C1C] border border-[#F8B4B4]">
+            <AlertCircle className="w-3.5 h-3.5" /> Returning to Sender (RTO)
+          </span>
+        );
+      case "return_requested":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-semibold bg-[#FFF8EB] text-[#8C6D1F] border border-[#F2DEB5]">
+            <Clock className="w-3.5 h-3.5" /> Return Requested — Under Review
+          </span>
+        );
+      case "return_approved":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-semibold bg-[#EDF3E8] text-[#3E4534] border border-[#C5D7BD]">
+            <CheckCircle2 className="w-3.5 h-3.5 text-[#4E5942]" /> Return Approved — Pickup Scheduled
+          </span>
+        );
+      case "returned":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-semibold bg-[#EDF3E8] text-[#3E4534] border border-[#C5D7BD]">
+            <CheckCircle2 className="w-3.5 h-3.5 text-[#4E5942]" /> Returned & Refunded
           </span>
         );
       case "pending_payment":
@@ -396,6 +473,29 @@ export default function OrderConfirmationPage({ params }: OrderPageProps) {
           </div>
         )}
 
+        {/* NDR Alert Banner */}
+        {order.status === "ndr" && (
+          <div className="mb-8 p-5 bg-[#FFF4E5] border border-[#FFE2B8] rounded-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-[#B76E00] shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-[15px] font-semibold text-[#B76E00]">Delivery Attempt Unsuccessful (NDR)</h4>
+                <p className="text-[13px] text-[#7A4B00] mt-0.5">
+                  Courier couldn&apos;t deliver your package:{" "}
+                  <span className="font-semibold">{order.shipment?.ndr_reason || "Customer unavailable / address verification required"}</span>.
+                  Our team is arranging a re-attempt. Please verify your phone or contact support.
+                </p>
+              </div>
+            </div>
+            <a
+              href={`mailto:care@mayshaskincare.com?subject=NDR Assistance Order ${order.reference}`}
+              className="bg-[#B76E00] hover:bg-[#995C00] text-white px-4 py-2 rounded-2xs text-[13px] font-semibold tracking-wide uppercase transition-colors shrink-0 text-center"
+            >
+              Contact Support
+            </a>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Order Details & Items */}
           <div className="lg:col-span-8 space-y-6">
@@ -504,31 +604,102 @@ export default function OrderConfirmationPage({ params }: OrderPageProps) {
             </div>
 
             {/* Courier Dispatch & Tracking if assigned */}
-            {order.tracking && order.tracking.trackingNo && (
-              <div className="bg-[#FFFFFF] border border-[#E8E3DA] rounded-xs p-6">
-                <h3 className="text-[15px] font-semibold text-[#1A1A1A] mb-2.5 flex items-center gap-2">
-                  <Truck className="w-4 h-4 text-[#4E5942]" /> Dispatch & Tracking Details
-                </h3>
-                <div className="text-[14px] text-[#5A5650] space-y-1">
-                  <p>
-                    Courier Partner: <span className="font-semibold text-[#1A1A1A]">{order.tracking.courier || "Express Surface Logistics"}</span>
-                  </p>
-                  <p>
-                    Waybill / AWB: <span className="font-mono font-bold text-[#1A1A1A]">{order.tracking.trackingNo}</span>
-                  </p>
-                  {order.tracking.url && (
-                    <div className="pt-2">
-                      <a
-                        href={order.tracking.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[#4E5942] hover:underline"
-                      >
-                        Track Package Live →
-                      </a>
-                    </div>
+            {(order.shipment || (order.tracking && order.tracking.trackingNo)) && (
+              <div className="bg-[#FFFFFF] border border-[#E8E3DA] rounded-xs p-6 space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-[#F0ECE4]">
+                  <h3 className="text-[15px] font-semibold text-[#1A1A1A] flex items-center gap-2">
+                    <Truck className="w-4 h-4 text-[#4E5942]" /> Courier Dispatch & Live Tracking
+                  </h3>
+                  {order.shipment?.status && (
+                    <span className="text-[11px] uppercase tracking-wider font-semibold text-[#4E5942] bg-[#EDF3E8] px-2.5 py-0.5 rounded-full border border-[#C5D7BD]">
+                      {order.shipment.status.replace("_", " ")}
+                    </span>
                   )}
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-[14px] text-[#5A5650]">
+                  <div>
+                    <span className="text-[12px] uppercase tracking-wider text-[#736E67] font-semibold block">
+                      Courier Partner
+                    </span>
+                    <span className="font-semibold text-[#1A1A1A]">
+                      {order.shipment?.courier_name || order.tracking?.courier || "Express Surface Logistics"}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-[12px] uppercase tracking-wider text-[#736E67] font-semibold block">
+                      AWB / Waybill Number
+                    </span>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="font-mono font-bold text-[#1A1A1A]">
+                        {order.shipment?.awb_code || order.tracking?.trackingNo || "Pending Assignment"}
+                      </span>
+                      {(order.shipment?.awb_code || order.tracking?.trackingNo) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const code = order.shipment?.awb_code || order.tracking?.trackingNo;
+                            if (code) {
+                              navigator.clipboard.writeText(code);
+                              setAwbCopied(true);
+                              setTimeout(() => setAwbCopied(false), 2000);
+                            }
+                          }}
+                          className="text-[#736E67] hover:text-[#1A1A1A] p-0.5 cursor-pointer"
+                          title="Copy AWB code"
+                        >
+                          {awbCopied ? <Check className="w-3.5 h-3.5 text-[#4E5942]" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {(order.shipment?.tracking_url || order.tracking?.url) && (
+                  <div className="pt-2 border-t border-[#F0ECE4] flex items-center justify-between">
+                    <span className="text-[13px] text-[#736E67]">
+                      {order.shipment?.etd ? `Estimated Delivery: ${order.shipment.etd}` : "Real-time carrier GPS updates active"}
+                    </span>
+                    <a
+                      href={(order.shipment?.tracking_url || order.tracking?.url) ?? undefined}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[#4E5942] hover:underline"
+                    >
+                      Track Package Live →
+                    </a>
+                  </div>
+                )}
+
+                {/* Real-time Shiprocket Checkpoint Events */}
+                {order.shipment?.events && order.shipment.events.length > 0 && (
+                  <div className="pt-3 border-t border-[#F0ECE4] space-y-3">
+                    <span className="text-[12px] uppercase tracking-wider text-[#736E67] font-semibold block">
+                      Carrier Checkpoint Milestones
+                    </span>
+                    <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+                      {order.shipment.events.map((evt, idx) => (
+                        <div key={evt.id || idx} className="text-xs bg-[#FBF9F5] p-2.5 rounded-2xs border border-[#F0ECE4] flex items-start justify-between gap-3">
+                          <div>
+                            <span className="font-semibold text-[#1A1A1A] block">
+                              {evt.activity || evt.status.replace("_", " ").toUpperCase()}
+                            </span>
+                            {evt.location && <span className="text-[#736E67] text-[11px]">{evt.location}</span>}
+                          </div>
+                          <span className="font-mono text-[11px] text-[#A69F93] shrink-0">
+                            {new Date(evt.occurred_at || evt.occurredAt || evt.created_at || Date.now()).toLocaleString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -619,6 +790,23 @@ export default function OrderConfirmationPage({ params }: OrderPageProps) {
               </div>
 
               <div className="pt-2 border-t border-[#E8E3DA] space-y-3">
+                {order.status === "delivered" && (
+                  <button
+                    type="button"
+                    onClick={() => setShowReturnModal(true)}
+                    className="w-full bg-[#FFFFFF] hover:bg-[#F5F2EB] text-[#4E5942] hover:text-[#1A1A1A] py-3 px-4 text-[13px] uppercase tracking-wider font-semibold rounded-2xs flex items-center justify-center gap-2 transition-colors border border-[#4E5942] cursor-pointer"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    <span>Request Return / Replacement</span>
+                  </button>
+                )}
+
+                {order.status === "return_requested" && (
+                  <div className="p-3 bg-[#FFF8EB] border border-[#F2DEB5] rounded-2xs text-center text-xs text-[#8C6D1F] font-semibold">
+                    Return request is currently under review by our concierge.
+                  </div>
+                )}
+
                 <Link
                   href="/shop"
                   className="w-full bg-[#1A1A1A] hover:bg-[#333333] text-white py-3.5 px-4 text-[14px] uppercase tracking-wider font-semibold rounded-2xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
@@ -864,6 +1052,86 @@ export default function OrderConfirmationPage({ params }: OrderPageProps) {
                   className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-6 py-2.5 rounded-2xs text-[14px] font-semibold disabled:opacity-50 cursor-pointer"
                 >
                   {isSubmittingReview ? "Submitting..." : "Submit Review"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Customer Return Request Modal */}
+      {showReturnModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-6 sm:p-8 rounded-xs max-w-lg w-full max-h-[90vh] overflow-y-auto space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-[#F0ECE4]">
+              <div>
+                <span className="text-[11px] uppercase tracking-wider font-semibold text-[#4E5942] block">
+                  Botanical Quality Guarantee
+                </span>
+                <h3 className="text-lg font-semibold text-[#1A1A1A] mt-0.5">
+                  Request Return or Replacement
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowReturnModal(false)}
+                className="text-[#736E67] hover:text-[#1A1A1A] text-lg font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleRequestReturn} className="space-y-4">
+              <div>
+                <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1.5">
+                  Reason for Return *
+                </label>
+                <select
+                  value={returnReason}
+                  onChange={(e) => setReturnReason(e.target.value)}
+                  className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs focus:outline-none focus:border-[#4E5942] cursor-pointer"
+                >
+                  <option value="Damaged in transit">Damaged in transit / Broken seal</option>
+                  <option value="Defective / Leaking product">Defective / Leaking bottle</option>
+                  <option value="Wrong item delivered">Wrong item or size delivered</option>
+                  <option value="Skin sensitivity / adverse reaction">Skin sensitivity or adverse reaction</option>
+                  <option value="Changed mind / quality issue">Quality not as expected</option>
+                  <option value="Other">Other reason</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1.5">
+                  Additional Details & Comments (Optional)
+                </label>
+                <textarea
+                  rows={4}
+                  value={returnComments}
+                  onChange={(e) => setReturnComments(e.target.value)}
+                  placeholder="Please describe the condition of the package, batch details, or reason for return..."
+                  className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-3 rounded-2xs focus:outline-none focus:border-[#4E5942]"
+                />
+              </div>
+
+              <div className="p-3 bg-[#FBF9F5] border border-[#E8E3DA] rounded-2xs text-[12px] text-[#736E67] space-y-1">
+                <p className="font-semibold text-[#1A1A1A]">Return Policy Notice:</p>
+                <p>Returns must be requested within 7 days of delivery. Items should be in original condition with intact tamper-evident packaging.</p>
+              </div>
+
+              <div className="pt-3 border-t border-[#F0ECE4] flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowReturnModal(false)}
+                  className="px-4 py-2 text-[14px] font-semibold text-[#736E67] hover:text-[#1A1A1A] cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingReturn}
+                  className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-6 py-2.5 rounded-2xs text-[14px] font-semibold disabled:opacity-50 cursor-pointer"
+                >
+                  {isSubmittingReturn ? "Submitting..." : "Submit Return Request"}
                 </button>
               </div>
             </form>
