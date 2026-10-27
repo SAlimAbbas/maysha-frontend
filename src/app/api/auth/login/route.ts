@@ -17,11 +17,15 @@ export async function POST(req: NextRequest) {
       headers.set("X-Cart-Token", cartToken);
     }
 
-    const clientIp =
-      req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+    const edgeClientIp =
+      req.headers.get("cf-connecting-ip") ||
       req.headers.get("x-real-ip") ||
+      (process.env.NODE_ENV !== "production" ? req.headers.get("x-forwarded-for")?.split(",")[0].trim() : null) ||
       "127.0.0.1";
-    headers.set("X-Forwarded-For", clientIp);
+    headers.set("X-Maysha-Client-IP", edgeClientIp);
+    if (process.env.BFF_SECRET) {
+      headers.set("X-Maysha-BFF-Secret", process.env.BFF_SECRET);
+    }
 
     const upstreamRes = await fetch(`${baseUrl.replace(/\/$/, "")}/api/v1/auth/login`, {
       method: "POST",

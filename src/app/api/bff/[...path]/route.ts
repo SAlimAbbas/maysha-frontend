@@ -97,12 +97,16 @@ async function handleProxy(req: NextRequest, { params }: { params: Promise<{ pat
     forwardHeaders.set("Idempotency-Key", idempotencyKey);
   }
 
-  // Forward client IP
-  const clientIp =
-    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
+  // Forward verified edge client IP and BFF shared secret
+  const edgeClientIp =
+    req.headers.get("cf-connecting-ip") ||
     req.headers.get("x-real-ip") ||
+    (process.env.NODE_ENV !== "production" ? req.headers.get("x-forwarded-for")?.split(",")[0].trim() : null) ||
     "127.0.0.1";
-  forwardHeaders.set("X-Forwarded-For", clientIp);
+  forwardHeaders.set("X-Maysha-Client-IP", edgeClientIp);
+  if (process.env.BFF_SECRET) {
+    forwardHeaders.set("X-Maysha-BFF-Secret", process.env.BFF_SECRET);
+  }
 
   let body: BodyInit | undefined = undefined;
   if (["POST", "PUT", "PATCH"].includes(method)) {
