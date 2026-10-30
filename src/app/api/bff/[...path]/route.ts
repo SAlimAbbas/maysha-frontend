@@ -9,6 +9,7 @@ const ALLOWED_PATH_PREFIXES = [
   "banners",
   "reviews",
   "cart",
+  "checkout",
   "orders",
   "payments/razorpay",
   "newsletter",
