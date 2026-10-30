@@ -167,6 +167,7 @@ export default function AdminPage() {
     cod_enabled: true,
     cod_fee: 50,
     cod_max_rupees: 5000,
+    checkout_email_verification_enabled: true,
     social_instagram: "https://instagram.com/mayshaskincare",
     social_facebook: "https://facebook.com/mayshaskincare",
     about_hero_title: "Clean Botanical Science for Resilient, Real Skin",
@@ -4413,7 +4414,7 @@ export default function AdminPage() {
                       className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                     />
                   </div>
-                  <div className="flex items-center gap-2 pt-6">
+                  <div className="flex flex-col gap-3 pt-4 col-span-full">
                     <label className="flex items-center gap-2 text-[13px] font-semibold text-[#1A1A1A] cursor-pointer">
                       <input
                         type="checkbox"
@@ -4427,6 +4428,21 @@ export default function AdminPage() {
                         className="rounded border-[#E8E3DA] text-[#4E5942] focus:ring-0"
                       />
                       <span>Enable Cash on Delivery (COD)</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 text-[13px] font-semibold text-[#1A1A1A] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={siteSettings.checkout_email_verification_enabled !== false}
+                        onChange={(e) =>
+                          setSiteSettings({
+                            ...siteSettings,
+                            checkout_email_verification_enabled: e.target.checked,
+                          })
+                        }
+                        className="rounded border-[#E8E3DA] text-[#4E5942] focus:ring-0"
+                      />
+                      <span>Require 2-Step Email Verification for COD (Prevents Bots & Fake Orders)</span>
                     </label>
                   </div>
                 </div>

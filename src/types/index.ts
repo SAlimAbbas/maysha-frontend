@@ -97,6 +97,7 @@ export interface StoreInfo {
   codEnabled?: boolean;
   codFee?: number;
   codMaxRupees?: number;
+  emailVerificationRequired?: boolean;
   announcementMessages?: string[];
   supportPhone?: string;
   supportWhatsapp?: string;

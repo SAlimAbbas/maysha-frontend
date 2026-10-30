@@ -31,7 +31,7 @@ const checkoutSchema = z.object({
   name: z.string().min(2, "Full name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),
   phone: z.string().regex(/^[6-9]\d{9}$/, "Please enter a valid 10-digit Indian mobile number"),
-  line1: z.string().min(5, "Street address must be at least 5 characters"),
+  line1: z.string().min(8, "Please enter your full street address with house no. & colony (at least 8 characters)"),
   city: z.string().min(2, "City is required"),
   state: z.string().min(2, "State is required"),
   pincode: z.string().regex(/^\d{6}$/, "Pincode must be exactly 6 digits"),
@@ -79,6 +79,18 @@ export default function CartPage() {
   const [promoError, setPromoError] = useState("");
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
+  // 2-Step Email Verification state
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [verifiedEmailAddress, setVerifiedEmailAddress] = useState("");
+  const [verificationToken, setVerificationToken] = useState<string | null>(null);
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpCountdown, setOtpCountdown] = useState(0);
+  const [pendingValues, setPendingValues] = useState<CheckoutFormValues | null>(null);
 
   const [pincodeStatus, setPincodeStatus] = useState<{
     loading: boolean;
@@ -192,10 +204,91 @@ export default function CartPage() {
   useEffect(() => {
     if (user) {
       if (user.name) setValue("name", user.name);
-      if (user.email) setValue("email", user.email);
+      if (user.email) {
+        setValue("email", user.email);
+        setIsEmailVerified(true);
+        setVerifiedEmailAddress(user.email);
+      }
       if (user.phone) setValue("phone", user.phone);
     }
   }, [user, setValue]);
+
+  // If user changes email, reset verification
+  const watchedEmail = watch("email");
+  useEffect(() => {
+    if (verifiedEmailAddress && watchedEmail && watchedEmail.toLowerCase().trim() !== verifiedEmailAddress.toLowerCase().trim()) {
+      setIsEmailVerified(false);
+      setVerificationToken(null);
+    }
+  }, [watchedEmail, verifiedEmailAddress]);
+
+  // OTP Countdown timer
+  useEffect(() => {
+    if (otpCountdown > 0) {
+      const timer = setTimeout(() => setOtpCountdown(otpCountdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [otpCountdown]);
+
+  const handleSendOtp = async (targetEmail: string) => {
+    const trimmed = (targetEmail || "").trim();
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setError("email", { message: "Please enter a valid email address first." });
+      return false;
+    }
+    setIsSendingOtp(true);
+    setOtpError(null);
+    try {
+      const res = await apiBffFetch<{ email: string; expiresInSeconds: number }>("checkout/send-otp", {
+        method: "POST",
+        body: JSON.stringify({ email: trimmed }),
+      });
+      addToast("Verification Code Sent", res.message || "Please check your inbox for the 6-digit confirmation code.", "success");
+      setOtpCountdown(60);
+      return true;
+    } catch (err: any) {
+      setOtpError(err.message || "Failed to send verification code. Please check your network and retry.");
+      addToast("Verification Notice", err.message || "Unable to send verification code.", "error");
+      return false;
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const emailToVerify = (getValues("email") || "").trim();
+    const cleanCode = (otpCode || "").trim();
+    if (cleanCode.length !== 6) {
+      setOtpError("Please enter the complete 6-digit code.");
+      return;
+    }
+    setIsVerifyingOtp(true);
+    setOtpError(null);
+    try {
+      const res = await apiBffFetch<{ verified: boolean; email: string; verificationToken: string }>("checkout/verify-otp", {
+        method: "POST",
+        body: JSON.stringify({ email: emailToVerify, otp: cleanCode }),
+      });
+      if (res.data?.verified) {
+        setIsEmailVerified(true);
+        setVerifiedEmailAddress(emailToVerify);
+        setVerificationToken(res.data.verificationToken);
+        setShowOtpModal(false);
+        setOtpCode("");
+        addToast("Email Verified", "Your email address has been confirmed.", "success");
+        if (pendingValues) {
+          const val = pendingValues;
+          setPendingValues(null);
+          executeOrderPlacement(val, res.data.verificationToken);
+        }
+      }
+    } catch (err: any) {
+      setOtpError(err.message || "Invalid or expired verification code.");
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  };
 
   // Handle promo code application
   const handleApplyPromo = async (e: React.FormEvent) => {
@@ -222,7 +315,7 @@ export default function CartPage() {
   };
 
   // Checkout submission
-  const onSubmit = async (values: CheckoutFormValues) => {
+  const executeOrderPlacement = async (values: CheckoutFormValues, token?: string | null) => {
     if (!cart.items || cart.items.length === 0) {
       setCheckoutError("Your cart is empty.");
       return;
@@ -296,6 +389,7 @@ export default function CartPage() {
           payment_method: values.paymentMethod,
           coupon_code: cart.couponCode || undefined,
           guest_email: values.email.trim(),
+          verification_token: token || verificationToken || undefined,
         }),
       });
 
@@ -397,6 +491,24 @@ export default function CartPage() {
         err.message || "An error occurred while creating your order. Please review your details and retry."
       );
     }
+  };
+
+  // Checkout submission
+  const onSubmit = async (values: CheckoutFormValues) => {
+    if (!cart.items || cart.items.length === 0) {
+      setCheckoutError("Your cart is empty.");
+      return;
+    }
+
+    const verificationRequired = (storeInfo?.emailVerificationRequired !== false) && values.paymentMethod === "cod";
+    if (verificationRequired && !isEmailVerified) {
+      setPendingValues(values);
+      setShowOtpModal(true);
+      await handleSendOtp(values.email);
+      return;
+    }
+
+    await executeOrderPlacement(values);
   };
 
   if (isCartLoading && cart.items.length === 0) {
@@ -589,30 +701,65 @@ export default function CartPage() {
                 </div>
 
                 <div>
-                  <label className="text-[15px] font-semibold text-[#1A1A1A] block mb-1.5">
-                    Email Address (for order confirmation & invoice)
-                  </label>
-                  <input
-                    type="email"
-                    {...register("email")}
-                    placeholder="e.g. client@example.com"
-                    className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] px-3.5 py-2.5 rounded-2xs focus:outline-hidden focus:border-[#1A1A1A]"
-                  />
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-[15px] font-semibold text-[#1A1A1A]">
+                      Email Address (for order confirmation & tracking)
+                    </label>
+                    {isEmailVerified && (
+                      <span className="text-[12px] text-[#4E5942] font-semibold flex items-center gap-1 bg-[#EDF3E8] px-2 py-0.5 rounded-full border border-[#C5D7BD]">
+                        <Check className="w-3.5 h-3.5" /> Verified
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="email"
+                      {...register("email")}
+                      placeholder="e.g. client@example.com"
+                      className="flex-1 bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] px-3.5 py-2.5 rounded-2xs focus:outline-hidden focus:border-[#1A1A1A]"
+                    />
+                    {!isEmailVerified && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const em = getValues("email");
+                          if (em) {
+                            handleSendOtp(em);
+                            setShowOtpModal(true);
+                          } else {
+                            setError("email", { message: "Enter your email first." });
+                          }
+                        }}
+                        disabled={isSendingOtp}
+                        className="bg-[#4E5942] hover:bg-[#3D4733] text-white text-[13px] font-semibold px-3.5 py-2 rounded-2xs shrink-0 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        {isSendingOtp ? "Sending..." : "Verify Email"}
+                      </button>
+                    )}
+                  </div>
                   {errors.email && (
                     <p className="text-[13px] text-[#A94438] mt-1">{errors.email.message}</p>
+                  )}
+                  {selectedPaymentMethod === "cod" && !isEmailVerified && (
+                    <p className="text-[12px] text-[#8C6D1F] mt-1 flex items-center gap-1">
+                      <ShieldCheck className="w-3.5 h-3.5" /> 2-Step Email Verification required for Cash on Delivery.
+                    </p>
                   )}
                 </div>
 
                 <div>
                   <label className="text-[15px] font-semibold text-[#1A1A1A] block mb-1.5">
-                    Street Address (Flat / House / Road)
+                    Street Address (Flat / House No., Society / Road, Landmark)
                   </label>
                   <input
                     type="text"
                     {...register("line1")}
-                    placeholder="House / Flat no, Building name, Street"
+                    placeholder="e.g. Flat 402, Green Meadows, MG Road near Central Park"
                     className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[15px] px-3.5 py-2.5 rounded-2xs focus:outline-hidden focus:border-[#1A1A1A]"
                   />
+                  <p className="text-[11px] text-[#736E67] mt-1">
+                    Please provide complete address with building, street and landmark to ensure courier delivery.
+                  </p>
                   {errors.line1 && (
                     <p className="text-[13px] text-[#A94438] mt-1">{errors.line1.message}</p>
                   )}
@@ -853,6 +1000,103 @@ export default function CartPage() {
           </div>
         </div>
       </div>
+
+      {/* 2-Step Email Verification Modal */}
+      {showOtpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-[#FFFFFF] border border-[#E8E3DA] p-6 sm:p-8 rounded-xs max-w-md w-full space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-[#F0ECE4]">
+              <div>
+                <span className="text-[11px] uppercase tracking-wider font-semibold text-[#4E5942] block">
+                  Security Verification
+                </span>
+                <h3 className="text-lg font-semibold text-[#1A1A1A] mt-0.5">
+                  Confirm Your Email Address
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowOtpModal(false)}
+                className="text-[#736E67] hover:text-[#1A1A1A] text-lg font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="text-[14px] text-[#5A5650] space-y-2">
+              <p>
+                We have sent a 6-digit confirmation code to:
+              </p>
+              <p className="font-semibold text-[#1A1A1A] font-mono bg-[#FBF9F5] p-2.5 rounded border border-[#E8E3DA] break-all">
+                {getValues("email")}
+              </p>
+              <p className="text-[12px] text-[#736E67]">
+                Please enter the 6-digit code to verify your inbox and confirm your order.
+              </p>
+            </div>
+
+            <form onSubmit={handleVerifyOtp} className="space-y-4">
+              <div>
+                <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1.5">
+                  6-Digit Verification Code
+                </label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                  placeholder="• • • • • •"
+                  className="w-full text-center tracking-[10px] font-mono font-bold text-2xl bg-[#FBF9F5] border border-[#E8E3DA] p-3 rounded-2xs focus:outline-none focus:border-[#4E5942]"
+                  autoFocus
+                />
+                {otpError && (
+                  <p className="text-[13px] text-[#A94438] mt-1.5">{otpError}</p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between text-[13px]">
+                <span className="text-[#736E67]">
+                  {otpCountdown > 0 ? `Resend in ${otpCountdown}s` : "Didn't receive code?"}
+                </span>
+                {otpCountdown === 0 && (
+                  <button
+                    type="button"
+                    onClick={() => handleSendOtp(getValues("email"))}
+                    disabled={isSendingOtp}
+                    className="text-[#4E5942] font-semibold hover:underline cursor-pointer disabled:opacity-50"
+                  >
+                    Resend Code
+                  </button>
+                )}
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowOtpModal(false)}
+                  className="px-4 py-2 text-[14px] font-semibold text-[#736E67] hover:text-[#1A1A1A] cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isVerifyingOtp || otpCode.length !== 6}
+                  className="bg-[#1A1A1A] hover:bg-[#333333] text-white px-6 py-2.5 rounded-2xs text-[14px] font-semibold disabled:opacity-50 cursor-pointer flex items-center gap-2"
+                >
+                  {isVerifyingOtp ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    <span>Verify & Confirm</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
