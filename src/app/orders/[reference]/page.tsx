@@ -759,6 +759,12 @@ export default function OrderConfirmationPage({ params }: OrderPageProps) {
                     )}
                   </span>
                 </div>
+                {((order.codFee && order.codFee > 0) || order.paymentMethod === "cod") && (
+                  <div className="flex justify-between text-[#8C6D1F]">
+                    <span>COD Handling Fee</span>
+                    <span>+{formatINR(order.codFee || 0)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-[13px] text-[#736E67]">
                   <span>GST Included in Total</span>
                   <span>{formatINR(order.tax ?? Math.round((order.total * 18) / 118))}</span>
@@ -934,6 +940,12 @@ export default function OrderConfirmationPage({ params }: OrderPageProps) {
                       <span>Shipping:</span>
                       <span>{formatINR(invoiceData.pricing?.shipping || order.shipping)}</span>
                     </div>
+                    {((invoiceData.pricing?.codFee && invoiceData.pricing.codFee > 0) || (order.codFee && order.codFee > 0) || order.paymentMethod === "cod") && (
+                      <div className="flex justify-between text-[#8C6D1F]">
+                        <span>COD Handling:</span>
+                        <span>+{formatINR(invoiceData.pricing?.codFee || order.codFee || 0)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-[#736E67]">
                       <span>Tax (Inclusive GST):</span>
                       <span>{formatINR(invoiceData.pricing?.tax || order.tax || Math.round((order.total * 18) / 118))}</span>

@@ -164,6 +164,9 @@ export default function AdminPage() {
     store_address: "Maysha Organics Lab, Mumbai, MH, India",
     free_shipping_threshold: 999,
     shipping_fee: 99,
+    cod_enabled: true,
+    cod_fee: 50,
+    cod_max_rupees: 5000,
     social_instagram: "https://instagram.com/mayshaskincare",
     social_facebook: "https://facebook.com/mayshaskincare",
     about_hero_title: "Clean Botanical Science for Resilient, Real Skin",
@@ -2897,8 +2900,13 @@ export default function AdminPage() {
                               {ord.items?.length || 1} product(s)
                             </span>
                           </td>
-                          <td className="py-3.5 px-4 uppercase text-[12px] font-semibold text-[#4A4640]">
-                            {ord.paymentMethod}
+                          <td className="py-3.5 px-4 text-[12px] font-semibold text-[#4A4640]">
+                            <span className="uppercase">{ord.paymentMethod}</span>
+                            {ord.paymentMethod === "cod" && (
+                              <span className="block text-[11px] text-[#8C6D1F] font-normal">
+                                +₹{ord.codFee ?? 50} fee
+                              </span>
+                            )}
                           </td>
                           <td className="py-3.5 px-4">
                             <span
@@ -4372,6 +4380,54 @@ export default function AdminPage() {
                       }
                       className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
                     />
+                  </div>
+                  <div>
+                    <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
+                      Cash on Delivery (COD) Extra Fee (₹)
+                    </label>
+                    <input
+                      type="number"
+                      value={siteSettings.cod_fee ?? 50}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          cod_fee: Number(e.target.value),
+                        })
+                      }
+                      className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[13px] font-semibold text-[#1A1A1A] block mb-1">
+                      Max COD Order Amount (₹)
+                    </label>
+                    <input
+                      type="number"
+                      value={siteSettings.cod_max_rupees ?? 5000}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          cod_max_rupees: Number(e.target.value),
+                        })
+                      }
+                      className="w-full bg-[#FBF9F5] border border-[#E8E3DA] text-[14px] p-2.5 rounded-2xs"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 pt-6">
+                    <label className="flex items-center gap-2 text-[13px] font-semibold text-[#1A1A1A] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={siteSettings.cod_enabled !== false}
+                        onChange={(e) =>
+                          setSiteSettings({
+                            ...siteSettings,
+                            cod_enabled: e.target.checked,
+                          })
+                        }
+                        className="rounded border-[#E8E3DA] text-[#4E5942] focus:ring-0"
+                      />
+                      <span>Enable Cash on Delivery (COD)</span>
+                    </label>
                   </div>
                 </div>
               </div>

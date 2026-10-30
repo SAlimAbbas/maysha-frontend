@@ -95,6 +95,7 @@ export interface StoreInfo {
   freeShippingThreshold: number;
   shippingFee: number;
   codEnabled?: boolean;
+  codFee?: number;
   codMaxRupees?: number;
   announcementMessages?: string[];
   supportPhone?: string;
@@ -279,6 +280,7 @@ export interface Order {
   subtotal: number;
   discount: number;
   shipping: number;
+  codFee?: number;
   tax?: number;
   total: number;
   currency: string;

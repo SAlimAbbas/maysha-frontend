@@ -163,6 +163,11 @@ export default function CartPage() {
   }, [watchedPincode, setValue, getValues]);
 
   // COD availability calculation
+  const codFee = storeInfo?.codFee ?? 50;
+  const isCodSelected = selectedPaymentMethod === "cod";
+  const codFeePaise = isCodSelected ? codFee * 100 : 0;
+  const finalTotalPaise = cart.totalPaise + codFeePaise;
+
   const codMax = storeInfo?.codMaxRupees ?? 5000;
   const isCodGloballyDisabled = storeInfo?.codEnabled === false;
   const isCodAboveLimit = cart.total > codMax;
@@ -705,15 +710,22 @@ export default function CartPage() {
                           : "border-[#E8E3DA] bg-white text-[#4A4640] cursor-pointer"
                       }`}
                     >
-                      <div className="flex items-center gap-2.5">
-                        <input
-                          type="radio"
-                          value="cod"
-                          disabled={isCodDisabled}
-                          {...register("paymentMethod")}
-                          className="text-[#4E5942] focus:ring-0 disabled:opacity-50"
-                        />
-                        <span className="text-[15px] font-medium">Cash on Delivery (COD)</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <input
+                            type="radio"
+                            value="cod"
+                            disabled={isCodDisabled}
+                            {...register("paymentMethod")}
+                            className="text-[#4E5942] focus:ring-0 disabled:opacity-50"
+                          />
+                          <span className="text-[15px] font-medium">Cash on Delivery (COD)</span>
+                        </div>
+                        {codFee > 0 && !isCodDisabled && (
+                          <span className="text-[12px] bg-[#EDF3E8] text-[#3E4534] px-2 py-0.5 rounded-full font-semibold border border-[#C5D7BD]">
+                            +₹{codFee} fee
+                          </span>
+                        )}
                       </div>
                       {codDisableReason && (
                         <p className="text-[11px] text-[#8C6D1F] mt-1.5 pl-6 font-normal">
@@ -796,13 +808,19 @@ export default function CartPage() {
                   )}
                 </span>
               </div>
+              {isCodSelected && codFee > 0 && (
+                <div className="flex justify-between text-[#8C6D1F] font-semibold">
+                  <span>COD Handling Fee</span>
+                  <span>+{formatINR(codFeePaise, true)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-[13px] text-[#736E67] pt-1">
                 <span>Estimated GST Included (18%)</span>
-                <span>{formatINR(Math.round((cart.totalPaise * 18) / 118), true)}</span>
+                <span>{formatINR(Math.round((finalTotalPaise * 18) / 118), true)}</span>
               </div>
               <div className="flex justify-between text-[18px] font-bold text-[#1A1A1A] pt-3 border-t border-[#E8E3DA]">
                 <span>Total Amount</span>
-                <span>{formatINR(cart.totalPaise, true)}</span>
+                <span>{formatINR(finalTotalPaise, true)}</span>
               </div>
             </div>
 
@@ -821,7 +839,7 @@ export default function CartPage() {
               ) : (
                 <>
                   <Lock className="w-4 h-4" />
-                  <span>Place Order • {formatINR(cart.totalPaise, true)}</span>
+                  <span>Place Order • {formatINR(finalTotalPaise, true)}</span>
                 </>
               )}
             </button>
