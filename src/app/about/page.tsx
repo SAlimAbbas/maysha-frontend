@@ -22,20 +22,30 @@ import { StoreInfo } from "@/types";
 export const revalidate = 60;
 
 export async function generateMetadata(): Promise<Metadata> {
+  const defaultTitle = "About Maysha | Botanical Skincare Brand in India";
+  const defaultDesc =
+    "Learn about Maysha, a botanical skincare brand combining plant extracts and proven actives to support healthy skin through thoughtful formulations.";
+  const keywords = [
+    "About Maysha India",
+    "Botanical Skincare Brand",
+    "Clean Beauty Brand India",
+    "Science Backed Skincare",
+    "Natural Skincare Philosophy",
+  ];
+
   try {
     const storeInfo = await apiServerFetch<StoreInfo>("store-info", {
       revalidate: 60,
       tags: ["settings", "store-info"],
     });
 
-    const title = storeInfo?.seo?.aboutTitle || "About Maysha | Our Botanical Philosophy & Clean Formulations";
-    const description =
-      storeInfo?.seo?.aboutDescription ||
-      "Learn about Maysha's barrier-first skincare philosophy, pure botanical ingredients, ethical harvesting, and transparent biocompatible formulations.";
+    const title = storeInfo?.seo?.aboutTitle || defaultTitle;
+    const description = storeInfo?.seo?.aboutDescription || defaultDesc;
 
     return {
       title,
       description,
+      keywords,
       openGraph: {
         title,
         description,
@@ -44,9 +54,9 @@ export async function generateMetadata(): Promise<Metadata> {
     };
   } catch {
     return {
-      title: "About Maysha | Our Botanical Philosophy & Clean Formulations",
-      description:
-        "Learn about Maysha's barrier-first skincare philosophy, pure botanical ingredients, ethical harvesting, and transparent biocompatible formulations.",
+      title: defaultTitle,
+      description: defaultDesc,
+      keywords,
     };
   }
 }

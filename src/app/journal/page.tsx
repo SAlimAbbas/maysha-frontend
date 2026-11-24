@@ -5,9 +5,23 @@ import { Article } from "@/types";
 import JournalListingClient from "@/components/journal/JournalListingClient";
 
 export const metadata = {
-  title: "The Journal | Maysha Skincare Science & Botanical Rituals",
+  title: "Maysha Journal | Skincare Tips & Ingredient Guides",
   description:
-    "Explore in-depth articles on skin barrier repair, botanical distillation, clinical active layering, and circadian skincare rituals by Maysha.",
+    "Read the Maysha Journal for skincare tips, ingredient insights and daily beauty rituals. Explore practical guides to botanical ingredients and skin health.",
+  keywords: [
+    "Skincare Tips",
+    "Skincare Blog India",
+    "Beauty Tips",
+    "Skincare Ingredient Guide",
+    "Daily Skincare Routine",
+  ],
+  openGraph: {
+    type: "website",
+    title: "Maysha Journal | Skincare Tips & Ingredient Guides",
+    description:
+      "Read the Maysha Journal for skincare tips, ingredient insights and daily beauty rituals. Explore practical guides to botanical ingredients and skin health.",
+    url: "https://mayshaindia.com/journal",
+  },
 };
 
 export default async function JournalPage() {

@@ -14,30 +14,36 @@ import GTranslate from "@/components/layout/GTranslate";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://mayshaindia.com"),
-  title: "Maysha India – Discover Your Natural Beauty",
-  description: "Experience the power of clean skincare with Maysha India. Explore thoughtfully crafted skincare products designed to nourish your skin, enhance natural beauty and bring out your healthy glow.",
-  keywords: ["skincare", "clean beauty", "face cleanser", "serum", "hydrating toner", "sunscreen", "natural skincare"],
+  title: "Maysha India | Botanical Skincare & Haircare Products",
+  description: "Discover botanical skincare and haircare by Maysha India. Shop gentle cleansers, serums, moisturizers and more for your everyday beauty and skincare routine.",
+  keywords: [
+    "Botanical Skincare Products",
+    "Natural Skincare Products",
+    "Skincare Products Online India",
+    "Botanical Haircare Products",
+    "Clean Beauty Products",
+  ],
   openGraph: {
     type: "website",
-    title: "Maysha India – Discover Your Natural Beauty",
+    title: "Maysha India | Botanical Skincare & Haircare Products",
     url: "https://mayshaindia.com/",
-    description: "Experience the power of clean skincare with Maysha India. Explore thoughtfully crafted skincare products designed to nourish your skin, enhance natural beauty and bring out your healthy glow.",
+    description: "Discover botanical skincare and haircare by Maysha India. Shop gentle cleansers, serums, moisturizers and more for your everyday beauty and skincare routine.",
     images: [
       {
         url: "https://mayshaindia.com/_next/image?url=%2Flogo.png&w=256&q=75",
-        alt: "image",
+        alt: "Maysha India",
       },
     ],
   },
   twitter: {
     card: "summary",
-    title: "Maysha India – Clean Skincare for Naturally Radiant Skin",
+    title: "Maysha India | Botanical Skincare & Haircare Products",
     site: "@https://mayshaindia.com/",
-    description: "Discover Maysha's clean skincare collection, crafted with botanical ingredients and science-backed formulations. Nourish your skin, embrace natural radiance and experience skincare designed for real s",
+    description: "Discover botanical skincare and haircare by Maysha India. Shop gentle cleansers, serums, moisturizers and more for your everyday beauty and skincare routine.",
     images: [
       {
         url: "https://mayshaindia.com/_next/image?url=%2Flogo.png&w=256&q=75",
-        alt: "image",
+        alt: "Maysha India",
       },
     ],
   },

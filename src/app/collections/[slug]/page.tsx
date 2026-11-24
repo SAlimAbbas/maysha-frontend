@@ -12,17 +12,108 @@ interface PageProps {
 
 export const revalidate = 60;
 
+const COLLECTION_SEO_MAP: Record<
+  string,
+  { title: string; description: string; keywords: string[] }
+> = {
+  cleansers: {
+    title: "Face Cleansers & Face Wash Online | Maysha India",
+    description:
+      "Shop gentle facial cleansers and face washes from Maysha. Explore daily cleansing options designed to remove impurities while supporting skin moisture.",
+    keywords: [
+      "Face Cleanser Online",
+      "Gentle Face Wash",
+      "Botanical Face Cleanser",
+      "Daily Face Cleanser",
+      "Skincare Cleansing Products",
+    ],
+  },
+  toners: {
+    title: "Botanical Toners & Rose Water Online | Maysha India",
+    description:
+      "Shop botanical toners and floral mists from Maysha. Refresh your skin with rose water and gentle toning essentials for your daily skincare routine.",
+    keywords: [
+      "Rose Water Online",
+      "Botanical Face Toner",
+      "Natural Face Mist",
+      "Hydrating Face Toner",
+      "Floral Face Mist",
+    ],
+  },
+  serums: {
+    title: "Face Serums & Peptides Online | Maysha India",
+    description:
+      "Explore face serums and peptide skincare by Maysha. Discover targeted formulations with active ingredients to support hydration and healthy-looking skin.",
+    keywords: [
+      "Face Serum Online",
+      "Peptide Face Serum",
+      "Active Skincare Serum",
+      "Niacinamide Face Serum",
+      "Botanical Face Serum",
+    ],
+  },
+  moisturizers: {
+    title: "Moisturizers & Barrier Creams Online | Maysha India",
+    description:
+      "Shop barrier moisture creams from Maysha for daily hydration and skin comfort. Explore formulations designed to support your skin's natural moisture barrier.",
+    keywords: [
+      "Moisturizer Online",
+      "Barrier Repair Cream",
+      "Hydrating Face Moisturizer",
+      "Skin Barrier Cream",
+      "Daily Moisturizing Cream",
+    ],
+  },
+  sunscreen: {
+    title: "Mineral Sunscreen SPF 50 Online | Maysha India",
+    description:
+      "Explore Maysha mineral sunscreen SPF 50 for everyday sun protection. Discover a mineral-based skincare essential for UVA and UVB protection.",
+    keywords: [
+      "Mineral Sunscreen SPF 50",
+      "Sunscreen Online India",
+      "Mineral Sun Protection",
+      "SPF 50 Sunscreen",
+      "Zinc Oxide Sunscreen",
+    ],
+  },
+};
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
+  const mapped = COLLECTION_SEO_MAP[slug.toLowerCase()];
+
   try {
     const categories = await apiServerFetch<Category[]>("categories", { revalidate: 300 });
     const category = categories.find((c) => c.slug === slug);
-    if (!category) return { title: "Collection | Maysha" };
+
+    const title =
+      mapped?.title ||
+      (category?.seo_title ? category.seo_title : category ? `${category.name} | Maysha Skincare` : "Collection | Maysha");
+    const description = mapped?.description || category?.seo_description || category?.subtitle || "";
+    const keywords = mapped?.keywords || [
+      "Botanical Skincare Products",
+      "Clean Beauty Products",
+      "Natural Skincare Products",
+    ];
+
     return {
-      title: `${category.name} | Maysha Skincare`,
-      description: category.subtitle,
+      title,
+      description,
+      keywords,
+      openGraph: {
+        title,
+        description,
+        url: `https://mayshaindia.com/collections/${slug}`,
+      },
     };
   } catch {
+    if (mapped) {
+      return {
+        title: mapped.title,
+        description: mapped.description,
+        keywords: mapped.keywords,
+      };
+    }
     return { title: "Collection | Maysha" };
   }
 }
@@ -41,10 +132,31 @@ export default async function CollectionPage({ params }: PageProps) {
     categories = catsRes;
     products = prodsRes;
   } catch {
-    notFound();
+    // Graceful fallback
   }
 
-  const category = categories.find((c) => c.slug === slug);
+  const fallbackNames: Record<string, string> = {
+    cleansers: "Face Cleansers",
+    toners: "Botanical Toners",
+    serums: "Face Serums",
+    moisturizers: "Moisturizers",
+    sunscreen: "Mineral Sunscreen",
+  };
+
+  const category =
+    categories.find((c) => c.slug === slug) ||
+    (COLLECTION_SEO_MAP[slug]
+      ? ({
+          id: 0,
+          slug,
+          name: fallbackNames[slug] || slug,
+          subtitle: COLLECTION_SEO_MAP[slug].description,
+          image: null,
+          sort_order: 10,
+          is_active: true,
+        } as unknown as Category)
+      : null);
+
   if (!category) {
     notFound();
   }

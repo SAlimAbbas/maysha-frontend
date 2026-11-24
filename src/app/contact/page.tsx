@@ -8,8 +8,23 @@ import { StoreInfo } from "@/types";
 export const revalidate = 60;
 
 export const metadata = {
-  title: "Contact Us & Concierge Care | Maysha Skincare",
-  description: "Get in touch with the Maysha skincare concierge for orders, regimen guidance, and support.",
+  title: "Contact Maysha India | Customer Support & Assistance",
+  description:
+    "Contact Maysha for product guidance, skincare routine advice or order support. Reach our customer care team for assistance with your queries.",
+  keywords: [
+    "Contact Maysha India",
+    "Maysha Customer Support",
+    "Skincare Consultation",
+    "Beauty Product Assistance",
+    "Maysha Contact Details",
+  ],
+  openGraph: {
+    type: "website",
+    title: "Contact Maysha India | Customer Support & Assistance",
+    description:
+      "Contact Maysha for product guidance, skincare routine advice or order support. Reach our customer care team for assistance with your queries.",
+    url: "https://mayshaindia.com/contact",
+  },
 };
 
 export default async function ContactPage() {

@@ -7,8 +7,23 @@ import { StoreInfo } from "@/types";
 export const revalidate = 60;
 
 export const metadata = {
-  title: "Refund & Returns Policy | Maysha Skincare",
-  description: "Our 7-day hassle-free replacement, damaged transit guarantee, and prompt refund processing policy.",
+  title: "Maysha Refund Policy | Returns & Replacement Support",
+  description:
+    "Read Maysha's refund and replacement policy for damaged, defective or incorrect orders. Learn about eligibility, cancellations and refund processing.",
+  keywords: [
+    "Maysha Refund Policy",
+    "Product Replacement Policy",
+    "Online Shopping Refunds",
+    "Return and Refund Policy",
+    "Damaged Product Replacement",
+  ],
+  openGraph: {
+    type: "website",
+    title: "Maysha Refund Policy | Returns & Replacement Support",
+    description:
+      "Read Maysha's refund and replacement policy for damaged, defective or incorrect orders. Learn about eligibility, cancellations and refund processing.",
+    url: "https://mayshaindia.com/refund-policy",
+  },
 };
 
 export default async function RefundPolicyPage() {

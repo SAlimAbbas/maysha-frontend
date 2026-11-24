@@ -1,7 +1,7 @@
 import { MetadataRoute } from "next";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://maysha.in";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://mayshaindia.com";
   const now = new Date();
 
   // Static Core Marketing Routes

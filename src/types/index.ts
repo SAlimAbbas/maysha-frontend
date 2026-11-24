@@ -49,6 +49,8 @@ export interface Category {
   subtitle: string;
   image: string;
   itemCount: number;
+  seo_title?: string;
+  seo_description?: string;
 }
 
 export interface Concern {
@@ -128,6 +130,7 @@ export interface StoreInfo {
     journalDescription?: string;
     shopTitle?: string;
     shopDescription?: string;
+    [key: string]: string | undefined;
   };
 }
 

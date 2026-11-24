@@ -7,8 +7,23 @@ import { StoreInfo } from "@/types";
 export const revalidate = 60;
 
 export const metadata = {
-  title: "Privacy Policy | Maysha Skincare",
-  description: "Learn how Maysha collects, protects, and uses your personal information with absolute integrity and bank-grade data security.",
+  title: "Maysha Privacy Policy | Personal Data Protection",
+  description:
+    "Read the Maysha privacy policy to understand how personal information is collected, used and protected when you browse or shop on our website.",
+  keywords: [
+    "Maysha Privacy Policy",
+    "Website Privacy Policy",
+    "Personal Data Protection",
+    "Customer Information Policy",
+    "Online Shopping Privacy",
+  ],
+  openGraph: {
+    type: "website",
+    title: "Maysha Privacy Policy | Personal Data Protection",
+    description:
+      "Read the Maysha privacy policy to understand how personal information is collected, used and protected when you browse or shop on our website.",
+    url: "https://mayshaindia.com/privacy",
+  },
 };
 
 export default async function PrivacyPolicyPage() {

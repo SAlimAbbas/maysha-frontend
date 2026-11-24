@@ -3,8 +3,23 @@ import Link from "next/link";
 import { FileText, ArrowLeft, CheckCircle2 } from "lucide-react";
 
 export const metadata = {
-  title: "Terms and Conditions | Maysha Skincare",
-  description: "Terms of service, purchasing agreements, payment protocols, and operational guidelines for Maysha Skincare.",
+  title: "Maysha Terms & Conditions | Online Shopping Policy",
+  description:
+    "Review Maysha's terms and conditions for website access, product purchases, payments and customer responsibilities before placing an online order.",
+  keywords: [
+    "Maysha Terms and Conditions",
+    "Online Shopping Terms",
+    "Website Usage Policy",
+    "Purchase Terms",
+    "E-commerce Terms",
+  ],
+  openGraph: {
+    type: "website",
+    title: "Maysha Terms & Conditions | Online Shopping Policy",
+    description:
+      "Review Maysha's terms and conditions for website access, product purchases, payments and customer responsibilities before placing an online order.",
+    url: "https://mayshaindia.com/terms",
+  },
 };
 
 export default function TermsPage() {

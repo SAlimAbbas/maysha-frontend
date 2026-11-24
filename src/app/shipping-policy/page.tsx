@@ -3,8 +3,23 @@ import Link from "next/link";
 import { Truck, ArrowLeft, Clock, ShieldCheck, MapPin } from "lucide-react";
 
 export const metadata = {
-  title: "Shipping & Delivery Policy | Maysha Skincare",
-  description: "Learn about Maysha express delivery timelines, free shipping thresholds, COD availability, and packaging care.",
+  title: "Maysha Shipping Policy | Delivery Information India",
+  description:
+    "Find Maysha shipping and delivery information, including order dispatch, delivery timelines and shipping details for skincare purchases across India.",
+  keywords: [
+    "Maysha Shipping Policy",
+    "Skincare Product Delivery",
+    "Online Shopping Delivery",
+    "Shipping Information India",
+    "Maysha Order Delivery",
+  ],
+  openGraph: {
+    type: "website",
+    title: "Maysha Shipping Policy | Delivery Information India",
+    description:
+      "Find Maysha shipping and delivery information, including order dispatch, delivery timelines and shipping details for skincare purchases across India.",
+    url: "https://mayshaindia.com/shipping-policy",
+  },
 };
 
 export default function ShippingPolicyPage() {
