@@ -195,3 +195,107 @@ body .gt_float_switcher {
   border-radius: 9999px !important;
 }
 
+/* TipTap Editorial Rich Text Editor Styling */
+.tiptap-editor-body .ProseMirror,
+.tiptap.ProseMirror {
+  min-height: 220px;
+  outline: none;
+}
+
+.tiptap.ProseMirror p,
+.tiptap-editor-body .ProseMirror p {
+  margin-bottom: 0.75rem;
+  line-height: 1.7;
+}
+
+.tiptap.ProseMirror h2,
+.tiptap-editor-body .ProseMirror h2 {
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: #1A1A1A;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid #F0ECE4;
+  line-height: 1.3;
+}
+
+.tiptap.ProseMirror h3,
+.tiptap-editor-body .ProseMirror h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #2C2925;
+  margin-top: 1rem;
+  margin-bottom: 0.4rem;
+  line-height: 1.35;
+}
+
+.tiptap.ProseMirror strong,
+.tiptap-editor-body .ProseMirror strong {
+  font-weight: 700;
+  color: #1A1A1A;
+}
+
+.tiptap.ProseMirror em,
+.tiptap-editor-body .ProseMirror em {
+  font-style: italic;
+}
+
+.tiptap.ProseMirror a,
+.tiptap-editor-body .ProseMirror a {
+  color: #4E5942;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+
+.tiptap.ProseMirror a:hover,
+.tiptap-editor-body .ProseMirror a:hover {
+  color: #1A1A1A;
+}
+
+.tiptap.ProseMirror ul,
+.tiptap-editor-body .ProseMirror ul {
+  list-style-type: disc;
+  padding-left: 1.4rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.tiptap.ProseMirror ol,
+.tiptap-editor-body .ProseMirror ol {
+  list-style-type: decimal;
+  padding-left: 1.4rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.tiptap.ProseMirror li,
+.tiptap-editor-body .ProseMirror li {
+  margin-bottom: 0.25rem;
+  line-height: 1.6;
+}
+
+.tiptap.ProseMirror blockquote,
+.tiptap-editor-body .ProseMirror blockquote {
+  border-left: 4px solid #4E5942;
+  padding-left: 1rem;
+  margin: 1rem 0;
+  font-style: italic;
+  color: #3E4534;
+  background: #FBF9F5;
+  border-radius: 2px;
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+}
+
+.tiptap.ProseMirror hr,
+.tiptap-editor-body .ProseMirror hr {
+  border: 0;
+  border-top: 1px solid #E8E3DA;
+  margin: 1.25rem 0;
+}
+
+
